@@ -9,7 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,8 +19,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.entity.Worker
+import com.example.gestbraccianti.data.entity.WorkerGroup
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
+import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -31,13 +35,17 @@ fun WorkDayDetailScreen(
     yearId: Int,
     workLogViewModel: WorkLogViewModel,
     workerViewModel: WorkerViewModel,
+    groupViewModel: WorkerGroupViewModel,
     onBack: () -> Unit
 ) {
     val allLogs by workLogViewModel.allLogs.collectAsState()
     val logsForDay = remember(allLogs, date) { allLogs.filter { it.date == date } }
     val workers by workerViewModel.workersForCurrentYear.collectAsState()
+    val groups by groupViewModel.groupsForYear.collectAsState()
+    val scope = rememberCoroutineScope()
     
     var showAddWorkerDialog by remember { mutableStateOf(false) }
+    var showAddGroupDialog by remember { mutableStateOf(false) }
     var editingLog by remember { mutableStateOf<WorkLog?>(null) }
 
     val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.getDefault())
@@ -111,14 +119,29 @@ fun WorkDayDetailScreen(
                 }
             }
 
-            FloatingActionButton(
-                onClick = {
-                    editingLog = null
-                    showAddWorkerDialog = true
-                },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+            Column(
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.End
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Aggiungi Bracciante")
+                SmallFloatingActionButton(
+                    onClick = { showAddGroupDialog = true },
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Group, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Aggiungi Gruppo")
+                    }
+                }
+                FloatingActionButton(
+                    onClick = {
+                        editingLog = null
+                        showAddWorkerDialog = true
+                    }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Aggiungi Bracciante")
+                }
             }
         }
     }
@@ -144,7 +167,94 @@ fun WorkDayDetailScreen(
             }
         )
     }
+
+    if (showAddGroupDialog) {
+        AddGroupToDayDialog(
+            groups = groups,
+            onDismiss = { showAddGroupDialog = false },
+            onConfirm = { group, mStart, mEnd, pStart, pEnd ->
+                scope.launch {
+                    val members = groupViewModel.getWorkersInGroup(group.id).first()
+                    members.forEach { worker ->
+                        workLogViewModel.saveLog(
+                            id = 0L,
+                            workerId = worker.id,
+                            yearId = yearId,
+                            date = date,
+                            morningStart = mStart,
+                            morningEnd = mEnd,
+                            afternoonStart = pStart,
+                            afternoonEnd = pEnd
+                        )
+                    }
+                }
+                showAddGroupDialog = false
+            }
+        )
+    }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddGroupToDayDialog(
+    groups: List<WorkerGroup>,
+    onDismiss: () -> Unit,
+    onConfirm: (WorkerGroup, String, String, String, String) -> Unit
+) {
+    var selectedGroup by remember { mutableStateOf<WorkerGroup?>(null) }
+    var morningStart by remember { mutableStateOf("") }
+    var morningEnd by remember { mutableStateOf("") }
+    var afternoonStart by remember { mutableStateOf("") }
+    var afternoonEnd by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    fun showTimePicker(initialValue: String, onTimeSelected: (String) -> Unit) {
+        val calendar = Calendar.getInstance()
+        TimePickerDialog(context, { _, h, m ->
+            onTimeSelected(String.format(Locale.getDefault(), "%02d:%02d", h, m))
+        }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Aggiungi Gruppo") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                    TextField(
+                        value = selectedGroup?.name ?: "Seleziona Gruppo",
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        groups.forEach { group ->
+                            DropdownMenuItem(text = { Text(group.name) }, onClick = { selectedGroup = group; expanded = false })
+                        }
+                    }
+                }
+                Text("Mattina", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { showTimePicker(morningStart) { morningStart = it } }, modifier = Modifier.weight(1f)) { Text(morningStart.ifBlank { "Inizio" }) }
+                    OutlinedButton(onClick = { showTimePicker(morningEnd) { morningEnd = it } }, modifier = Modifier.weight(1f)) { Text(morningEnd.ifBlank { "Fine" }) }
+                }
+                Text("Pomeriggio", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { showTimePicker(afternoonStart) { afternoonStart = it } }, modifier = Modifier.weight(1f)) { Text(afternoonStart.ifBlank { "Inizio" }) }
+                    OutlinedButton(onClick = { showTimePicker(afternoonEnd) { afternoonEnd = it } }, modifier = Modifier.weight(1f)) { Text(afternoonEnd.ifBlank { "Fine" }) }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd) } }, enabled = selectedGroup != null) { Text("Aggiungi") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
+    )
+}
+
+private fun Modifier.menuAnchor(type: MenuAnchorType): Modifier = this // Mock to fix deprecation warning in the flow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

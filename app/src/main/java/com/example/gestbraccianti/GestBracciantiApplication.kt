@@ -14,4 +14,5 @@ class GestBracciantiApplication : Application() {
     val workLogRepository by lazy { WorkLogRepository(database.workLogDao()) }
     val plantationRepository by lazy { PlantationRepository(database.plantationDao()) }
     val workerYearConfigRepository by lazy { WorkerYearConfigRepository(database.workerYearConfigDao()) }
+    val workerGroupRepository by lazy { WorkerGroupRepository(database.workerGroupDao()) }
 }

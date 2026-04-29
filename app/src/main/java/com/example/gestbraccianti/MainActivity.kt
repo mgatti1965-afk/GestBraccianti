@@ -40,6 +40,9 @@ import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModelFactory
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModelFactory
 
+import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
+import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModelFactory
+
 class MainActivity : ComponentActivity() {
     private val harvestViewModel: HarvestViewModel by viewModels {
         HarvestViewModelFactory((application as GestBracciantiApplication).harvestRepository)
@@ -55,12 +58,17 @@ class MainActivity : ComponentActivity() {
         WorkLogViewModelFactory(app.workLogRepository, app.workerYearConfigRepository)
     }
 
+    private val workerGroupViewModel: WorkerGroupViewModel by viewModels {
+        val app = application as GestBracciantiApplication
+        WorkerGroupViewModelFactory(app.workerGroupRepository)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             GestBracciantiTheme {
-                MainApp(harvestViewModel, workerViewModel, workLogViewModel)
+                MainApp(harvestViewModel, workerViewModel, workLogViewModel, workerGroupViewModel)
             }
         }
     }
@@ -71,7 +79,8 @@ class MainActivity : ComponentActivity() {
 fun MainApp(
     harvestViewModel: HarvestViewModel,
     workerViewModel: WorkerViewModel,
-    workLogViewModel: WorkLogViewModel
+    workLogViewModel: WorkLogViewModel,
+    workerGroupViewModel: WorkerGroupViewModel
 ) {
     val navController = rememberNavController()
     val currentYear by harvestViewModel.currentYear.collectAsState()
@@ -81,6 +90,7 @@ fun MainApp(
         currentYear?.let {
             workerViewModel.setSelectedYear(it.id)
             workLogViewModel.setSelectedYear(it.id)
+            workerGroupViewModel.setSelectedYear(it.id)
         }
     }
 
@@ -143,11 +153,12 @@ fun MainApp(
                     yearId = currentYear?.id ?: 0,
                     workLogViewModel = workLogViewModel,
                     workerViewModel = workerViewModel,
+                    groupViewModel = workerGroupViewModel,
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.WorkerRegistry.route) { 
-                WorkerRegistryScreen(workerViewModel, currentYear?.id ?: 0) 
+                WorkerRegistryScreen(workerViewModel, workerGroupViewModel, currentYear?.id ?: 0)
             }
             composable(Screen.FinancialSummary.route) { 
                 FinancialSummaryScreen(workLogViewModel) 

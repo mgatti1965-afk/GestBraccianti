@@ -15,9 +15,21 @@ import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerYearConfig
 
+import com.example.gestbraccianti.data.dao.WorkerGroupDao
+import com.example.gestbraccianti.data.entity.WorkerGroup
+import com.example.gestbraccianti.data.entity.WorkerGroupCrossRef
+
 @Database(
-    entities = [HarvestYear::class, Worker::class, WorkLog::class, Plantation::class, WorkerYearConfig::class],
-    version = 1,
+    entities = [
+        HarvestYear::class, 
+        Worker::class, 
+        WorkLog::class, 
+        Plantation::class, 
+        WorkerYearConfig::class,
+        WorkerGroup::class,
+        WorkerGroupCrossRef::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -26,6 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workLogDao(): WorkLogDao
     abstract fun plantationDao(): PlantationDao
     abstract fun workerYearConfigDao(): WorkerYearConfigDao
+    abstract fun workerGroupDao(): WorkerGroupDao
 
     companion object {
         @Volatile
@@ -37,7 +50,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "gest_braccianti_db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
