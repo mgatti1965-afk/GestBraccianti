@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.GestBraccianti" parent="Theme.MaterialComponents.Light" />
+</resources>
