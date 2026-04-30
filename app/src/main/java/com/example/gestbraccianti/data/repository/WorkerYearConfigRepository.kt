@@ -21,4 +21,7 @@ class WorkerYearConfigRepository(private val workerYearConfigDao: WorkerYearConf
 
     fun getWorkerStatsForYear(yearId: Int): Flow<List<WorkerYearStats>> =
         workerYearConfigDao.getWorkerStatsForYear(yearId)
+
+    fun getWorkerStatsForRange(yearId: Int, startDate: Long, endDate: Long): Flow<List<WorkerYearStats>> =
+        workerYearConfigDao.getWorkerStatsForRange(yearId, startDate, endDate)
 }

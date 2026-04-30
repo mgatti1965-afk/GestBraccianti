@@ -26,7 +26,7 @@ fun DailyLoggingScreen(
     onDateClick: (Long) -> Unit
 ) {
     val allLogs by viewModel.allLogs.collectAsState()
-    val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.getDefault())
+    val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ITALY)
     val context = LocalContext.current
 
     // Group logs by date to identify worked days
@@ -66,7 +66,7 @@ fun DailyLoggingScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "$totalWorkers braccianti | ${String.format(Locale.getDefault(), "%.1f", totalHours)} ore totali",
+                                    text = "$totalWorkers braccianti | ${String.format(Locale.ITALY, "%.1f", totalHours)} ore totali",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }

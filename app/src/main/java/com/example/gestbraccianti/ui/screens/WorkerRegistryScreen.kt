@@ -17,6 +17,7 @@ import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
+import java.util.Locale
 
 @Composable
 fun WorkerRegistryScreen(
@@ -87,8 +88,8 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                     }) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "${worker.name} ${worker.surname}".trim(), style = MaterialTheme.typography.titleMedium)
-                                Text(text = "Tariffa: $rate €/h", style = MaterialTheme.typography.bodySmall)
+                                Text(text = "${worker.surname} ${worker.name}".trim(), style = MaterialTheme.typography.titleMedium)
+                                Text(text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", rate), style = MaterialTheme.typography.bodySmall)
                             }
                             Icon(Icons.Default.Edit, contentDescription = "Modifica")
                         }
@@ -130,7 +131,8 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                             Text(text = "${members.size} membri", style = MaterialTheme.typography.bodySmall)
                             if (members.isNotEmpty()) {
                                 Text(
-                                    text = members.joinToString { it.name },
+                                    text = members.sortedWith(compareBy({ it.surname }, { it.name }))
+                                        .joinToString { "${it.surname} ${it.name}".trim() },
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1
                                 )
@@ -180,7 +182,7 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                         }.padding(8.dp)) {
                             Checkbox(checked = isMember, onCheckedChange = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("${worker.name} ${worker.surname}".trim())
+                            Text("${worker.surname} ${worker.name}".trim())
                         }
                     }
                 }
@@ -199,7 +201,7 @@ fun AddEditWorkerDialog(
 ) {
     var name by remember { mutableStateOf(worker?.name ?: "") }
     var surname by remember { mutableStateOf(worker?.surname ?: "") }
-    var rate by remember { mutableStateOf(if (initialRate > 0) initialRate.toString() else "") }
+    var rate by remember { mutableStateOf(if (initialRate > 0) String.format(Locale.ITALY, "%.2f", initialRate) else "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -208,7 +210,18 @@ fun AddEditWorkerDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextField(value = name, onValueChange = { name = it }, label = { Text("Nome (Obbligatorio)") })
                 TextField(value = surname, onValueChange = { surname = it }, label = { Text("Cognome") })
-                TextField(value = rate, onValueChange = { rate = it }, label = { Text("Paga Oraria (€)") })
+                TextField(
+                    value = rate,
+                    onValueChange = { input ->
+                        if (input.isEmpty() || input.matches(Regex("""^\d*[.,]?\d{0,2}$"""))) {
+                            rate = input.replace(',', '.')
+                        }
+                    },
+                    label = { Text("Paga Oraria (€)") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                    )
+                )
             }
         },
         confirmButton = {

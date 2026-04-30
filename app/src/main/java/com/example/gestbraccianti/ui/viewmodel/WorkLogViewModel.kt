@@ -9,6 +9,7 @@ import com.example.gestbraccianti.data.repository.WorkerYearConfigRepository
 import com.example.gestbraccianti.data.model.WorkerYearStats
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -20,20 +21,46 @@ class WorkLogViewModel(
 ) : ViewModel() {
 
     private val _selectedYearId = MutableStateFlow<Int?>(null)
+    private val _dateRange = MutableStateFlow<Pair<Long, Long>?>(null)
+    private val _currentReferenceDate = MutableStateFlow(Calendar.getInstance(Locale.ITALY).timeInMillis)
+
+    val currentReferenceDate: StateFlow<Long> = _currentReferenceDate
 
     fun setSelectedYear(yearId: Int) {
         _selectedYearId.value = yearId
     }
 
-    val workerStats: StateFlow<List<WorkerYearStats>> = _selectedYearId
-        .flatMapLatest { yearId ->
-            if (yearId == null) {
-                MutableStateFlow(emptyList())
-            } else {
-                configRepository.getWorkerStatsForYear(yearId)
-            }
+    fun setDateRange(start: Long?, end: Long?) {
+        if (start == null || end == null) {
+            _dateRange.value = null
+        } else {
+            _dateRange.value = Pair(start, end)
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+
+    fun moveReferenceDate(filterType: Int, delta: Int) {
+        val cal = Calendar.getInstance(Locale.ITALY).apply {
+            timeInMillis = _currentReferenceDate.value
+        }
+        when (filterType) {
+            1 -> cal.add(Calendar.MONTH, delta)
+            2 -> cal.add(Calendar.WEEK_OF_YEAR, delta)
+            3 -> cal.add(Calendar.DAY_OF_YEAR, delta)
+        }
+        _currentReferenceDate.value = cal.timeInMillis
+    }
+
+    val workerStats: StateFlow<List<WorkerYearStats>> = combine(_selectedYearId, _dateRange) { yearId, range ->
+        Pair(yearId, range)
+    }.flatMapLatest { (yearId, range) ->
+        if (yearId == null) {
+            MutableStateFlow(emptyList())
+        } else if (range == null) {
+            configRepository.getWorkerStatsForYear(yearId)
+        } else {
+            configRepository.getWorkerStatsForRange(yearId, range.first, range.second)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allLogs: StateFlow<List<WorkLog>> = _selectedYearId
         .flatMapLatest { yearId ->
@@ -76,12 +103,16 @@ class WorkLogViewModel(
     private fun calculateHours(start: String?, end: String?): Double {
         if (start.isNullOrBlank() || end.isNullOrBlank()) return 0.0
         return try {
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
             val startDate = sdf.parse(start)
             val endDate = sdf.parse(end)
             if (startDate != null && endDate != null) {
                 val diff = endDate.time - startDate.time
-                if (diff > 0) diff.toDouble() / (1000 * 60 * 60) else 0.0
+                if (diff > 0) {
+                    val hours = diff.toDouble() / (1000 * 60 * 60)
+                    // Round to 2 decimal places
+                    "%.2f".format(Locale.ITALY, hours).replace(',', '.').toDouble()
+                } else 0.0
             } else 0.0
         } catch (e: Exception) {
             0.0

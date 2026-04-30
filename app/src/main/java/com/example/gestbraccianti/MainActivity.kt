@@ -30,6 +30,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.material.icons.filled.MoreHoriz
 import com.example.gestbraccianti.ui.navigation.Screen
 import com.example.gestbraccianti.ui.screens.*
 import com.example.gestbraccianti.ui.theme.GestBracciantiTheme
@@ -163,6 +164,9 @@ fun MainApp(
             composable(Screen.FinancialSummary.route) { 
                 FinancialSummaryScreen(workLogViewModel) 
             }
+            composable(Screen.Others.route) {
+                OthersScreen()
+            }
         }
     }
 }
@@ -175,7 +179,8 @@ fun AppBottomNavigation(navController: androidx.navigation.NavHostController) {
     val items = listOf(
         Triple(Screen.DailyLogging.route, "Ore", Icons.Default.History),
         Triple(Screen.WorkerRegistry.route, "Braccianti", Icons.Default.Group),
-        Triple(Screen.FinancialSummary.route, "Riepilogo", Icons.Default.Calculate)
+        Triple(Screen.FinancialSummary.route, "Riepilogo", Icons.Default.Calculate),
+        Triple(Screen.Others.route, "Varie", Icons.Default.MoreHoriz)
     )
 
     NavigationBar {
