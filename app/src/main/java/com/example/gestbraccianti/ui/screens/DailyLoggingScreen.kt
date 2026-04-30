@@ -7,7 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,50 +29,129 @@ fun DailyLoggingScreen(
 ) {
     val allLogs by viewModel.allLogs.collectAsState()
     val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ITALY)
+    val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.ITALY)
     val context = LocalContext.current
+
+    var selectedCalendar by remember {
+        mutableStateOf(Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        })
+    }
 
     // Group logs by date to identify worked days
     val workedDays = remember(allLogs) {
         allLogs.map { it.date }.distinct().sortedDescending()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (workedDays.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Nessuna giornata lavorativa registrata. Clicca + per iniziare.")
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(workedDays) { date ->
-                    val logsForDay = allLogs.filter { it.date == date }
-                    val totalWorkers = logsForDay.size
-                    val totalHours = logsForDay.sumOf { it.totalHours }
+    val filteredDays = remember(workedDays, selectedCalendar) {
+        workedDays.filter { date ->
+            val cal = Calendar.getInstance().apply { timeInMillis = date }
+            cal.get(Calendar.MONTH) == selectedCalendar.get(Calendar.MONTH) &&
+                    cal.get(Calendar.YEAR) == selectedCalendar.get(Calendar.YEAR)
+        }
+    }
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onDateClick(date) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = sdf.format(Date(date)).replaceFirstChar { it.uppercase() },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "$totalWorkers braccianti | ${String.format(Locale.ITALY, "%.1f", totalHours)} ore totali",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Month Selector
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        val newCal = (selectedCalendar.clone() as Calendar).apply {
+                            add(Calendar.MONTH, -1)
+                        }
+                        selectedCalendar = newCal
+                    }) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Mese precedente")
+                    }
+
+                    Text(
+                        text = monthYearFormat.format(selectedCalendar.time).replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    IconButton(onClick = {
+                        val newCal = (selectedCalendar.clone() as Calendar).apply {
+                            add(Calendar.MONTH, 1)
+                        }
+                        selectedCalendar = newCal
+                    }) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Mese successivo")
+                    }
+                }
+            }
+
+            if (filteredDays.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Nessuna giornata registrata per questo mese.")
+                        if (workedDays.isNotEmpty()) {
+                            TextButton(onClick = {
+                                // Jump to latest worked day's month
+                                val latest = Calendar.getInstance().apply { timeInMillis = workedDays.first() }
+                                latest.set(Calendar.DAY_OF_MONTH, 1)
+                                selectedCalendar = latest
+                            }) {
+                                Text("Vai all'ultimo mese lavorato")
                             }
-                            Icon(Icons.Default.ChevronRight, contentDescription = "Dettagli")
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredDays) { date ->
+                        val logsForDay = allLogs.filter { it.date == date }
+                        val totalWorkers = logsForDay.size
+                        val totalHours = logsForDay.sumOf { it.totalHours }
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onDateClick(date) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = sdf.format(Date(date)).replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "$totalWorkers braccianti | ${
+                                            String.format(
+                                                Locale.ITALY,
+                                                "%.1f",
+                                                totalHours
+                                            )
+                                        } ore totali",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Icon(Icons.Default.ChevronRight, contentDescription = "Dettagli")
+                            }
                         }
                     }
                 }

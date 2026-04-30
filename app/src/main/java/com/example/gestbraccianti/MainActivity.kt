@@ -7,10 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -110,7 +110,7 @@ fun MainApp(
                                 popUpTo(0)
                             }
                         }) {
-                            Icon(Icons.Default.Logout, contentDescription = "Cambia Annata")
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cambia Annata")
                         }
                     }
                 )

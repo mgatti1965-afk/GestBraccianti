@@ -11,9 +11,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContactPage
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,8 +62,18 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     var showDialog by remember { mutableStateOf(false) }
     var selectedWorker by remember { mutableStateOf<Worker?>(null) }
     var currentRate by remember { mutableStateOf(0.0) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredWorkers = remember(workers, searchQuery) {
+        if (searchQuery.isBlank()) workers
+        else workers.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.surname.contains(searchQuery, ignoreCase = true)
+        }
+    }
 
     if (showDialog) {
+        // ... (rest of the dialog logic stays same)
         AddEditWorkerDialog(
             worker = selectedWorker,
             initialRate = currentRate,
@@ -78,28 +90,72 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (workers.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Nessun bracciante registrato.")
-            }
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(workers) { worker ->
-                    var rate by remember { mutableStateOf(0.0) }
-                    LaunchedEffect(worker.id) {
-                        rate = viewModel.getWorkerConfig(worker.id, yearId)?.hourlyRate ?: 0.0
-                    }
-                    Card(modifier = Modifier.fillMaxWidth().clickable {
-                        selectedWorker = worker
-                        currentRate = rate
-                        showDialog = true
-                    }) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "${worker.surname} ${worker.name}".trim(), style = MaterialTheme.typography.titleMedium)
-                                Text(text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", rate), style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (workers.isNotEmpty()) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    placeholder = { Text("Cerca bracciante...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Cancella")
                             }
-                            Icon(Icons.Default.Edit, contentDescription = "Modifica")
+                        }
+                    },
+                    singleLine = true
+                )
+            }
+
+            if (workers.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Nessun bracciante registrato.")
+                }
+            } else if (filteredWorkers.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Nessun risultato per \"$searchQuery\"")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredWorkers) { worker ->
+                        var rate by remember { mutableStateOf(0.0) }
+                        LaunchedEffect(worker.id) {
+                            rate = viewModel.getWorkerConfig(worker.id, yearId)?.hourlyRate ?: 0.0
+                        }
+                        Card(modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedWorker = worker
+                                currentRate = rate
+                                showDialog = true
+                            }) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${worker.surname} ${worker.name}".trim(),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = String.format(
+                                            Locale.ITALY,
+                                            "Tariffa: %.2f €/h",
+                                            rate
+                                        ), style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Icon(Icons.Default.Edit, contentDescription = "Modifica")
+                            }
                         }
                     }
                 }

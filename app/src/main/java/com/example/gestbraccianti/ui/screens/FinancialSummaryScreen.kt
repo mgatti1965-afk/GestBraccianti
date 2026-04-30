@@ -189,7 +189,7 @@ fun WorkerStatCard(stat: com.example.gestbraccianti.data.model.WorkerYearStats) 
 
 @Composable
 fun TotalFooter(totalHours: Double, totalEarnings: Double) {
-    Divider(modifier = Modifier.padding(vertical = 8.dp))
+    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
