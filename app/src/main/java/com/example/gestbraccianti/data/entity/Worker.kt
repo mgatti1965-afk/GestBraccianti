@@ -8,5 +8,6 @@ data class Worker(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val surname: String,
+    val phoneNumber: String = "",
     val isArchived: Boolean = false // Useful for workers not active in current year
 )

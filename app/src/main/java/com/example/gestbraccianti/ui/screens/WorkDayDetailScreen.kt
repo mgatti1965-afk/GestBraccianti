@@ -1,6 +1,12 @@
 package com.example.gestbraccianti.ui.screens
 
+import android.Manifest
 import android.app.TimePickerDialog
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,13 +16,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
@@ -46,7 +55,25 @@ fun WorkDayDetailScreen(
     
     var showAddWorkerDialog by remember { mutableStateOf(false) }
     var showAddGroupDialog by remember { mutableStateOf(false) }
+    var showSmsDialog by remember { mutableStateOf(false) }
     var editingLog by remember { mutableStateOf<WorkLog?>(null) }
+    val context = LocalContext.current
+
+    val isCurrentYear = remember(date) {
+        val calendar = Calendar.getInstance()
+        val currentYear = calendar.get(Calendar.YEAR)
+        calendar.timeInMillis = date
+        calendar.get(Calendar.YEAR) == currentYear
+    }
+
+    val smsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                showSmsDialog = true
+            }
+        }
+    )
 
     val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ITALY)
 
@@ -66,8 +93,20 @@ fun WorkDayDetailScreen(
                     text = sdf.format(Date(date)).replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp).weight(1f)
                 )
+
+                if (isCurrentYear) {
+                    IconButton(onClick = {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
+                            showSmsDialog = true
+                        } else {
+                            smsPermissionLauncher.launch(Manifest.permission.READ_SMS)
+                        }
+                    }) {
+                        Icon(Icons.Default.Sms, contentDescription = "Importa da SMS")
+                    }
+                }
             }
         }
 
@@ -168,30 +207,156 @@ fun WorkDayDetailScreen(
         )
     }
 
-    if (showAddGroupDialog) {
-        AddGroupToDayDialog(
-            groups = groups,
-            onDismiss = { showAddGroupDialog = false },
-            onConfirm = { group, mStart, mEnd, pStart, pEnd ->
-                scope.launch {
-                    val members = groupViewModel.getWorkersInGroup(group.id).first()
-                    members.forEach { worker ->
-                        workLogViewModel.saveLog(
-                            id = 0L,
-                            workerId = worker.id,
-                            yearId = yearId,
-                            date = date,
-                            morningStart = mStart,
-                            morningEnd = mEnd,
-                            afternoonStart = pStart,
-                            afternoonEnd = pEnd
-                        )
-                    }
-                }
-                showAddGroupDialog = false
-            }
+    if (showSmsDialog) {
+        SmsImportDialog(
+            date = date,
+            yearId = yearId,
+            workers = workers,
+            existingLogs = logsForDay,
+            workLogViewModel = workLogViewModel,
+            onDismiss = { showSmsDialog = false }
         )
     }
+}
+
+data class SmsData(
+    val workerId: Long,
+    val senderName: String,
+    val senderSurname: String,
+    val time: String,
+    val timestamp: Long,
+    val text: String,
+    val type: String // "I" or "F"
+)
+
+@Composable
+fun SmsImportDialog(
+    date: Long,
+    yearId: Int,
+    workers: List<Worker>,
+    existingLogs: List<WorkLog>,
+    workLogViewModel: WorkLogViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val smsList = remember(date, workers) { readSmsForDay(context, date, workers) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("SMS Ricevuti (I/F)") },
+        text = {
+            if (smsList.isEmpty()) {
+                Text("Nessun SMS corrispondente ai criteri trovato per questa giornata.")
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                    items(smsList) { sms ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (sms.type == "I") Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                            )
+                        ) {
+                            Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("${sms.senderSurname} ${sms.senderName}", fontWeight = FontWeight.Bold)
+                                    Text("Ore: ${sms.time} - Testo: ${sms.text}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                Badge(containerColor = if (sms.type == "I") Color(0xFF2E7D32) else Color(0xFFC62828)) {
+                                    Text(if (sms.type == "I") "INIZIO" else "FINE", color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onDismiss) { Text("Annulla") }
+                Button(
+                    onClick = {
+                        val groupedSms = smsList.groupBy { it.workerId }
+                        groupedSms.forEach { (workerId, messages) ->
+                            val startTime = messages.filter { it.type == "I" }.minByOrNull { it.timestamp }?.time
+                            val endTime = messages.filter { it.type == "F" }.maxByOrNull { it.timestamp }?.time
+                            
+                            val existingLog = existingLogs.find { it.workerId == workerId }
+                            
+                            workLogViewModel.saveLog(
+                                id = existingLog?.id ?: 0L,
+                                workerId = workerId,
+                                yearId = yearId,
+                                date = date,
+                                morningStart = startTime ?: existingLog?.morningStart ?: "08:00",
+                                morningEnd = existingLog?.morningEnd ?: "12:00",
+                                afternoonStart = existingLog?.afternoonStart ?: "13:00",
+                                afternoonEnd = endTime ?: existingLog?.afternoonEnd ?: "17:00"
+                            )
+                        }
+                        onDismiss()
+                    },
+                    enabled = smsList.isNotEmpty()
+                ) {
+                    Text("Applica")
+                }
+            }
+        }
+    )
+}
+
+fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): List<SmsData> {
+    val result = mutableListOf<SmsData>()
+    val uri = Uri.parse("content://sms/inbox")
+    
+    // Calculate start and end of day
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = date
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    val startOfDay = cal.timeInMillis
+    val endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1
+
+    val projection = arrayOf("address", "body", "date")
+    val selection = "date >= ? AND date <= ?"
+    val selectionArgs = arrayOf(startOfDay.toString(), endOfDay.toString())
+    
+    context.contentResolver.query(uri, projection, selection, selectionArgs, "date ASC")?.use { cursor ->
+        val addressIdx = cursor.getColumnIndex("address")
+        val bodyIdx = cursor.getColumnIndex("body")
+        val dateIdx = cursor.getColumnIndex("date")
+        
+        while (cursor.moveToNext()) {
+            val address = cursor.getString(addressIdx)
+            val body = cursor.getString(bodyIdx)
+            val smsDate = cursor.getLong(dateIdx)
+            
+            if (body.isNullOrBlank()) continue
+            val type = body.trim().firstOrNull()?.uppercaseChar()?.toString()
+            if (type != "I" && type != "F") continue
+
+            // Filter workers by phone number (last 10 digits)
+            val cleanAddress = address.filter { it.isDigit() }.takeLast(10)
+            val worker = workers.find { 
+                it.phoneNumber.filter { char -> char.isDigit() }.takeLast(10) == cleanAddress 
+            }
+            
+            if (worker != null) {
+                val timeSdf = SimpleDateFormat("HH:mm", Locale.ITALY)
+                result.add(SmsData(
+                    workerId = worker.id,
+                    senderName = worker.name,
+                    senderSurname = worker.surname,
+                    time = timeSdf.format(Date(smsDate)),
+                    timestamp = smsDate,
+                    text = body,
+                    type = type
+                ))
+            }
+        }
+    }
+    return result
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

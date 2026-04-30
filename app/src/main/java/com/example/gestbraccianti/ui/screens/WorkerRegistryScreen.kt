@@ -68,21 +68,21 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
         if (searchQuery.isBlank()) workers
         else workers.filter {
             it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.surname.contains(searchQuery, ignoreCase = true)
+                    it.surname.contains(searchQuery, ignoreCase = true) ||
+                    it.phoneNumber.contains(searchQuery)
         }
     }
 
     if (showDialog) {
-        // ... (rest of the dialog logic stays same)
         AddEditWorkerDialog(
             worker = selectedWorker,
             initialRate = currentRate,
             onDismiss = { showDialog = false },
-            onConfirm = { name, surname, rate ->
+            onConfirm = { name, surname, phone, rate ->
                 if (selectedWorker == null) {
-                    viewModel.addWorkerToYear(name, surname, rate, yearId)
+                    viewModel.addWorkerToYear(name, surname, phone, rate, yearId)
                 } else {
-                    viewModel.updateWorkerInfo(selectedWorker!!.id, name, surname, yearId, rate)
+                    viewModel.updateWorkerInfo(selectedWorker!!.id, name, surname, phone, yearId, rate)
                 }
                 showDialog = false
             }
@@ -146,6 +146,9 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                         text = "${worker.surname} ${worker.name}".trim(),
                                         style = MaterialTheme.typography.titleMedium
                                     )
+                                    if (worker.phoneNumber.isNotBlank()) {
+                                        Text(text = worker.phoneNumber, style = MaterialTheme.typography.bodySmall)
+                                    }
                                     Text(
                                         text = String.format(
                                             Locale.ITALY,
@@ -261,10 +264,11 @@ fun AddEditWorkerDialog(
     worker: Worker?,
     initialRate: Double,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, Double) -> Unit
+    onConfirm: (String, String, String, Double) -> Unit
 ) {
     var name by remember { mutableStateOf(worker?.name ?: "") }
     var surname by remember { mutableStateOf(worker?.surname ?: "") }
+    var phoneNumber by remember { mutableStateOf(worker?.phoneNumber ?: "") }
     var rate by remember { mutableStateOf(if (initialRate > 0) String.format(Locale.ITALY, "%.2f", initialRate) else "") }
     val context = LocalContext.current
 
@@ -274,12 +278,29 @@ fun AddEditWorkerDialog(
             uri?.let { contactUri ->
                 val projection = arrayOf(
                     ContactsContract.Contacts._ID,
-                    ContactsContract.Contacts.DISPLAY_NAME
+                    ContactsContract.Contacts.DISPLAY_NAME,
+                    ContactsContract.Contacts.HAS_PHONE_NUMBER
                 )
                 context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
                         val contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
                         val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME))
+                        val hasPhone = cursor.getInt(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0
+
+                        if (hasPhone) {
+                            val phoneCursor = context.contentResolver.query(
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                                arrayOf(contactId),
+                                null
+                            )
+                            phoneCursor?.use { pc ->
+                                if (pc.moveToFirst()) {
+                                    phoneNumber = pc.getString(0).replace(" ", "").replace("-", "")
+                                }
+                            }
+                        }
 
                         // Try to get structured name (Given Name and Family Name)
                         val nameProjection = arrayOf(
@@ -301,7 +322,6 @@ fun AddEditWorkerDialog(
                                 }
                             }
                         } catch (e: SecurityException) {
-                            // Fallback if permission is somehow still missing
                             val parts = displayName.split(" ", limit = 2)
                             name = parts.getOrNull(0) ?: ""
                             surname = parts.getOrNull(1) ?: ""
@@ -346,6 +366,7 @@ fun AddEditWorkerDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextField(value = name, onValueChange = { name = it }, label = { Text("Nome (Obbligatorio)") })
                 TextField(value = surname, onValueChange = { surname = it }, label = { Text("Cognome") })
+                TextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = { Text("Telefono") }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone))
                 TextField(
                     value = rate,
                     onValueChange = { input ->
@@ -364,7 +385,7 @@ fun AddEditWorkerDialog(
             Button(onClick = {
                 val r = rate.toDoubleOrNull() ?: 0.0
                 if (name.isNotBlank()) {
-                    onConfirm(name, surname, r)
+                    onConfirm(name, surname, phoneNumber, r)
                 }
             }) { Text(if (worker == null) "Aggiungi" else "Salva") }
         },

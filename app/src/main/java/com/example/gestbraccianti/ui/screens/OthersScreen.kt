@@ -220,9 +220,9 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
         context.contentResolver.openOutputStream(uri)?.use { output ->
             OutputStreamWriter(output).use { writer ->
                 // Workers
-                writer.write("TIPO;ID;NOME;COGNOME;ARCHIVIATO\n")
+                writer.write("TIPO;ID;NOME;COGNOME;TELEFONO;ARCHIVIATO\n")
                 db.workerDao().getAllWorkersStatic().forEach {
-                    writer.write("W;${it.id};${it.name};${it.surname};${if (it.isArchived) 1 else 0}\n")
+                    writer.write("W;${it.id};${it.name};${it.surname};${it.phoneNumber};${if (it.isArchived) 1 else 0}\n")
                 }
                 // Years
                 writer.write("TIPO;ID;CORRENTE\n")
@@ -275,7 +275,7 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
                         val parts = line!!.split(";")
                         if (parts.isEmpty()) continue
                         when (parts[0]) {
-                            "W" -> if (parts.size >= 5) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], isArchived = parts[4] == "1"))
+                            "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
                             "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
                             "C" -> if (parts.size >= 4) db.workerYearConfigDao().insertConfig(WorkerYearConfig(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), hourlyRate = parts[3].toDouble()))
                             "L" -> if (parts.size >= 9) db.workLogDao().insertLog(WorkLog(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), date = parts[3].toLong(), morningStart = parts[4].ifBlank { null }, morningEnd = parts[5].ifBlank { null }, afternoonStart = parts[6].ifBlank { null }, afternoonEnd = parts[7].ifBlank { null }, totalHours = parts[8].toDouble()))

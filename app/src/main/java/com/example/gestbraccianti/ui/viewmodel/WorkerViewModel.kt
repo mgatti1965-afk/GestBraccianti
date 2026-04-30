@@ -38,9 +38,9 @@ class WorkerViewModel(
         _selectedYearId.value = yearId
     }
 
-    fun addWorkerToYear(name: String, surname: String, hourlyRate: Double, yearId: Int) {
+    fun addWorkerToYear(name: String, surname: String, phoneNumber: String, hourlyRate: Double, yearId: Int) {
         viewModelScope.launch {
-            val workerId = workerRepository.insertWorker(Worker(name = name, surname = surname))
+            val workerId = workerRepository.insertWorker(Worker(name = name, surname = surname, phoneNumber = phoneNumber))
             configRepository.insertConfig(
                 WorkerYearConfig(workerId = workerId, harvestYearId = yearId, hourlyRate = hourlyRate)
             )
@@ -51,9 +51,9 @@ class WorkerViewModel(
         return configRepository.getConfig(workerId, yearId)
     }
 
-    fun updateWorkerInfo(workerId: Long, name: String, surname: String, yearId: Int, newRate: Double) {
+    fun updateWorkerInfo(workerId: Long, name: String, surname: String, phoneNumber: String, yearId: Int, newRate: Double) {
         viewModelScope.launch {
-            workerRepository.updateWorker(Worker(id = workerId, name = name, surname = surname))
+            workerRepository.updateWorker(Worker(id = workerId, name = name, surname = surname, phoneNumber = phoneNumber))
             configRepository.insertConfig(
                 WorkerYearConfig(workerId = workerId, harvestYearId = yearId, hourlyRate = newRate)
             )

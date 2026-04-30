@@ -29,7 +29,7 @@ import com.example.gestbraccianti.data.entity.WorkerGroupCrossRef
         WorkerGroup::class,
         WorkerGroupCrossRef::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
