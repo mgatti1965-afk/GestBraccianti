@@ -61,4 +61,7 @@ interface WorkerYearConfigDao {
     
     @Query("SELECT * FROM worker_year_configs WHERE harvestYearId = :yearId")
     suspend fun getConfigsForYear(yearId: Int): List<WorkerYearConfig>
+
+    @Query("SELECT * FROM worker_year_configs")
+    suspend fun getAllConfigsStatic(): List<WorkerYearConfig>
 }

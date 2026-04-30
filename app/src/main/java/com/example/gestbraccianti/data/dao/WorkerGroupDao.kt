@@ -11,6 +11,12 @@ interface WorkerGroupDao {
     @Query("SELECT * FROM worker_groups WHERE yearId = :yearId")
     fun getGroupsForYear(yearId: Int): Flow<List<WorkerGroup>>
 
+    @Query("SELECT * FROM worker_groups")
+    suspend fun getAllGroupsStatic(): List<WorkerGroup>
+
+    @Query("SELECT * FROM worker_group_cross_ref")
+    suspend fun getAllCrossRefsStatic(): List<WorkerGroupCrossRef>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGroup(group: WorkerGroup): Long
 

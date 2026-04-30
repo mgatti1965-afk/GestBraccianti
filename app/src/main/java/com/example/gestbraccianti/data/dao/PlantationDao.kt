@@ -17,6 +17,9 @@ interface PlantationDao {
     @Query("SELECT * FROM plantations ORDER BY name ASC")
     fun getAllPlantations(): Flow<List<Plantation>>
 
+    @Query("SELECT * FROM plantations")
+    suspend fun getAllPlantationsStatic(): List<Plantation>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlantation(plantation: Plantation)
 

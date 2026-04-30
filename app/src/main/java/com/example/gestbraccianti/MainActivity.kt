@@ -178,8 +178,8 @@ fun AppBottomNavigation(navController: androidx.navigation.NavHostController) {
 
     val items = listOf(
         Triple(Screen.DailyLogging.route, "Ore", Icons.Default.History),
-        Triple(Screen.WorkerRegistry.route, "Braccianti", Icons.Default.Group),
         Triple(Screen.FinancialSummary.route, "Riepilogo", Icons.Default.Calculate),
+        Triple(Screen.WorkerRegistry.route, "Braccianti", Icons.Default.Group),
         Triple(Screen.Others.route, "Varie", Icons.Default.MoreHoriz)
     )
 

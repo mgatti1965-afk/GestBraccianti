@@ -12,6 +12,9 @@ interface HarvestYearDao {
     @Query("SELECT * FROM harvest_years ORDER BY id DESC")
     fun getAllHarvestYears(): Flow<List<HarvestYear>>
 
+    @Query("SELECT * FROM harvest_years")
+    suspend fun getAllYearsStatic(): List<HarvestYear>
+
     @Query("SELECT * FROM harvest_years WHERE isCurrent = 1 LIMIT 1")
     suspend fun getCurrentYear(): HarvestYear?
 

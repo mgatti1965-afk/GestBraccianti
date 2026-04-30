@@ -1,18 +1,26 @@
 package com.example.gestbraccianti.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.provider.ContactsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContactPage
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
@@ -202,10 +210,82 @@ fun AddEditWorkerDialog(
     var name by remember { mutableStateOf(worker?.name ?: "") }
     var surname by remember { mutableStateOf(worker?.surname ?: "") }
     var rate by remember { mutableStateOf(if (initialRate > 0) String.format(Locale.ITALY, "%.2f", initialRate) else "") }
+    val context = LocalContext.current
+
+    val contactPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact(),
+        onResult = { uri ->
+            uri?.let { contactUri ->
+                val projection = arrayOf(
+                    ContactsContract.Contacts._ID,
+                    ContactsContract.Contacts.DISPLAY_NAME
+                )
+                context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
+                        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME))
+
+                        // Try to get structured name (Given Name and Family Name)
+                        val nameProjection = arrayOf(
+                            ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
+                            ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME
+                        )
+                        val where = "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
+                        val args = arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+
+                        try {
+                            context.contentResolver.query(ContactsContract.Data.CONTENT_URI, nameProjection, where, args, null)?.use { nameCursor ->
+                                if (nameCursor.moveToFirst()) {
+                                    name = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)) ?: ""
+                                    surname = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)) ?: ""
+                                } else {
+                                    val parts = displayName.split(" ", limit = 2)
+                                    name = parts.getOrNull(0) ?: ""
+                                    surname = parts.getOrNull(1) ?: ""
+                                }
+                            }
+                        } catch (e: SecurityException) {
+                            // Fallback if permission is somehow still missing
+                            val parts = displayName.split(" ", limit = 2)
+                            name = parts.getOrNull(0) ?: ""
+                            surname = parts.getOrNull(1) ?: ""
+                        }
+                    }
+                }
+            }
+        }
+    )
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                contactPickerLauncher.launch(null)
+            }
+        }
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (worker == null) "Nuovo Bracciante" else "Modifica Bracciante") },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (worker == null) "Nuovo Bracciante" else "Modifica Bracciante", modifier = Modifier.weight(1f))
+                if (worker == null) {
+                    IconButton(onClick = {
+                        when (PackageManager.PERMISSION_GRANTED) {
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
+                                contactPickerLauncher.launch(null)
+                            }
+                            else -> {
+                                permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
+                    }
+                }
+            }
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextField(value = name, onValueChange = { name = it }, label = { Text("Nome (Obbligatorio)") })

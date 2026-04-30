@@ -6,33 +6,26 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.room.withTransaction
 import com.example.gestbraccianti.data.AppDatabase
+import com.example.gestbraccianti.data.entity.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-
-import android.content.ContentValues
-import android.os.Build
-import android.provider.MediaStore
-import android.os.Environment
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Share
-import java.io.InputStream
-import java.io.OutputStream
+import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -45,68 +38,56 @@ fun OthersScreen() {
     fun refreshBackupList() {
         val backupDir = File(context.getExternalFilesDir(null), "backups")
         if (!backupDir.exists()) backupDir.mkdirs()
-        backupFiles = backupDir.listFiles()?.filter { it.extension == "db" }?.sortedByDescending { it.lastModified() } ?: emptyList()
+        backupFiles = backupDir.listFiles()?.filter { it.extension == "csv" || it.extension == "txt" }?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 
     LaunchedEffect(Unit) {
         refreshBackupList()
     }
 
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
+    val csvExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv"),
         onResult = { uri ->
             uri?.let { destUri ->
-                // First save internally to keep track, then copy to destination
-                scope.launch(Dispatchers.IO) {
-                    val dbFile = context.getDatabasePath("gest_braccianti_db")
-                    val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
-                    val timestamp = sdf.format(Date())
-                    val internalBackupDir = File(context.getExternalFilesDir(null), "backups")
-                    if (!internalBackupDir.exists()) internalBackupDir.mkdirs()
-                    val internalFile = File(internalBackupDir, "backup_$timestamp.db")
-                    
-                    try {
-                        // Save internal copy
-                        FileInputStream(dbFile).use { input ->
-                            FileOutputStream(internalFile).use { output ->
-                                input.copyTo(output)
+                scope.launch {
+                    val success = exportToCsv(context, destUri)
+                    if (success) {
+                        // Salva anche una copia interna per la cronologia
+                        withContext(Dispatchers.IO) {
+                            try {
+                                val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
+                                val timestamp = sdf.format(Date())
+                                val internalBackupDir = File(context.getExternalFilesDir(null), "backups")
+                                if (!internalBackupDir.exists()) internalBackupDir.mkdirs()
+                                val internalFile = File(internalBackupDir, "backup_$timestamp.csv")
+                                
+                                context.contentResolver.openInputStream(destUri)?.use { input ->
+                                    FileOutputStream(internalFile).use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
                         }
-                        
-                        // Copy to selected destination (URI)
-                        context.contentResolver.openOutputStream(destUri)?.use { outputStream ->
-                            FileInputStream(dbFile).use { inputStream ->
-                                inputStream.copyTo(outputStream)
-                            }
-                        }
-
-                        // Also save to Downloads folder using MediaStore
-                        saveToDownloads(context, dbFile, "gest_braccianti_backup_$timestamp.db")
-
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Export completato (Interno + Downloads)!", Toast.LENGTH_SHORT).show()
-                            refreshBackupList()
-                        }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
+                        Toast.makeText(context, "Dati esportati!", Toast.LENGTH_SHORT).show()
+                        refreshBackupList()
                     }
                 }
             }
         }
     )
 
-    val importLauncher = rememberLauncherForActivityResult(
+    val csvImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             uri?.let {
                 scope.launch {
-                    val success = importDatabase(context, it)
+                    val success = importFromCsv(context, it)
                     if (success) {
-                        Toast.makeText(context, "Database importato! Riavvia l'app.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Dati importati!", Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(context, "Errore durante l'importazione.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Errore durante l'importazione del file di testo.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -120,47 +101,43 @@ fun OthersScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Gestione Dati", style = MaterialTheme.typography.headlineSmall)
-        
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Backup e Ripristino", style = MaterialTheme.typography.titleMedium)
+                Text("Esportazione e Backup (CSV)", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Esporta i tuoi dati in un file per sicurezza o importali da un backup precedente.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                
+                Text("Formato leggibile compatibile con Excel o Blocco Note. I dati vengono salvati anche nella cronologia interna.", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
                             val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
                             val timestamp = sdf.format(Date())
-                            exportLauncher.launch("gest_braccianti_backup_$timestamp.db")
+                            csvExportLauncher.launch("gest_braccianti_$timestamp.csv")
                         },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.FileUpload, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Esporta")
+                        Spacer(Modifier.width(4.dp))
+                        Text("Esporta CSV")
                     }
                     
                     OutlinedButton(
-                        onClick = { importLauncher.launch(arrayOf("application/octet-stream", "*/*")) },
+                        onClick = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.FileDownload, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Importa")
+                        Spacer(Modifier.width(4.dp))
+                        Text("Importa CSV")
                     }
                 }
             }
         }
 
-        Text("Storico Backup Interni", style = MaterialTheme.typography.titleMedium)
+        Text("Cronologia Backup CSV", style = MaterialTheme.typography.titleMedium)
         
         if (backupFiles.isEmpty()) {
-            Text("Nessun backup salvato internamente.", style = MaterialTheme.typography.bodySmall)
+            Text("Nessun backup CSV salvato internamente.", style = MaterialTheme.typography.bodySmall)
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -176,9 +153,11 @@ fun OthersScreen() {
                         },
                         onRestore = {
                             scope.launch {
-                                val success = importDatabase(context, Uri.fromFile(file))
+                                val success = importFromCsv(context, Uri.fromFile(file))
                                 if (success) {
-                                    Toast.makeText(context, "Ripristino completato! Riavvia l'app.", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Dati ripristinati con successo!", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Errore durante il ripristino.", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -228,89 +207,86 @@ fun shareFile(context: Context, file: File) {
         file
     )
     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-        type = "application/octet-stream"
+        type = "text/plain"
         putExtra(android.content.Intent.EXTRA_STREAM, uri)
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(android.content.Intent.createChooser(intent, "Invia Backup"))
 }
 
-fun saveToDownloads(context: Context, sourceFile: File, fileName: String) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        val resolver = context.contentResolver
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-        }
-
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-        uri?.let {
-            resolver.openOutputStream(it)?.use { outputStream ->
-                FileInputStream(sourceFile).use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-        }
-    } else {
-        // Fallback for older versions: use the public downloads directory directly
-        // Note: This requires WRITE_EXTERNAL_STORAGE permission on API < 29
-        try {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val destFile = File(downloadsDir, fileName)
-            FileInputStream(sourceFile).use { input ->
-                FileOutputStream(destFile).use { output ->
-                    input.copyTo(output)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // If it fails (e.g. permission denied), the user still has the FilePicker export
-        }
-    }
-}
-
-
-fun exportDatabase(context: Context, destinationUri: Uri) {
-    val dbFile = context.getDatabasePath("gest_braccianti_db")
+suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    val db = AppDatabase.getDatabase(context)
     try {
-        context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
-            FileInputStream(dbFile).use { inputStream ->
-                inputStream.copyTo(outputStream)
+        context.contentResolver.openOutputStream(uri)?.use { output ->
+            OutputStreamWriter(output).use { writer ->
+                // Workers
+                writer.write("TIPO;ID;NOME;COGNOME;ARCHIVIATO\n")
+                db.workerDao().getAllWorkersStatic().forEach {
+                    writer.write("W;${it.id};${it.name};${it.surname};${if (it.isArchived) 1 else 0}\n")
+                }
+                // Years
+                writer.write("TIPO;ID;CORRENTE\n")
+                db.harvestYearDao().getAllYearsStatic().forEach {
+                    writer.write("Y;${it.id};${if (it.isCurrent) 1 else 0}\n")
+                }
+                // Configs
+                writer.write("TIPO;LAV_ID;ANNO_ID;TARIFFA\n")
+                db.workerYearConfigDao().getAllConfigsStatic().forEach { conf ->
+                    writer.write("C;${conf.workerId};${conf.harvestYearId};${conf.hourlyRate}\n")
+                }
+                // Logs
+                writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE\n")
+                db.workLogDao().getAllLogsStatic().forEach { log ->
+                    writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${log.totalHours}\n")
+                }
+                // Plantations
+                writer.write("TIPO;ID;NOME;ARCHIVIATO\n")
+                db.plantationDao().getAllPlantationsStatic().forEach {
+                    writer.write("P;${it.id};${it.name};${if (it.isArchived) 1 else 0}\n")
+                }
+                // Groups
+                writer.write("TIPO;ID;NOME;ANNO_ID\n")
+                db.workerGroupDao().getAllGroupsStatic().forEach {
+                    writer.write("G;${it.id};${it.name};${it.yearId}\n")
+                }
+                // CrossRefs
+                writer.write("TIPO;LAV_ID;GRP_ID\n")
+                db.workerGroupDao().getAllCrossRefsStatic().forEach {
+                    writer.write("X;${it.workerId};${it.groupId}\n")
+                }
             }
         }
-        Toast.makeText(context, "Database esportato con successo!", Toast.LENGTH_SHORT).show()
+        true
     } catch (e: Exception) {
-        Toast.makeText(context, "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
+        e.printStackTrace()
+        false
     }
 }
 
-suspend fun importDatabase(context: Context, sourceUri: Uri): Boolean = withContext(Dispatchers.IO) {
-    val dbFile = context.getDatabasePath("gest_braccianti_db")
-    val dbShm = File(dbFile.path + "-shm")
-    val dbWal = File(dbFile.path + "-wal")
-
+suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    val db = AppDatabase.getDatabase(context)
     try {
-        // Chiudi il database prima dell'importazione
-        AppDatabase.getDatabase(context).close()
-
-        if (sourceUri.scheme == "file") {
-            val sourceFile = File(sourceUri.path!!)
-            FileInputStream(sourceFile).use { inputStream ->
-                FileOutputStream(dbFile).use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-        } else {
-            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                FileOutputStream(dbFile).use { outputStream ->
-                    inputStream.copyTo(outputStream)
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            BufferedReader(InputStreamReader(input)).use { reader ->
+                db.withTransaction {
+                    db.clearAllTables()
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        val parts = line!!.split(";")
+                        if (parts.isEmpty()) continue
+                        when (parts[0]) {
+                            "W" -> if (parts.size >= 5) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], isArchived = parts[4] == "1"))
+                            "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
+                            "C" -> if (parts.size >= 4) db.workerYearConfigDao().insertConfig(WorkerYearConfig(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), hourlyRate = parts[3].toDouble()))
+                            "L" -> if (parts.size >= 9) db.workLogDao().insertLog(WorkLog(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), date = parts[3].toLong(), morningStart = parts[4].ifBlank { null }, morningEnd = parts[5].ifBlank { null }, afternoonStart = parts[6].ifBlank { null }, afternoonEnd = parts[7].ifBlank { null }, totalHours = parts[8].toDouble()))
+                            "P" -> if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
+                            "G" -> if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
+                            "X" -> if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
+                        }
+                    }
                 }
             }
         }
-        // Elimina i file temporanei del database per forzare il ricaricamento
-        if (dbShm.exists()) dbShm.delete()
-        if (dbWal.exists()) dbWal.delete()
         true
     } catch (e: Exception) {
         e.printStackTrace()

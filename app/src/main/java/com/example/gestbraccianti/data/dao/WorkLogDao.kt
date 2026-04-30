@@ -31,4 +31,7 @@ interface WorkLogDao {
 
     @Query("SELECT * FROM work_logs WHERE date = :date AND harvestYearId = :yearId")
     suspend fun getLogsByDate(date: Long, yearId: Int): List<WorkLog>
+
+    @Query("SELECT * FROM work_logs")
+    suspend fun getAllLogsStatic(): List<WorkLog>
 }

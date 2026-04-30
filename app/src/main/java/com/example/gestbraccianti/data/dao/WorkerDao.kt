@@ -17,6 +17,9 @@ interface WorkerDao {
     @Query("SELECT * FROM workers ORDER BY surname, name ASC")
     fun getAllWorkers(): Flow<List<Worker>>
 
+    @Query("SELECT * FROM workers")
+    suspend fun getAllWorkersStatic(): List<Worker>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorker(worker: Worker): Long
 
