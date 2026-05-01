@@ -130,34 +130,66 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                         LaunchedEffect(worker.id) {
                             rate = viewModel.getWorkerConfig(worker.id, yearId)?.hourlyRate ?: 0.0
                         }
-                        Card(modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                selectedWorker = worker
-                                currentRate = rate
-                                showDialog = true
-                            }) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
+                                .clickable {
+                                    selectedWorker = worker
+                                    currentRate = rate
+                                    showDialog = true
+                                },
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Avatar with initial
+                                Surface(
+                                    modifier = Modifier.size(48.dp),
+                                    shape = MaterialTheme.shapes.small,
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = worker.surname.take(1).uppercase(),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "${worker.surname} ${worker.name}".trim(),
-                                        style = MaterialTheme.typography.titleMedium
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
                                     )
                                     if (worker.phoneNumber.isNotBlank()) {
-                                        Text(text = worker.phoneNumber, style = MaterialTheme.typography.bodySmall)
+                                        Text(
+                                            text = worker.phoneNumber,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     Text(
-                                        text = String.format(
-                                            Locale.ITALY,
-                                            "Tariffa: %.2f €/h",
-                                            rate
-                                        ), style = MaterialTheme.typography.bodySmall
+                                        text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", rate),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
-                                Icon(Icons.Default.Edit, contentDescription = "Modifica")
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Modifica",
+                                    tint = MaterialTheme.colorScheme.outline
+                                )
                             }
                         }
                     }

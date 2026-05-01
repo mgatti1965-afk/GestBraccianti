@@ -16,39 +16,44 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Grape80,
-    secondary = Vine80,
-    tertiary = Harvest80,
-    onPrimary = Neutral40,
-    primaryContainer = Grape40,
-    onPrimaryContainer = Grape80
+    primary = md_theme_dark_primary,
+    onPrimary = md_theme_dark_onPrimary,
+    primaryContainer = md_theme_dark_primaryContainer,
+    onPrimaryContainer = md_theme_dark_onPrimaryContainer,
+    secondary = md_theme_dark_secondary,
+    onSecondary = md_theme_dark_onSecondary,
+    secondaryContainer = md_theme_dark_secondaryContainer,
+    onSecondaryContainer = md_theme_dark_onSecondaryContainer,
+    tertiary = md_theme_dark_tertiary,
+    onTertiary = md_theme_dark_onTertiary,
+    tertiaryContainer = md_theme_dark_tertiaryContainer,
+    onTertiaryContainer = md_theme_dark_onTertiaryContainer,
+    background = md_theme_dark_background,
+    surface = md_theme_dark_surface,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Grape40,
-    secondary = Vine40,
-    tertiary = Harvest40,
-    onPrimary = Color.White,
-    primaryContainer = Grape80,
-    onPrimaryContainer = Grape40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = md_theme_light_primary,
+    onPrimary = md_theme_light_onPrimary,
+    primaryContainer = md_theme_light_primaryContainer,
+    onPrimaryContainer = md_theme_light_onPrimaryContainer,
+    secondary = md_theme_light_secondary,
+    onSecondary = md_theme_light_onSecondary,
+    secondaryContainer = md_theme_light_secondaryContainer,
+    onSecondaryContainer = md_theme_light_onSecondaryContainer,
+    tertiary = md_theme_light_tertiary,
+    onTertiary = md_theme_light_onTertiary,
+    tertiaryContainer = md_theme_light_tertiaryContainer,
+    onTertiaryContainer = md_theme_light_onTertiaryContainer,
+    background = md_theme_light_background,
+    surface = md_theme_light_surface,
 )
 
 @Composable
 fun GestBracciantiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    // Set to false by default to preserve the brand identity (Grape/Harvest)
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -64,12 +69,16 @@ fun GestBracciantiTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         val window = (view.context as Activity).window
+        window.statusBarColor = colorScheme.background.toArgb()
+        window.navigationBarColor = colorScheme.background.toArgb()
         WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }

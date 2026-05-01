@@ -167,23 +167,64 @@ fun SummaryHeader() {
 
 @Composable
 fun WorkerStatCard(stat: com.example.gestbraccianti.data.model.WorkerYearStats) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = MaterialTheme.shapes.medium
+    ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(2f)) {
-                Text("${stat.surname} ${stat.name}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                Text(String.format(Locale.ITALY, "Tariffa: %.2f €/h", stat.hourlyRate), style = MaterialTheme.typography.bodySmall)
+            // Avatar or Initial
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stat.surname.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
-            Text(formatDecimalHours(stat.totalHours), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            Text(
-                text = String.format(Locale.ITALY, "%.2f €", stat.totalEarnings),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1.5f)
-            )
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${stat.surname} ${stat.name}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", stat.hourlyRate),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = formatDecimalHours(stat.totalHours),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = String.format(Locale.ITALY, "%.2f €", stat.totalEarnings),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
         }
     }
 }

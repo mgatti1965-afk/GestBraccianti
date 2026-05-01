@@ -127,30 +127,72 @@ fun DailyLoggingScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onDateClick(date) }
+                                .padding(horizontal = 4.dp)
+                                .clickable { onDateClick(date) },
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Date Badge
+                                Surface(
+                                    modifier = Modifier.size(56.dp),
+                                    shape = MaterialTheme.shapes.medium,
+                                    color = MaterialTheme.colorScheme.secondaryContainer
+                                ) {
+                                    val cal = Calendar.getInstance().apply { timeInMillis = date }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = cal.get(Calendar.DAY_OF_MONTH).toString(),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                        Text(
+                                            text = SimpleDateFormat("MMM", Locale.ITALY).format(cal.time).uppercase(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = sdf.format(Date(date)).replaceFirstChar { it.uppercase() },
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        text = "$totalWorkers braccianti | ${
-                                            String.format(
-                                                Locale.ITALY,
-                                                "%.1f",
-                                                totalHours
-                                            )
-                                        } ore totali",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "$totalWorkers braccianti",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = " • ",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "${String.format(Locale.ITALY, "%.1f", totalHours)} ore totali",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
-                                Icon(Icons.Default.ChevronRight, contentDescription = "Dettagli")
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = "Dettagli",
+                                    tint = MaterialTheme.colorScheme.outline
+                                )
                             }
                         }
                     }
