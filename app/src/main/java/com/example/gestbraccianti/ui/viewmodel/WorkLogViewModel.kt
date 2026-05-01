@@ -110,8 +110,7 @@ class WorkLogViewModel(
                 val diff = endDate.time - startDate.time
                 if (diff > 0) {
                     val hours = diff.toDouble() / (1000 * 60 * 60)
-                    // Round to 2 decimal places
-                    "%.2f".format(Locale.ITALY, hours).replace(',', '.').toDouble()
+                    hours
                 } else 0.0
             } else 0.0
         } catch (e: Exception) {

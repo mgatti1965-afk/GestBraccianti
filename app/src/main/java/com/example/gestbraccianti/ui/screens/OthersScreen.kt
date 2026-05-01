@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.room.withTransaction
 import com.example.gestbraccianti.data.AppDatabase
+import androidx.compose.material.icons.filled.BugReport
 import com.example.gestbraccianti.data.entity.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -134,6 +135,52 @@ fun OthersScreen() {
             }
         }
 
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Strumenti di Test", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Simula la ricezione di SMS dai lavoratori per testare l'importazione automatica.", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                val count = simulateSmsReception(context)
+                                if (count > 0) {
+                                    Toast.makeText(context, "Simulati $count SMS per oggi!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Nessun lavoratore trovato con numero di telefono.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Icon(Icons.Default.BugReport, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Simula SMS Oggi")
+                    }
+                    
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    AppDatabase.getDatabase(context).mockSmsDao().deleteAll()
+                                }
+                                Toast.makeText(context, "Mock SMS eliminati.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Pulisci Mock")
+                    }
+                }
+            }
+        }
+
         Text("Cronologia Backup CSV", style = MaterialTheme.typography.titleMedium)
         
         if (backupFiles.isEmpty()) {
@@ -212,6 +259,49 @@ fun shareFile(context: Context, file: File) {
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(android.content.Intent.createChooser(intent, "Invia Backup"))
+}
+
+suspend fun simulateSmsReception(context: Context): Int = withContext(Dispatchers.IO) {
+    val db = AppDatabase.getDatabase(context)
+    val workers = db.workerDao().getAllWorkersStatic().filter { it.phoneNumber.isNotBlank() }
+    if (workers.isEmpty()) return@withContext 0
+
+    val now = Calendar.getInstance()
+    val random = Random()
+    var smsCount = 0
+
+    workers.forEach { worker ->
+        // Simulate Inizio
+        if (random.nextBoolean()) {
+            val cal = now.clone() as Calendar
+            val hour = if (random.nextBoolean()) 8 else 13
+            cal.set(Calendar.HOUR_OF_DAY, hour)
+            cal.set(Calendar.MINUTE, random.nextInt(15)) // 0-14 min delay
+            
+            db.mockSmsDao().insert(MockSms(
+                address = worker.phoneNumber,
+                body = "Inizio",
+                date = cal.timeInMillis
+            ))
+            smsCount++
+        }
+
+        // Simulate Fine
+        if (random.nextBoolean()) {
+            val cal = now.clone() as Calendar
+            val hour = if (random.nextBoolean()) 12 else 17
+            cal.set(Calendar.HOUR_OF_DAY, hour)
+            cal.set(Calendar.MINUTE, random.nextInt(15))
+            
+            db.mockSmsDao().insert(MockSms(
+                address = worker.phoneNumber,
+                body = "Fine",
+                date = cal.timeInMillis
+            ))
+            smsCount++
+        }
+    }
+    smsCount
 }
 
 suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {

@@ -19,6 +19,9 @@ import com.example.gestbraccianti.data.dao.WorkerGroupDao
 import com.example.gestbraccianti.data.entity.WorkerGroup
 import com.example.gestbraccianti.data.entity.WorkerGroupCrossRef
 
+import com.example.gestbraccianti.data.dao.MockSmsDao
+import com.example.gestbraccianti.data.entity.MockSms
+
 @Database(
     entities = [
         HarvestYear::class, 
@@ -27,9 +30,10 @@ import com.example.gestbraccianti.data.entity.WorkerGroupCrossRef
         Plantation::class, 
         WorkerYearConfig::class,
         WorkerGroup::class,
-        WorkerGroupCrossRef::class
+        WorkerGroupCrossRef::class,
+        MockSms::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -39,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun plantationDao(): PlantationDao
     abstract fun workerYearConfigDao(): WorkerYearConfigDao
     abstract fun workerGroupDao(): WorkerGroupDao
+    abstract fun mockSmsDao(): MockSmsDao
 
     companion object {
         @Volatile

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
+import com.example.gestbraccianti.ui.utils.formatDecimalHours
 
 import java.util.*
 import java.text.SimpleDateFormat
@@ -175,7 +176,7 @@ fun WorkerStatCard(stat: com.example.gestbraccianti.data.model.WorkerYearStats) 
                 Text("${stat.surname} ${stat.name}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                 Text(String.format(Locale.ITALY, "Tariffa: %.2f €/h", stat.hourlyRate), style = MaterialTheme.typography.bodySmall)
             }
-            Text(String.format(Locale.ITALY, "%.2f h", stat.totalHours), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Text(formatDecimalHours(stat.totalHours), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Text(
                 text = String.format(Locale.ITALY, "%.2f €", stat.totalEarnings),
                 style = MaterialTheme.typography.bodyLarge,
@@ -197,7 +198,7 @@ fun TotalFooter(totalHours: Double, totalEarnings: Double) {
     ) {
         Text("TOTALE GENERALE", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
         Column(horizontalAlignment = Alignment.End) {
-            Text(String.format(Locale.ITALY, "%.2f h", totalHours), style = MaterialTheme.typography.bodyLarge)
+            Text(formatDecimalHours(totalHours), style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = String.format(Locale.ITALY, "%.2f €", totalEarnings),
                 style = MaterialTheme.typography.headlineSmall,

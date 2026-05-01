@@ -35,6 +35,7 @@ import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import com.example.gestbraccianti.ui.utils.formatDecimalHours
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -144,7 +145,7 @@ fun WorkDayDetailScreen(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        text = "Totale: ${String.format(Locale.ITALY, "%.2f", log.totalHours)} ore",
+                                        text = "Totale: ${formatDecimalHours(log.totalHours)} h",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -239,13 +240,24 @@ fun SmsImportDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val smsList = remember(date, workers) { readSmsForDay(context, date, workers) }
+    val scope = rememberCoroutineScope()
+    var smsList by remember { mutableStateOf<List<SmsData>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(date, workers) {
+        smsList = readSmsForDay(context, date, workers)
+        isLoading = false
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("SMS Ricevuti (I/F)") },
         text = {
-            if (smsList.isEmpty()) {
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (smsList.isEmpty()) {
                 Text("Nessun SMS corrispondente ai criteri trovato per questa giornata.")
             } else {
                 LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
@@ -277,9 +289,43 @@ fun SmsImportDialog(
                     onClick = {
                         val groupedSms = smsList.groupBy { it.workerId }
                         groupedSms.forEach { (workerId, messages) ->
-                            val startTime = messages.filter { it.type == "I" }.minByOrNull { it.timestamp }?.time
-                            val endTime = messages.filter { it.type == "F" }.maxByOrNull { it.timestamp }?.time
+                            val starts = messages.filter { it.type == "I" }.sortedBy { it.timestamp }
+                            val ends = messages.filter { it.type == "F" }.sortedBy { it.timestamp }
+
+                            val firstIn = starts.firstOrNull()?.time
+                            val lastOut = ends.lastOrNull()?.time
                             
+                            var mStart = "08:00"
+                            var mEnd = ""
+                            var aStart = ""
+                            var aEnd = ""
+
+                            if (firstIn != null && lastOut != null) {
+                                val outHour = lastOut.split(":")[0].toInt()
+                                mStart = firstIn
+
+                                if (outHour <= 13) {
+                                    // Turno solo mattina
+                                    mEnd = lastOut
+                                } else {
+                                    // Turno intero con pausa
+                                    mEnd = "12:00"
+                                    aStart = "13:00"
+                                    aEnd = lastOut
+
+                                    // Se abbiamo messaggi intermedi, usiamoli per la pausa
+                                    if (starts.size >= 2 && ends.size >= 2) {
+                                        mEnd = ends.first().time
+                                        aStart = starts.last().time
+                                    }
+                                }
+                            } else if (firstIn != null) {
+                                mStart = firstIn
+                            } else if (lastOut != null) {
+                                val outHour = lastOut.split(":")[0].toInt()
+                                if (outHour <= 13) mEnd = lastOut else aEnd = lastOut
+                            }
+
                             val existingLog = existingLogs.find { it.workerId == workerId }
                             
                             workLogViewModel.saveLog(
@@ -287,10 +333,10 @@ fun SmsImportDialog(
                                 workerId = workerId,
                                 yearId = yearId,
                                 date = date,
-                                morningStart = startTime ?: existingLog?.morningStart ?: "08:00",
-                                morningEnd = existingLog?.morningEnd ?: "12:00",
-                                afternoonStart = existingLog?.afternoonStart ?: "13:00",
-                                afternoonEnd = endTime ?: existingLog?.afternoonEnd ?: "17:00"
+                                morningStart = mStart,
+                                morningEnd = if (mEnd.isNotBlank()) mEnd else (existingLog?.morningEnd ?: ""),
+                                afternoonStart = if (aStart.isNotBlank()) aStart else (existingLog?.afternoonStart ?: ""),
+                                afternoonEnd = if (aEnd.isNotBlank()) aEnd else (existingLog?.afternoonEnd ?: "")
                             )
                         }
                         onDismiss()
@@ -304,9 +350,8 @@ fun SmsImportDialog(
     )
 }
 
-fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): List<SmsData> {
+suspend fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): List<SmsData> {
     val result = mutableListOf<SmsData>()
-    val uri = Uri.parse("content://sms/inbox")
     
     // Calculate start and end of day
     val cal = Calendar.getInstance()
@@ -318,6 +363,10 @@ fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): List<Sms
     val startOfDay = cal.timeInMillis
     val endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1
 
+    val timeSdf = SimpleDateFormat("HH:mm", Locale.ITALY)
+
+    // 1. Read REAL SMS
+    val uri = Uri.parse("content://sms/inbox")
     val projection = arrayOf("address", "body", "date")
     val selection = "date >= ? AND date <= ?"
     val selectionArgs = arrayOf(startOfDay.toString(), endOfDay.toString())
@@ -332,31 +381,49 @@ fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): List<Sms
             val body = cursor.getString(bodyIdx)
             val smsDate = cursor.getLong(dateIdx)
             
-            if (body.isNullOrBlank()) continue
-            val type = body.trim().firstOrNull()?.uppercaseChar()?.toString()
-            if (type != "I" && type != "F") continue
-
-            // Filter workers by phone number (last 10 digits)
-            val cleanAddress = address.filter { it.isDigit() }.takeLast(10)
-            val worker = workers.find { 
-                it.phoneNumber.filter { char -> char.isDigit() }.takeLast(10) == cleanAddress 
-            }
-            
-            if (worker != null) {
-                val timeSdf = SimpleDateFormat("HH:mm", Locale.ITALY)
-                result.add(SmsData(
-                    workerId = worker.id,
-                    senderName = worker.name,
-                    senderSurname = worker.surname,
-                    time = timeSdf.format(Date(smsDate)),
-                    timestamp = smsDate,
-                    text = body,
-                    type = type
-                ))
-            }
+            processSmsEntry(address, body, smsDate, workers, timeSdf, result)
         }
     }
-    return result
+
+    // 2. Read MOCK SMS from database
+    val db = com.example.gestbraccianti.data.AppDatabase.getDatabase(context)
+    val mockSmsList = db.mockSmsDao().getMockSmsForRange(startOfDay, endOfDay)
+    mockSmsList.forEach { mock ->
+        processSmsEntry(mock.address, mock.body, mock.date, workers, timeSdf, result)
+    }
+
+    return result.sortedBy { it.timestamp }
+}
+
+private fun processSmsEntry(
+    address: String?,
+    body: String?,
+    smsDate: Long,
+    workers: List<Worker>,
+    timeSdf: SimpleDateFormat,
+    result: MutableList<SmsData>
+) {
+    if (body.isNullOrBlank()) return
+    val type = body.trim().firstOrNull()?.uppercaseChar()?.toString()
+    if (type != "I" && type != "F") return
+
+    // Filter workers by phone number (last 10 digits)
+    val cleanAddress = address?.filter { it.isDigit() }?.takeLast(10) ?: ""
+    val worker = workers.find { 
+        it.phoneNumber.filter { char -> char.isDigit() }.takeLast(10) == cleanAddress 
+    }
+    
+    if (worker != null) {
+        result.add(SmsData(
+            workerId = worker.id,
+            senderName = worker.name,
+            senderSurname = worker.surname,
+            time = timeSdf.format(Date(smsDate)),
+            timestamp = smsDate,
+            text = body,
+            type = type
+        ))
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -481,9 +548,9 @@ fun AddWorkerToDayDialog(
 ) {
     var selectedWorker by remember { mutableStateOf<Worker?>(availableWorkers.find { it.id == editingLog?.workerId }) }
     var morningStart by remember { mutableStateOf(editingLog?.morningStart ?: "08:00") }
-    var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "12:00") }
-    var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "13:00") }
-    var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "17:00") }
+    var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "") }
+    var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "") }
+    var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "") }
     
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -568,15 +635,6 @@ fun AddWorkerToDayDialog(
                     )
                 }
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = {
-                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = "13:00"; afternoonEnd = "17:00"
-                    }) { Text("Standard 8h") }
-                    TextButton(onClick = {
-                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = ""; afternoonEnd = ""
-                    }) { Text("Solo Matt.") }
-                }
-
                 Text("Mattina", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { showTimePicker(morningStart) { morningStart = it } }, modifier = Modifier.weight(1f)) {
