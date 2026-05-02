@@ -53,10 +53,25 @@ class WorkerViewModel(
 
     fun updateWorkerInfo(workerId: Long, name: String, surname: String, phoneNumber: String, yearId: Int, newRate: Double) {
         viewModelScope.launch {
-            workerRepository.updateWorker(Worker(id = workerId, name = name, surname = surname, phoneNumber = phoneNumber))
+            // Recupera il lavoratore esistente per preservare i campi non modificati (es. isArchived)
+            val existingWorker = workerRepository.getWorkerById(workerId)
+            if (existingWorker != null) {
+                workerRepository.updateWorker(
+                    existingWorker.copy(
+                        name = name,
+                        surname = surname,
+                        phoneNumber = phoneNumber
+                    )
+                )
+            }
             configRepository.insertConfig(
                 WorkerYearConfig(workerId = workerId, harvestYearId = yearId, hourlyRate = newRate)
             )
+            
+            // Forza il refresh ricaricando l'anno selezionato
+            val currentYear = _selectedYearId.value
+            _selectedYearId.value = null
+            _selectedYearId.value = currentYear
         }
     }
 }

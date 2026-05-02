@@ -35,6 +35,8 @@ fun OthersScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var backupFiles by remember { mutableStateOf(emptyList<File>()) }
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Database", "Test")
     
     // Gestione dati proprietario con SharedPreferences per semplicità
     val prefs = remember { context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE) }
@@ -228,8 +230,48 @@ fun OthersScreen() {
             }
         }
 
-        Text("Gestione Database", style = MaterialTheme.typography.titleMedium)
+        TabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary,
+            divider = {}
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = { Text(title) }
+                )
+            }
+        }
 
+        when (selectedTab) {
+            0 -> DatabaseTab(
+                onExport = {
+                    val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
+                    val timestamp = sdf.format(Date())
+                    csvExportLauncher.launch("gest_braccianti_$timestamp.csv")
+                },
+                onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
+                backupFiles = backupFiles,
+                onRefresh = { refreshBackupList() }
+            )
+            1 -> TestTab(scope = scope)
+        }
+    }
+}
+
+@Composable
+fun DatabaseTab(
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    backupFiles: List<File>,
+    onRefresh: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Esportazione e Backup (CSV)", style = MaterialTheme.typography.titleMedium)
@@ -237,72 +279,15 @@ fun OthersScreen() {
                 Text("Formato leggibile compatibile con Excel o Blocco Note. I dati vengono salvati anche nella cronologia interna.", style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
-                            val timestamp = sdf.format(Date())
-                            csvExportLauncher.launch("gest_braccianti_$timestamp.csv")
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Button(onClick = onExport, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.FileUpload, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("Esporta CSV")
+                        Text("Esporta")
                     }
-                    
-                    OutlinedButton(
-                        onClick = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    OutlinedButton(onClick = onImport, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.FileDownload, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("Importa CSV")
-                    }
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Strumenti di Test", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Simula la ricezione di SMS dai lavoratori per testare l'importazione automatica.", style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                val count = simulateSmsReception(context)
-                                if (count > 0) {
-                                    Toast.makeText(context, "Simulati $count SMS per oggi!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Nessun lavoratore trovato con numero di telefono.", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                    ) {
-                        Icon(Icons.Default.BugReport, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Simula SMS Oggi")
-                    }
-                    
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch {
-                                withContext(Dispatchers.IO) {
-                                    AppDatabase.getDatabase(context).mockSmsDao().deleteAll()
-                                }
-                                Toast.makeText(context, "Mock SMS eliminati.", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Pulisci Mock")
+                        Text("Importa")
                     }
                 }
             }
@@ -323,7 +308,7 @@ fun OthersScreen() {
                         onShare = { shareFile(context, file) },
                         onDelete = {
                             file.delete()
-                            refreshBackupList()
+                            onRefresh()
                         },
                         onRestore = {
                             scope.launch {
@@ -336,6 +321,58 @@ fun OthersScreen() {
                             }
                         }
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TestTab(scope: kotlinx.coroutines.CoroutineScope) {
+    val context = LocalContext.current
+    
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Simulazione SMS", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Simula la ricezione di SMS dai lavoratori per testare l'importazione automatica.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                val count = simulateSmsReception(context)
+                                if (count > 0) {
+                                    Toast.makeText(context, "Simulati $count SMS per oggi!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Nessun lavoratore trovato con numero di telefono.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.BugReport, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Simula SMS")
+                    }
+                    
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    AppDatabase.getDatabase(context).mockSmsDao().deleteAll()
+                                }
+                                Toast.makeText(context, "Mock SMS eliminati.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Pulisci Mock")
+                    }
                 }
             }
         }
