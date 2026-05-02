@@ -75,6 +75,15 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     }
 
     if (showDialog) {
+        // Forza il ricaricamento del rate quando si apre il dialog per un lavoratore esistente
+        LaunchedEffect(selectedWorker) {
+            if (selectedWorker != null) {
+                currentRate = viewModel.getWorkerConfig(selectedWorker!!.id, yearId)?.hourlyRate ?: 0.0
+            } else {
+                currentRate = 0.0
+            }
+        }
+
         AddEditWorkerDialog(
             worker = selectedWorker,
             initialRate = currentRate,
@@ -292,10 +301,10 @@ fun AddEditWorkerDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String, String, Double) -> Unit
 ) {
-    var name by remember { mutableStateOf(worker?.name ?: "") }
-    var surname by remember { mutableStateOf(worker?.surname ?: "") }
-    var phoneNumber by remember { mutableStateOf(worker?.phoneNumber ?: "") }
-    var rate by remember { mutableStateOf(if (initialRate > 0) String.format(Locale.ITALY, "%.2f", initialRate) else "") }
+    var name by remember(worker) { mutableStateOf(worker?.name ?: "") }
+    var surname by remember(worker) { mutableStateOf(worker?.surname ?: "") }
+    var phoneNumber by remember(worker) { mutableStateOf(worker?.phoneNumber ?: "") }
+    var rate by remember(initialRate) { mutableStateOf(if (initialRate > 0) String.format(Locale.ITALY, "%.2f", initialRate) else "") }
     val context = LocalContext.current
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
