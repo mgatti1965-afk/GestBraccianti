@@ -2,6 +2,8 @@ package com.example.gestbraccianti.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -196,12 +198,12 @@ fun shareReport(context: Context, text: String) {
     if (cleanPhone.isNotBlank()) {
         try {
             // Proviamo ad aprire direttamente WhatsApp con il numero del proprietario
-            val uri = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(text)}")
+            val uri = "https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(text)}".toUri()
             val whatsappIntent = Intent(Intent.ACTION_VIEW, uri)
             whatsappIntent.setPackage("com.whatsapp")
             context.startActivity(whatsappIntent)
             return
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Se WhatsApp non è installato, usa il selettore normale
         }
     }
