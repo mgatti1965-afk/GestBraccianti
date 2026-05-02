@@ -37,7 +37,7 @@ val md_theme_dark_onTertiary = Color(0xFF68000A)
 val md_theme_dark_tertiaryContainer = Color(0xFF930012)
 val md_theme_dark_onTertiaryContainer = Color(0xFFFFDADA)
 
-val md_theme_light_background = Color(0xFFFFF9F0) // Colore Sabbia/Panna molto chiaro
-val md_theme_light_surface = Color(0xFFFFFDF9)
-val md_theme_dark_background = Color(0xFF1C1B17)
-val md_theme_dark_surface = Color(0xFF252420)
+val md_theme_light_background = Color(0xFFF4EBD0) // Color Sabbia
+val md_theme_light_surface = Color(0xFFFAF5E9)   // Panna/Sabbia chiarissimo per le card
+val md_theme_dark_background = Color(0xFF2B2822) // Sabbia molto scuro per il tema scuro
+val md_theme_dark_surface = Color(0xFF36322B)

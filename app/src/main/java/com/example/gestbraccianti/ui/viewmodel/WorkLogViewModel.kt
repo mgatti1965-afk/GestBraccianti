@@ -28,6 +28,17 @@ class WorkLogViewModel(
 
     fun setSelectedYear(yearId: Int) {
         _selectedYearId.value = yearId
+        // Inizializza la data di riferimento all'inizio dell'anno selezionato
+        val cal = Calendar.getInstance(Locale.ITALY).apply {
+            set(Calendar.YEAR, yearId)
+            set(Calendar.MONTH, Calendar.JANUARY)
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        _currentReferenceDate.value = cal.timeInMillis
     }
 
     fun setDateRange(start: Long?, end: Long?) {

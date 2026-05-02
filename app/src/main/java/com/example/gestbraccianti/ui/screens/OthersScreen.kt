@@ -71,7 +71,7 @@ fun OthersScreen() {
                                 }
                             }
                         }
-
+                        
                         val nameProjection = arrayOf(
                             ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
                             ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME

@@ -28,18 +28,29 @@ fun DailyLoggingScreen(
     onDateClick: (Long) -> Unit
 ) {
     val allLogs by viewModel.allLogs.collectAsState()
+    val referenceDate by viewModel.currentReferenceDate.collectAsState()
     val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ITALY)
     val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.ITALY)
     val context = LocalContext.current
 
     var selectedCalendar by remember {
         mutableStateOf(Calendar.getInstance().apply {
+            timeInMillis = referenceDate
             set(Calendar.DAY_OF_MONTH, 1)
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         })
+    }
+
+    // Sincronizza il calendario se cambia la data di riferimento nel ViewModel
+    LaunchedEffect(referenceDate) {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = referenceDate
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+        selectedCalendar = cal
     }
 
     // Group logs by date to identify worked days

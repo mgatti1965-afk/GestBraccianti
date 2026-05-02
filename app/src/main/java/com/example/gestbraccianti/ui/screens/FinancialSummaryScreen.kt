@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat
 @Composable
 fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
     val stats by viewModel.workerStats.collectAsState()
+    val allLogs by viewModel.allLogs.collectAsState()
     val referenceDate by viewModel.currentReferenceDate.collectAsState()
     var selectedFilter by remember { mutableIntStateOf(0) }
     val filters = listOf("Anno", "Mese", "Settimana", "Giorno")
@@ -79,7 +80,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
             if (stats.isNotEmpty()) {
                 FloatingActionButton(
                     onClick = {
-                        val reportText = generateReportText(context, stats, filters[selectedFilter], referenceDate)
+                        val reportText = generateReportText(context, stats, allLogs, filters[selectedFilter], referenceDate)
                         shareReport(context, reportText)
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -147,6 +148,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
 fun generateReportText(
     context: Context,
     stats: List<com.example.gestbraccianti.data.model.WorkerYearStats>,
+    allLogs: List<com.example.gestbraccianti.data.entity.WorkLog>,
     filterTitle: String,
     referenceDate: Long
 ): String {
@@ -169,7 +171,7 @@ fun generateReportText(
     sb.append("📅 Periodo: $filterTitle ($period)\n")
     sb.append("----------------------------------\n\n")
     
-    // Raggruppa per Anno, Mese e Settimana se necessario
+    // Elenco per lavoratore nel periodo selezionato
     stats.forEach { stat ->
         sb.append("📍 *${stat.surname} ${stat.name}*\n")
         sb.append("   • Ore: ${String.format(Locale.ITALY, "%.1f", stat.totalHours)} h\n")
@@ -177,13 +179,53 @@ fun generateReportText(
         sb.append("\n")
     }
     
-    val totalHours = stats.sumOf { it.totalHours }
-    val totalEarnings = stats.sumOf { it.totalEarnings }
+    // Calcolo Totali Parziali (Settimana, Mese, Anno)
+    val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
     
+    // Totale Settimana
+    val currentWeek = calendar.get(Calendar.WEEK_OF_YEAR)
+    val weekHours = allLogs.filter { 
+        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
+        c.get(Calendar.WEEK_OF_YEAR) == currentWeek && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+    }.sumOf { it.totalHours }
+    
+    // Totale Mese
+    val currentMonth = calendar.get(Calendar.MONTH)
+    val monthHours = allLogs.filter {
+        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
+        c.get(Calendar.MONTH) == currentMonth && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+    }.sumOf { it.totalHours }
+    
+    // Totale Anno
+    val yearHours = allLogs.sumOf { it.totalHours }
+
+    // Poiché non abbiamo i rate per tutti i periodi facilmente qui, 
+    // calcoliamo un rate medio o usiamo quello dei braccianti presenti negli stats
+    val workerRates = stats.associate { it.workerId to it.hourlyRate }
+    
+    fun calculateEarnings(logs: List<com.example.gestbraccianti.data.entity.WorkLog>): Double {
+        return logs.sumOf { log -> (workerRates[log.workerId] ?: 0.0) * log.totalHours }
+    }
+
+    val weekEarnings = calculateEarnings(allLogs.filter { 
+        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
+        c.get(Calendar.WEEK_OF_YEAR) == currentWeek && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+    })
+    val monthEarnings = calculateEarnings(allLogs.filter {
+        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
+        c.get(Calendar.MONTH) == currentMonth && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+    })
+    val yearEarnings = calculateEarnings(allLogs)
+
     sb.append("----------------------------------\n")
-    sb.append("💰 *TOTALI COMPLESSIVI*\n")
-    sb.append("   • Ore totali: ${String.format(Locale.ITALY, "%.1f", totalHours)} h\n")
-    sb.append("   • Importo totale: ${String.format(Locale.ITALY, "%.2f", totalEarnings)} €\n")
+    sb.append("💰 *RIEPILOGO TOTALI*\n")
+    if (filterTitle != "Settimana") {
+        sb.append("📅 Questa Settimana: ${String.format(Locale.ITALY, "%.1f", weekHours)} h | ${String.format(Locale.ITALY, "%.2f", weekEarnings)} €\n")
+    }
+    if (filterTitle != "Mese") {
+        sb.append("📅 Questo Mese: ${String.format(Locale.ITALY, "%.1f", monthHours)} h | ${String.format(Locale.ITALY, "%.2f", monthEarnings)} €\n")
+    }
+    sb.append("📅 Totale Anno: ${String.format(Locale.ITALY, "%.1f", yearHours)} h | ${String.format(Locale.ITALY, "%.2f", yearEarnings)} €\n")
     
     return sb.toString()
 }
@@ -197,18 +239,20 @@ fun shareReport(context: Context, text: String) {
     
     if (cleanPhone.isNotBlank()) {
         try {
-            // Proviamo ad aprire direttamente WhatsApp con il numero del proprietario
-            val uri = "https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(text)}".toUri()
-            val whatsappIntent = Intent(Intent.ACTION_VIEW, uri)
-            whatsappIntent.setPackage("com.whatsapp")
-            context.startActivity(whatsappIntent)
+            // URL specifico per aprire direttamente la chat di WhatsApp con quel numero e il testo pronto
+            val url = "https://wa.me/$cleanPhone?text=${Uri.encode(text)}"
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse(url)
+                setPackage("com.whatsapp") // Forza l'uso di WhatsApp
+            }
+            context.startActivity(intent)
             return
-        } catch (_: Exception) {
-            // Se WhatsApp non è installato, usa il selettore normale
+        } catch (e: Exception) {
+            // Fallback se WhatsApp non è installato
         }
     }
     
-    // Se non c'è il numero o WhatsApp fallisce, usa il selettore di sistema
+    // Se non c'è il numero o WhatsApp fallisce, usa il selettore di sistema come ultima risorsa
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
