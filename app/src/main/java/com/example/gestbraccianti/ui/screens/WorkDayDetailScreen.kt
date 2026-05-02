@@ -562,7 +562,7 @@ fun AddGroupToDayDialog(
     )
 }
 
-private fun Modifier.menuAnchor(type: MenuAnchorType): Modifier = this // Mock to fix deprecation warning in the flow
+private fun Modifier.menuAnchor(type: MenuAnchorType, enabled: Boolean = true): Modifier = this // Mock to fix deprecation warning in the flow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -575,9 +575,9 @@ fun AddWorkerToDayDialog(
 ) {
     var selectedWorker by remember { mutableStateOf<Worker?>(availableWorkers.find { it.id == editingLog?.workerId }) }
     var morningStart by remember { mutableStateOf(editingLog?.morningStart ?: "08:00") }
-    var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "") }
-    var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "") }
-    var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "") }
+    var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "12:00") }
+    var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "13:00") }
+    var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "17:00") }
     
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -635,7 +635,7 @@ fun AddWorkerToDayDialog(
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                         )
                         ExposedDropdownMenu(
                             expanded = expanded,
@@ -662,6 +662,15 @@ fun AddWorkerToDayDialog(
                     )
                 }
                 
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    TextButton(onClick = {
+                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = "13:00"; afternoonEnd = "17:00"
+                    }) { Text("Standard 8h") }
+                    TextButton(onClick = {
+                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = ""; afternoonEnd = ""
+                    }) { Text("Solo Matt.") }
+                }
+
                 Text("Mattina", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { showTimePicker(morningStart) { morningStart = it } }, modifier = Modifier.weight(1f)) {
