@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +26,7 @@ fun YearSelectionScreen(
 ) {
     val years by viewModel.allYears.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var yearToDelete by remember { mutableStateOf<HarvestYear?>(null) }
 
     if (showAddDialog) {
         Log.d("YearSelection", "Showing AddYearDialog")
@@ -37,6 +39,30 @@ fun YearSelectionScreen(
                 Log.d("YearSelection", "Confirming year: $year")
                 viewModel.createYear(year)
                 showAddDialog = false
+            }
+        )
+    }
+
+    if (yearToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { yearToDelete = null },
+            title = { Text("Elimina Annata") },
+            text = { Text("Sei sicuro di voler eliminare l'annata ${yearToDelete!!.id}? Tutti i dati relativi (braccianti e ore di lavoro) verranno persi permanentemente.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteYear(yearToDelete!!.id)
+                        yearToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Elimina")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { yearToDelete = null }) {
+                    Text("Annulla")
+                }
             }
         )
     }
@@ -86,6 +112,13 @@ fun YearSelectionScreen(
                                 SuggestionChip(
                                     onClick = {},
                                     label = { Text("Corrente") }
+                                )
+                            }
+                            IconButton(onClick = { yearToDelete = year }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Elimina Annata",
+                                    tint = MaterialTheme.colorScheme.error
                                 )
                             }
                         }

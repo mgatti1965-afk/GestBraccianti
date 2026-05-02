@@ -26,4 +26,7 @@ interface HarvestYearDao {
 
     @Query("UPDATE harvest_years SET isCurrent = 1 WHERE id = :yearId")
     suspend fun setCurrentYear(yearId: Int)
+
+    @Query("DELETE FROM harvest_years WHERE id = :yearId")
+    suspend fun deleteYear(yearId: Int)
 }

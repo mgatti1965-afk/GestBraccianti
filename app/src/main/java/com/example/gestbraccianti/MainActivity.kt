@@ -165,7 +165,7 @@ fun MainApp(
                 FinancialSummaryScreen(workLogViewModel) 
             }
             composable(Screen.Others.route) {
-                OthersScreen()
+                OthersScreen(workerViewModel, currentYear?.id ?: 0)
             }
         }
     }

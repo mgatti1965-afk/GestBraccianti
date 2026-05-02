@@ -40,4 +40,8 @@ class HarvestRepository(
     suspend fun deselectYear() {
         harvestYearDao.clearCurrentYear()
     }
+
+    suspend fun deleteYear(yearId: Int) {
+        harvestYearDao.deleteYear(yearId)
+    }
 }

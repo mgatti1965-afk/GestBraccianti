@@ -28,11 +28,21 @@ class WorkLogViewModel(
 
     fun setSelectedYear(yearId: Int) {
         _selectedYearId.value = yearId
-        // Inizializza la data di riferimento all'inizio dell'anno selezionato
+        // Inizializza la data di riferimento: 
+        // Se è l'anno in corso, usa la data attuale (mese corrente).
+        // Altrimenti, usa il 1° gennaio dell'anno selezionato.
+        val now = Calendar.getInstance(Locale.ITALY)
+        val currentSystemYear = now.get(Calendar.YEAR)
+        
         val cal = Calendar.getInstance(Locale.ITALY).apply {
-            set(Calendar.YEAR, yearId)
-            set(Calendar.MONTH, Calendar.JANUARY)
-            set(Calendar.DAY_OF_MONTH, 1)
+            if (yearId == currentSystemYear) {
+                timeInMillis = now.timeInMillis
+            } else {
+                set(Calendar.YEAR, yearId)
+                set(Calendar.MONTH, Calendar.JANUARY)
+                set(Calendar.DAY_OF_MONTH, 1)
+            }
+            // Normalizza a inizio giornata
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)

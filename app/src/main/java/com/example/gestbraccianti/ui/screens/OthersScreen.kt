@@ -31,7 +31,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun OthersScreen() {
+fun OthersScreen(
+    workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel,
+    yearId: Int
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var backupFiles by remember { mutableStateOf(emptyList<File>()) }
@@ -256,7 +259,7 @@ fun OthersScreen() {
                 backupFiles = backupFiles,
                 onRefresh = { refreshBackupList() }
             )
-            1 -> TestTab(scope = scope)
+            1 -> TestTab(scope = scope, workerViewModel = workerViewModel, yearId = yearId)
         }
     }
 }
@@ -328,7 +331,11 @@ fun DatabaseTab(
 }
 
 @Composable
-fun TestTab(scope: kotlinx.coroutines.CoroutineScope) {
+fun TestTab(
+    scope: kotlinx.coroutines.CoroutineScope,
+    workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel,
+    yearId: Int
+) {
     val context = LocalContext.current
     
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -373,6 +380,40 @@ fun TestTab(scope: kotlinx.coroutines.CoroutineScope) {
                     ) {
                         Text("Pulisci Mock")
                     }
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Generazione Dati Test", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Crea 10 braccianti di prova nell'annata corrente per testare l'app velocemente.", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val names = listOf("Mario", "Luigi", "Giuseppe", "Antonio", "Francesco", "Giovanni", "Roberto", "Marco", "Paolo", "Angelo")
+                        val surnames = listOf("Rossi", "Bianchi", "Verdi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana")
+                        
+                        names.forEachIndexed { i, name ->
+                            workerViewModel.addWorkerToYear(
+                                name = name,
+                                surname = surnames[i],
+                                phoneNumber = "340${1000000 + (Math.random() * 9000000).toInt()}",
+                                hourlyRate = 7.5,
+                                yearId = yearId
+                            )
+                        }
+                        Toast.makeText(context, "Creati 10 braccianti!", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.People, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Genera 10 Braccianti")
                 }
             }
         }

@@ -50,6 +50,13 @@ class HarvestViewModel(private val repository: HarvestRepository) : ViewModel() 
             refreshCurrentYear()
         }
     }
+
+    fun deleteYear(yearId: Int) {
+        viewModelScope.launch {
+            repository.deleteYear(yearId)
+            refreshCurrentYear()
+        }
+    }
 }
 
 class HarvestViewModelFactory(private val repository: HarvestRepository) : ViewModelProvider.Factory {
