@@ -61,6 +61,7 @@ fun WorkerRegistryScreen(
 
 @Composable
 fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
+    val context = LocalContext.current
     val workers by viewModel.workersForCurrentYear.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var selectedWorker by remember { mutableStateOf<Worker?>(null) }
