@@ -213,11 +213,11 @@ fun DailyLoggingScreen(
 
         FloatingActionButton(
             onClick = {
-                val calendar = Calendar.getInstance()
-                DatePickerDialog(
+                val calendar = Calendar.getInstance(Locale.ITALY)
+                val dialog = DatePickerDialog(
                     context,
                     { _, y, m, d ->
-                        val newCal = Calendar.getInstance().apply {
+                        val newCal = Calendar.getInstance(Locale.ITALY).apply {
                             set(y, m, d, 0, 0, 0)
                             set(Calendar.MILLISECOND, 0)
                         }
@@ -226,7 +226,11 @@ fun DailyLoggingScreen(
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH),
                     calendar.get(Calendar.DAY_OF_MONTH)
-                ).show()
+                )
+                // Imposta la localizzazione esplicita in italiano per il dialogo
+                dialog.datePicker.calendarViewShown = false // Forza lo stile moderno
+                context.resources.configuration.setLocale(Locale.ITALY)
+                dialog.show()
             },
             modifier = Modifier
                 .align(Alignment.BottomEnd)

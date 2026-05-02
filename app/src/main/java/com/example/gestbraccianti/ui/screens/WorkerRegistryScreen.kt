@@ -6,6 +6,8 @@ import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import android.widget.Toast
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -123,7 +125,21 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
 
             if (workers.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nessun bracciante registrato.")
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Nessun bracciante registrato.")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                viewModel.copyWorkersFromPreviousYear(yearId) { count ->
+                                    Toast.makeText(context, "Copiati $count braccianti!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Copia da anno precedente")
+                        }
+                    }
                 }
             } else if (filteredWorkers.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -203,6 +219,27 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
             onClick = { selectedWorker = null; currentRate = 0.0; showDialog = true },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
         ) { Icon(Icons.Default.Add, contentDescription = "Aggiungi Bracciante") }
+
+        if (workers.isNotEmpty()) {
+            SmallFloatingActionButton(
+                onClick = {
+                    viewModel.copyWorkersFromPreviousYear(yearId) { count ->
+                        if (count > 0) {
+                            Toast.makeText(context, "Copiati $count nuovi braccianti!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Nessun nuovo bracciante da copiare.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 80.dp, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copia da anno precedente")
+            }
+        }
     }
 }
 
