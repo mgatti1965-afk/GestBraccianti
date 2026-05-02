@@ -1,8 +1,9 @@
-package com.example.gestbraccianti.ui.screens
-
+import android.content.Context
+import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
@@ -25,6 +27,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
     val referenceDate by viewModel.currentReferenceDate.collectAsState()
     var selectedFilter by remember { mutableIntStateOf(0) }
     val filters = listOf("Anno", "Mese", "Settimana", "Giorno")
+    val context = LocalContext.current
 
     LaunchedEffect(selectedFilter, referenceDate) {
         val calendar = Calendar.getInstance(Locale.ITALY)
@@ -67,57 +70,149 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
         }
     }
 
-    Column {
-        ScrollableTabRow(
-            selectedTabIndex = selectedFilter,
-            edgePadding = 16.dp,
-            divider = {}
-        ) {
-            filters.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedFilter == index,
-                    onClick = { selectedFilter = index },
-                    text = { Text(title) }
-                )
+    Scaffold(
+        floatingActionButton = {
+            if (stats.isNotEmpty()) {
+                FloatingActionButton(
+                    onClick = {
+                        val reportText = generateReportText(context, stats, filters[selectedFilter], referenceDate)
+                        shareReport(context, reportText)
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = "Condividi Riepilogo")
+                }
             }
         }
-
-        if (selectedFilter != 0) {
-            PeriodNavigation(
-                selectedFilter = selectedFilter,
-                referenceDate = referenceDate,
-                onPrev = { viewModel.moveReferenceDate(selectedFilter, -1) },
-                onNext = { viewModel.moveReferenceDate(selectedFilter, 1) }
-            )
-        }
-
-        Box(modifier = Modifier.weight(1f)) {
-            if (stats.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nessun dato disponibile per questa selezione.")
+    ) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding)) {
+            ScrollableTabRow(
+                selectedTabIndex = selectedFilter,
+                edgePadding = 16.dp,
+                divider = {}
+            ) {
+                filters.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedFilter == index,
+                        onClick = { selectedFilter = index },
+                        text = { Text(title) }
+                    )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        SummaryHeader()
+            }
+
+            if (selectedFilter != 0) {
+                PeriodNavigation(
+                    selectedFilter = selectedFilter,
+                    referenceDate = referenceDate,
+                    onPrev = { viewModel.moveReferenceDate(selectedFilter, -1) },
+                    onNext = { viewModel.moveReferenceDate(selectedFilter, 1) }
+                )
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
+                if (stats.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Nessun dato disponibile per questa selezione.")
                     }
-                    items(stats) { item ->
-                        WorkerStatCard(item)
-                    }
-                    item {
-                        TotalFooter(
-                            totalHours = stats.sumOf { it.totalHours },
-                            totalEarnings = stats.sumOf { it.totalEarnings }
-                        )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            SummaryHeader()
+                        }
+                        items(stats) { item ->
+                            WorkerStatCard(item)
+                        }
+                        item {
+                            TotalFooter(
+                                totalHours = stats.sumOf { it.totalHours },
+                                totalEarnings = stats.sumOf { it.totalEarnings }
+                            )
+                        }
                     }
                 }
             }
         }
     }
+}
+
+fun generateReportText(
+    context: Context,
+    stats: List<com.example.gestbraccianti.data.model.WorkerYearStats>,
+    filterTitle: String,
+    referenceDate: Long
+): String {
+    val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
+    val ownerName = prefs.getString("owner_name", "") ?: ""
+    val ownerSurname = prefs.getString("owner_surname", "") ?: ""
+    
+    val sdf = when (filterTitle) {
+        "Mese" -> SimpleDateFormat("MMMM yyyy", Locale.ITALY)
+        "Settimana" -> SimpleDateFormat("'Settimana' w, yyyy", Locale.ITALY)
+        "Giorno" -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY)
+        else -> SimpleDateFormat("yyyy", Locale.ITALY)
+    }
+    
+    val period = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() }
+    val sb = StringBuilder()
+    
+    sb.append("📊 *RIEPILOGO GESTBRACCIANTI*\n")
+    sb.append("👤 Proprietario: $ownerSurname $ownerName\n")
+    sb.append("📅 Periodo: $filterTitle ($period)\n")
+    sb.append("----------------------------------\n\n")
+    
+    stats.forEach { stat ->
+        sb.append("📍 *${stat.surname} ${stat.name}*\n")
+        sb.append("   • Ore: ${String.format(Locale.ITALY, "%.1f", stat.totalHours)} h\n")
+        sb.append("   • Totale: ${String.format(Locale.ITALY, "%.2f", stat.totalEarnings)} €\n")
+        sb.append("\n")
+    }
+    
+    val totalHours = stats.sumOf { it.totalHours }
+    val totalEarnings = stats.sumOf { it.totalEarnings }
+    
+    sb.append("----------------------------------\n")
+    sb.append("💰 *TOTALE GENERALE*\n")
+    sb.append("   • Ore complessive: ${String.format(Locale.ITALY, "%.1f", totalHours)} h\n")
+    sb.append("   • Importo dovuto: ${String.format(Locale.ITALY, "%.2f", totalEarnings)} €\n")
+    
+    return sb.toString()
+}
+
+fun shareReport(context: Context, text: String) {
+    val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
+    val ownerPhone = prefs.getString("owner_phone", "") ?: ""
+    
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    
+    // Se abbiamo il numero del proprietario, proviamo a impostare WhatsApp come preferito
+    if (ownerPhone.isNotBlank()) {
+        // Rimuove eventuali caratteri non numerici tranne il +
+        val cleanPhone = ownerPhone.filter { it.isDigit() || it == '+' }
+        // Cerchiamo di aprire direttamente WhatsApp se possibile, altrimenti mostriamo il chooser
+        try {
+            val whatsappIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+                putExtra("jid", "$cleanPhone@s.whatsapp.net")
+                setPackage("com.whatsapp")
+            }
+            context.startActivity(whatsappIntent)
+            return
+        } catch (e: Exception) {
+            // WhatsApp non installato o errore, procedi con chooser normale
+        }
+    }
+    
+    val shareIntent = Intent.createChooser(sendIntent, "Invia riepilogo a...")
+    context.startActivity(shareIntent)
 }
 
 @Composable

@@ -1,27 +1,24 @@
 package com.example.gestbraccianti.ui.screens
 
-import android.content.Context
-import android.net.Uri
-import android.widget.Toast
+import android.Manifest
+import android.content.pm.PackageManager
+import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.room.withTransaction
 import com.example.gestbraccianti.data.AppDatabase
-import androidx.compose.material.icons.filled.BugReport
 import com.example.gestbraccianti.data.entity.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,6 +32,87 @@ fun OthersScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var backupFiles by remember { mutableStateOf(emptyList<File>()) }
+    
+    // Gestione dati proprietario con SharedPreferences per semplicità
+    val prefs = remember { context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE) }
+    var ownerName by remember { mutableStateOf(prefs.getString("owner_name", "") ?: "") }
+    var ownerSurname by remember { mutableStateOf(prefs.getString("owner_surname", "") ?: "") }
+    var ownerPhone by remember { mutableStateOf(prefs.getString("owner_phone", "") ?: "") }
+
+    val contactPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact(),
+        onResult = { uri ->
+            uri?.let { contactUri ->
+                val projection = arrayOf(
+                    ContactsContract.Contacts._ID,
+                    ContactsContract.Contacts.DISPLAY_NAME,
+                    ContactsContract.Contacts.HAS_PHONE_NUMBER
+                )
+                context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
+                        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME))
+                        val hasPhone = cursor.getInt(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0
+
+                        if (hasPhone) {
+                            val phoneCursor = context.contentResolver.query(
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                                arrayOf(contactId),
+                                null
+                            )
+                            phoneCursor?.use { pc ->
+                                if (pc.moveToFirst()) {
+                                    ownerPhone = pc.getString(0).replace(" ", "").replace("-", "")
+                                }
+                            }
+                        }
+
+                        val nameProjection = arrayOf(
+                            ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
+                            ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME
+                        )
+                        val where = "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
+                        val args = arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+
+                        try {
+                            context.contentResolver.query(ContactsContract.Data.CONTENT_URI, nameProjection, where, args, null)?.use { nameCursor ->
+                                if (nameCursor.moveToFirst()) {
+                                    ownerName = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)) ?: ""
+                                    ownerSurname = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)) ?: ""
+                                } else {
+                                    val parts = displayName.split(" ", limit = 2)
+                                    ownerName = parts.getOrNull(0) ?: ""
+                                    ownerSurname = parts.getOrNull(1) ?: ""
+                                }
+                            }
+                        } catch (e: Exception) {
+                            val parts = displayName.split(" ", limit = 2)
+                            ownerName = parts.getOrNull(0) ?: ""
+                            ownerSurname = parts.getOrNull(1) ?: ""
+                        }
+                        
+                        // Salva nelle preferenze
+                        prefs.edit()
+                            .putString("owner_name", ownerName)
+                            .putString("owner_surname", ownerSurname)
+                            .putString("owner_phone", ownerPhone)
+                            .apply()
+                    }
+                }
+            }
+        }
+    )
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                contactPickerLauncher.launch(null)
+            }
+        }
+    )
 
     fun refreshBackupList() {
         val backupDir = File(context.getExternalFilesDir(null), "backups")
@@ -101,7 +179,67 @@ fun OthersScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Gestione Dati", style = MaterialTheme.typography.headlineSmall)
+        Text("Impostazioni e Dati", style = MaterialTheme.typography.headlineSmall)
+
+        // Sezione Proprietario
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Proprietario", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    IconButton(onClick = {
+                        when (PackageManager.PERMISSION_GRANTED) {
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
+                                contactPickerLauncher.launch(null)
+                            }
+                            else -> {
+                                permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = ownerName,
+                        onValueChange = { 
+                            ownerName = it
+                            prefs.edit().putString("owner_name", it).apply()
+                        },
+                        label = { Text("Nome") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = ownerSurname,
+                        onValueChange = { 
+                            ownerSurname = it
+                            prefs.edit().putString("owner_surname", it).apply()
+                        },
+                        label = { Text("Cognome") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = ownerPhone,
+                    onValueChange = { 
+                        ownerPhone = it
+                        prefs.edit().putString("owner_phone", it).apply()
+                    },
+                    label = { Text("Telefono") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+                    )
+                )
+            }
+        }
+
+        Text("Gestione Database", style = MaterialTheme.typography.titleMedium)
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {

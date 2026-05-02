@@ -172,13 +172,6 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    if (worker.phoneNumber.isNotBlank()) {
-                                        Text(
-                                            text = worker.phoneNumber,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
                                     Text(
                                         text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", rate),
                                         style = MaterialTheme.typography.bodySmall,

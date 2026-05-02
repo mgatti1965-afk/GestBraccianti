@@ -208,6 +208,33 @@ fun WorkDayDetailScreen(
         )
     }
 
+    if (showAddGroupDialog) {
+        AddGroupToDayDialog(
+            groups = groups,
+            onDismiss = { showAddGroupDialog = false },
+            onConfirm = { group, mStart, mEnd, pStart, pEnd ->
+                scope.launch {
+                    val members = groupViewModel.getWorkersInGroup(group.id).first()
+                    members.forEach { worker ->
+                        // Verifica se esiste già un log per questo lavoratore in questa data
+                        val existingLog = logsForDay.find { it.workerId == worker.id }
+                        workLogViewModel.saveLog(
+                            id = existingLog?.id ?: 0L,
+                            workerId = worker.id,
+                            yearId = yearId,
+                            date = date,
+                            morningStart = mStart,
+                            morningEnd = mEnd,
+                            afternoonStart = pStart,
+                            afternoonEnd = pEnd
+                        )
+                    }
+                }
+                showAddGroupDialog = false
+            }
+        )
+    }
+
     if (showSmsDialog) {
         SmsImportDialog(
             date = date,
