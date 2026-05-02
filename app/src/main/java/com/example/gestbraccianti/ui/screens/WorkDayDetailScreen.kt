@@ -460,7 +460,7 @@ fun AddGroupToDayDialog(
     onDismiss: () -> Unit,
     onConfirm: (WorkerGroup, String, String, String, String) -> Unit
 ) {
-    var selectedGroup by remember { mutableStateOf<WorkerGroup?>(null) }
+    var selectedGroup by remember { mutableStateOf<WorkerGroup?>(if (groups.size == 1) groups.first() else null) }
     var morningStart by remember { mutableStateOf("08:00") }
     var morningEnd by remember { mutableStateOf("") }
     var afternoonStart by remember { mutableStateOf("") }
@@ -564,7 +564,17 @@ fun AddWorkerToDayDialog(
     onDismiss: () -> Unit,
     onConfirm: (Long, String, String, String, String) -> Unit
 ) {
-    var selectedWorker by remember { mutableStateOf<Worker?>(availableWorkers.find { it.id == editingLog?.workerId }) }
+    val selectableWorkers = remember(availableWorkers, existingLogs) {
+        availableWorkers.filter { w -> existingLogs.none { it.workerId == w.id } }
+            .sortedWith(compareBy({ it.surname }, { it.name }))
+    }
+
+    var selectedWorker by remember { 
+        mutableStateOf<Worker?>(
+            editingLog?.let { log -> availableWorkers.find { it.id == log.workerId } }
+            ?: if (selectableWorkers.size == 1) selectableWorkers.first() else null
+        ) 
+    }
     var morningStart by remember { mutableStateOf(editingLog?.morningStart ?: "08:00") }
     var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "") }
     var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "") }
@@ -632,17 +642,15 @@ fun AddWorkerToDayDialog(
                             expanded = expanded,
                             onDismissRequest = { expanded = false }
                         ) {
-                            availableWorkers.filter { w -> existingLogs.none { it.workerId == w.id } }
-                                .sortedWith(compareBy({ it.surname }, { it.name }))
-                                .forEach { worker ->
-                                    DropdownMenuItem(
-                                        text = { Text("${worker.surname} ${worker.name}".trim()) },
-                                        onClick = {
-                                            selectedWorker = worker
-                                            expanded = false
-                                        }
-                                    )
-                                }
+                            selectableWorkers.forEach { worker ->
+                                DropdownMenuItem(
+                                    text = { Text("${worker.surname} ${worker.name}".trim()) },
+                                    onClick = {
+                                        selectedWorker = worker
+                                        expanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 } else {

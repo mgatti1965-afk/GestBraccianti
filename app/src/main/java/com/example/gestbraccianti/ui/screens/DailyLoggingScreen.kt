@@ -82,13 +82,23 @@ fun DailyLoggingScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = {
-                        val newCal = (selectedCalendar.clone() as Calendar).apply {
-                            add(Calendar.MONTH, -1)
-                        }
-                        selectedCalendar = newCal
-                    }) {
-                        Icon(Icons.Default.ChevronLeft, contentDescription = "Mese precedente")
+                    val isFirstMonth = selectedCalendar.get(Calendar.MONTH) == Calendar.JANUARY
+                    val isLastMonth = selectedCalendar.get(Calendar.MONTH) == Calendar.DECEMBER
+
+                    IconButton(
+                        onClick = {
+                            val newCal = (selectedCalendar.clone() as Calendar).apply {
+                                add(Calendar.MONTH, -1)
+                            }
+                            selectedCalendar = newCal
+                        },
+                        enabled = !isFirstMonth
+                    ) {
+                        Icon(
+                            Icons.Default.ChevronLeft,
+                            contentDescription = "Mese precedente",
+                            tint = if (!isFirstMonth) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        )
                     }
 
                     Text(
@@ -97,13 +107,20 @@ fun DailyLoggingScreen(
                         fontWeight = FontWeight.Bold
                     )
 
-                    IconButton(onClick = {
-                        val newCal = (selectedCalendar.clone() as Calendar).apply {
-                            add(Calendar.MONTH, 1)
-                        }
-                        selectedCalendar = newCal
-                    }) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = "Mese successivo")
+                    IconButton(
+                        onClick = {
+                            val newCal = (selectedCalendar.clone() as Calendar).apply {
+                                add(Calendar.MONTH, 1)
+                            }
+                            selectedCalendar = newCal
+                        },
+                        enabled = !isLastMonth
+                    ) {
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = "Mese successivo",
+                            tint = if (!isLastMonth) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        )
                     }
                 }
             }
@@ -213,7 +230,11 @@ fun DailyLoggingScreen(
 
         FloatingActionButton(
             onClick = {
-                val calendar = Calendar.getInstance(Locale.ITALY)
+                // Inizializza il calendario con la data di riferimento del ViewModel (che segue l'anno scelto)
+                val calendar = Calendar.getInstance(Locale.ITALY).apply {
+                    timeInMillis = referenceDate
+                }
+                
                 val dialog = DatePickerDialog(
                     context,
                     { _, y, m, d ->

@@ -268,6 +268,9 @@ fun PeriodNavigation(
     onPrev: () -> Unit,
     onNext: () -> Unit
 ) {
+    val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
+    val currentYear = calendar.get(Calendar.YEAR)
+
     val sdf = when (selectedFilter) {
         1 -> SimpleDateFormat("MMMM yyyy", Locale.ITALY)
         2 -> SimpleDateFormat("'Settimana' w, yyyy", Locale.ITALY)
@@ -275,21 +278,43 @@ fun PeriodNavigation(
         else -> SimpleDateFormat("yyyy", Locale.ITALY)
     }
 
+    val canGoPrev = when (selectedFilter) {
+        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY
+        2 -> calendar.get(Calendar.WEEK_OF_YEAR) > 1 || calendar.get(Calendar.MONTH) > Calendar.JANUARY
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1
+        else -> true
+    }
+
+    val canGoNext = when (selectedFilter) {
+        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER
+        2 -> calendar.get(Calendar.WEEK_OF_YEAR) < calendar.getActualMaximum(Calendar.WEEK_OF_YEAR) || calendar.get(Calendar.MONTH) < Calendar.DECEMBER
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR)
+        else -> true
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onPrev) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Precedente")
+        IconButton(onClick = onPrev, enabled = canGoPrev) {
+            Icon(
+                Icons.Default.ChevronLeft,
+                contentDescription = "Precedente",
+                tint = if (canGoPrev) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
         }
         Text(
             text = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-        IconButton(onClick = onNext) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Successivo")
+        IconButton(onClick = onNext, enabled = canGoNext) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "Successivo",
+                tint = if (canGoNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
         }
     }
 }

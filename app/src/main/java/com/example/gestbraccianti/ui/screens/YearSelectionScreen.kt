@@ -101,7 +101,9 @@ fun AddYearDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    var yearText by remember { mutableStateOf("") }
+    // Propone l'anno in corso (NOW) come valore predefinito
+    val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR).toString()
+    var yearText by remember { mutableStateOf(currentYear) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
