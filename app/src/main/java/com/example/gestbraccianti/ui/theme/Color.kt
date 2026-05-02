@@ -37,7 +37,7 @@ val md_theme_dark_onTertiary = Color(0xFF68000A)
 val md_theme_dark_tertiaryContainer = Color(0xFF930012)
 val md_theme_dark_onTertiaryContainer = Color(0xFFFFDADA)
 
-val md_theme_light_background = Color(0xFFF8F9FA)
-val md_theme_light_surface = Color(0xFFFFFFFF)
-val md_theme_dark_background = Color(0xFF1B1C1E)
-val md_theme_dark_surface = Color(0xFF252629)
+val md_theme_light_background = Color(0xFFFFF9F0) // Colore Sabbia/Panna molto chiaro
+val md_theme_light_surface = Color(0xFFFFFDF9)
+val md_theme_dark_background = Color(0xFF1C1B17)
+val md_theme_dark_surface = Color(0xFF252420)

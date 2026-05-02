@@ -167,6 +167,7 @@ fun generateReportText(
     sb.append("📅 Periodo: $filterTitle ($period)\n")
     sb.append("----------------------------------\n\n")
     
+    // Raggruppa per Anno, Mese e Settimana se necessario
     stats.forEach { stat ->
         sb.append("📍 *${stat.surname} ${stat.name}*\n")
         sb.append("   • Ore: ${String.format(Locale.ITALY, "%.1f", stat.totalHours)} h\n")
@@ -178,9 +179,9 @@ fun generateReportText(
     val totalEarnings = stats.sumOf { it.totalEarnings }
     
     sb.append("----------------------------------\n")
-    sb.append("💰 *TOTALE GENERALE*\n")
-    sb.append("   • Ore complessive: ${String.format(Locale.ITALY, "%.1f", totalHours)} h\n")
-    sb.append("   • Importo dovuto: ${String.format(Locale.ITALY, "%.2f", totalEarnings)} €\n")
+    sb.append("💰 *TOTALI COMPLESSIVI*\n")
+    sb.append("   • Ore totali: ${String.format(Locale.ITALY, "%.1f", totalHours)} h\n")
+    sb.append("   • Importo totale: ${String.format(Locale.ITALY, "%.2f", totalEarnings)} €\n")
     
     return sb.toString()
 }
@@ -189,31 +190,28 @@ fun shareReport(context: Context, text: String) {
     val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
     val ownerPhone = prefs.getString("owner_phone", "") ?: ""
     
+    // Rimuove eventuali caratteri non numerici tranne il +
+    val cleanPhone = ownerPhone.filter { it.isDigit() || it == '+' }
+    
+    if (cleanPhone.isNotBlank()) {
+        try {
+            // Proviamo ad aprire direttamente WhatsApp con il numero del proprietario
+            val uri = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(text)}")
+            val whatsappIntent = Intent(Intent.ACTION_VIEW, uri)
+            whatsappIntent.setPackage("com.whatsapp")
+            context.startActivity(whatsappIntent)
+            return
+        } catch (e: Exception) {
+            // Se WhatsApp non è installato, usa il selettore normale
+        }
+    }
+    
+    // Se non c'è il numero o WhatsApp fallisce, usa il selettore di sistema
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    
-    // Se abbiamo il numero del proprietario, proviamo a impostare WhatsApp come preferito
-    if (ownerPhone.isNotBlank()) {
-        // Rimuove eventuali caratteri non numerici tranne il +
-        val cleanPhone = ownerPhone.filter { it.isDigit() || it == '+' }
-        // Cerchiamo di aprire direttamente WhatsApp se possibile, altrimenti mostriamo il chooser
-        try {
-            val whatsappIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, text)
-                putExtra("jid", "$cleanPhone@s.whatsapp.net")
-                setPackage("com.whatsapp")
-            }
-            context.startActivity(whatsappIntent)
-            return
-        } catch (e: Exception) {
-            // WhatsApp non installato o errore, procedi con chooser normale
-        }
-    }
-    
-    val shareIntent = Intent.createChooser(sendIntent, "Invia riepilogo a...")
+    val shareIntent = Intent.createChooser(sendIntent, "Invia riepilogo...")
     context.startActivity(shareIntent)
 }
 

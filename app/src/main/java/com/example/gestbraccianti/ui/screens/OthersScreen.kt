@@ -205,6 +205,16 @@ fun OthersScreen() {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
+                        value = ownerSurname,
+                        onValueChange = { 
+                            ownerSurname = it
+                            prefs.edit().putString("owner_surname", it).apply()
+                        },
+                        label = { Text("Cognome (Obbligatorio)") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
                         value = ownerName,
                         onValueChange = { 
                             ownerName = it
@@ -214,31 +224,7 @@ fun OthersScreen() {
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )
-                    OutlinedTextField(
-                        value = ownerSurname,
-                        onValueChange = { 
-                            ownerSurname = it
-                            prefs.edit().putString("owner_surname", it).apply()
-                        },
-                        label = { Text("Cognome") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = ownerPhone,
-                    onValueChange = { 
-                        ownerPhone = it
-                        prefs.edit().putString("owner_phone", it).apply()
-                    },
-                    label = { Text("Telefono") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
-                    )
-                )
             }
         }
 

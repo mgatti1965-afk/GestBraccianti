@@ -372,26 +372,24 @@ fun AddEditWorkerDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(if (worker == null) "Nuovo Bracciante" else "Modifica Bracciante", modifier = Modifier.weight(1f))
-                if (worker == null) {
-                    IconButton(onClick = {
-                        when (PackageManager.PERMISSION_GRANTED) {
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
-                                contactPickerLauncher.launch(null)
-                            }
-                            else -> {
-                                permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                            }
+                IconButton(onClick = {
+                    when (PackageManager.PERMISSION_GRANTED) {
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
+                            contactPickerLauncher.launch(null)
                         }
-                    }) {
-                        Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
+                        else -> {
+                            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                        }
                     }
+                }) {
+                    Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
                 }
             }
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(value = name, onValueChange = { name = it }, label = { Text("Nome (Obbligatorio)") })
-                TextField(value = surname, onValueChange = { surname = it }, label = { Text("Cognome") })
+                TextField(value = surname, onValueChange = { surname = it }, label = { Text("Cognome (Obbligatorio)") })
+                TextField(value = name, onValueChange = { name = it }, label = { Text("Nome") })
                 TextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = { Text("Telefono") }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone))
                 TextField(
                     value = rate,
@@ -410,7 +408,7 @@ fun AddEditWorkerDialog(
         confirmButton = {
             Button(onClick = {
                 val r = rate.toDoubleOrNull() ?: 0.0
-                if (name.isNotBlank()) {
+                if (surname.isNotBlank()) {
                     onConfirm(name, surname, phoneNumber, r)
                 }
             }) { Text(if (worker == null) "Aggiungi" else "Salva") }

@@ -526,15 +526,6 @@ fun AddGroupToDayDialog(
                     }
                 }
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = {
-                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = "13:00"; afternoonEnd = "17:00"
-                    }) { Text("Standard 8h") }
-                    TextButton(onClick = {
-                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = ""; afternoonEnd = ""
-                    }) { Text("Solo Matt.") }
-                }
-
                 Text("Mattina", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { showTimePicker(morningStart) { morningStart = it } }, modifier = Modifier.weight(1f)) { Text(morningStart.ifBlank { "Inizio" }) }
@@ -662,15 +653,6 @@ fun AddWorkerToDayDialog(
                     )
                 }
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = {
-                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = "13:00"; afternoonEnd = "17:00"
-                    }) { Text("Standard 8h") }
-                    TextButton(onClick = {
-                        morningStart = "08:00"; morningEnd = "12:00"; afternoonStart = ""; afternoonEnd = ""
-                    }) { Text("Solo Matt.") }
-                }
-
                 Text("Mattina", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { showTimePicker(morningStart) { morningStart = it } }, modifier = Modifier.weight(1f)) {
