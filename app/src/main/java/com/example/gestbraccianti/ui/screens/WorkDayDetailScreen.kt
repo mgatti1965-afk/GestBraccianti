@@ -462,9 +462,9 @@ fun AddGroupToDayDialog(
 ) {
     var selectedGroup by remember { mutableStateOf<WorkerGroup?>(null) }
     var morningStart by remember { mutableStateOf("08:00") }
-    var morningEnd by remember { mutableStateOf("12:00") }
-    var afternoonStart by remember { mutableStateOf("13:00") }
-    var afternoonEnd by remember { mutableStateOf("17:00") }
+    var morningEnd by remember { mutableStateOf("") }
+    var afternoonStart by remember { mutableStateOf("") }
+    var afternoonEnd by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -575,9 +575,9 @@ fun AddWorkerToDayDialog(
 ) {
     var selectedWorker by remember { mutableStateOf<Worker?>(availableWorkers.find { it.id == editingLog?.workerId }) }
     var morningStart by remember { mutableStateOf(editingLog?.morningStart ?: "08:00") }
-    var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "12:00") }
-    var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "13:00") }
-    var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "17:00") }
+    var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "") }
+    var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "") }
+    var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "") }
     
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
