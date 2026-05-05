@@ -8,6 +8,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,24 +18,27 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.utils.formatDecimalHours
-
+import com.example.gestbraccianti.data.entity.WorkLog
+import com.example.gestbraccianti.data.model.WorkerYearStats
 import java.util.*
 import java.text.SimpleDateFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
-    val stats by viewModel.workerStats.collectAsState()
-    val allLogs by viewModel.allLogs.collectAsState()
+    val stats by viewModel.yearlyStats.collectAsState()
+    val filteredLogs by viewModel.filteredLogs.collectAsState()
     val referenceDate by viewModel.currentReferenceDate.collectAsState()
     var selectedFilter by remember { mutableIntStateOf(0) }
     val filters = listOf("Anno", "Mese", "Settimana", "Giorno")
     val context = LocalContext.current
+    var showReportDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedFilter, referenceDate) {
         val calendar = Calendar.getInstance(Locale.ITALY)
@@ -77,12 +83,9 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
 
     Scaffold(
         floatingActionButton = {
-            if (stats.isNotEmpty()) {
+            if (filteredLogs.isNotEmpty()) {
                 FloatingActionButton(
-                    onClick = {
-                        val reportText = generateReportText(context, stats, allLogs, filters[selectedFilter], referenceDate)
-                        shareReport(context, reportText)
-                    },
+                    onClick = { showReportDialog = true },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
@@ -91,6 +94,57 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
             }
         }
     ) { innerPadding ->
+        if (showReportDialog) {
+            AlertDialog(
+                onDismissRequest = { showReportDialog = false },
+                title = { Text("Condividi Riepilogo") },
+                text = { Text("Scegli il tipo di raggruppamento per il report WhatsApp:") },
+                confirmButton = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                showReportDialog = false
+                                val reportText = generateUnifiedReport(
+                                    context = context,
+                                    logs = filteredLogs,
+                                    yearStats = stats,
+                                    filterTitle = filters[selectedFilter],
+                                    referenceDate = referenceDate,
+                                    reportByWeek = false
+                                )
+                                shareReport(context, reportText)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Totali Mensili")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                showReportDialog = false
+                                val reportText = generateUnifiedReport(
+                                    context = context,
+                                    logs = filteredLogs,
+                                    yearStats = stats,
+                                    filterTitle = filters[selectedFilter],
+                                    referenceDate = referenceDate,
+                                    reportByWeek = true
+                                )
+                                shareReport(context, reportText)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Totali Settimanali")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showReportDialog = false }) {
+                        Text("Annulla")
+                    }
+                }
+            )
+        }
         Column(modifier = Modifier.padding(innerPadding)) {
             ScrollableTabRow(
                 selectedTabIndex = selectedFilter,
@@ -106,36 +160,248 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 }
             }
 
-            if (selectedFilter != 0) {
-                PeriodNavigation(
-                    selectedFilter = selectedFilter,
-                    referenceDate = referenceDate,
-                    onPrev = { viewModel.moveReferenceDate(selectedFilter, -1) },
-                    onNext = { viewModel.moveReferenceDate(selectedFilter, 1) }
-                )
-            }
+            PeriodNavigation(
+                selectedFilter = selectedFilter,
+                referenceDate = referenceDate,
+                onPrev = { viewModel.moveReferenceDate(selectedFilter, -1) },
+                onNext = { viewModel.moveReferenceDate(selectedFilter, 1) }
+            )
 
             Box(modifier = Modifier.weight(1f)) {
-                if (stats.isEmpty()) {
+                if (filteredLogs.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Nessun dato disponibile per questa selezione.")
+                        Text(
+                            text = if (selectedFilter == 0) "Nessun movimento registrato nell'anno."
+                            else "Nessun dato disponibile per questa selezione.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    GroupedFinancialView(
+                        logs = filteredLogs,
+                        yearStats = stats,
+                        isFullYear = selectedFilter == 0
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>, isFullYear: Boolean) {
+    val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
+    val calendar = remember { Calendar.getInstance(Locale.ITALY) }
+    val daySdf = remember { SimpleDateFormat("dd/MM", Locale.ITALY) }
+
+    val monthlyLogs = remember(logs) {
+        logs.groupBy {
+            calendar.timeInMillis = it.date
+            calendar.get(Calendar.MONTH)
+        }.toSortedMap()
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        monthlyLogs.forEach { (monthIdx, mLogs) ->
+            item {
+                calendar.set(Calendar.MONTH, monthIdx)
+                val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).replaceFirstChar { it.uppercase() }
+                
+                Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)) {
+                    Text(
+                        text = monthName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(top = 4.dp),
+                        thickness = 2.dp,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    )
+                }
+            }
+            
+            items(mLogs.sortedBy { it.date }) { log ->
+                val worker = workerMap[log.workerId]
+                val earnings = log.totalHours * (worker?.hourlyRate ?: 0.0)
+                
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = CardDefaults.outlinedCardBorder(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        item {
-                            SummaryHeader()
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                text = daySdf.format(Date(log.date)),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
-                        items(stats) { item ->
-                            WorkerStatCard(item)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "${worker?.surname ?: ""} ${worker?.name ?: "Lavoratore ${log.workerId}"}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "${formatDecimalHours(log.totalHours)} h",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = String.format(Locale.ITALY, "%.2f €", earnings),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
-                        item {
-                            TotalFooter(
-                                totalHours = stats.sumOf { it.totalHours },
-                                totalEarnings = stats.sumOf { it.totalEarnings }
+                    }
+                }
+            }
+            
+            item {
+                val mHours = mLogs.sumOf { it.totalHours }
+                val mEarnings = mLogs.sumOf { it.totalHours * (workerMap[it.workerId]?.hourlyRate ?: 0.0) }
+                
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 16.dp)
+                ) {
+                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    Row(
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Totale Mensile",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                formatDecimalHours(mHours),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(" h", style = MaterialTheme.typography.labelSmall)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                String.format(Locale.ITALY, "%.2f €", mEarnings),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Totale Finale del Periodo
+        item {
+            val yHours = logs.sumOf { it.totalHours }
+            val yEarnings = logs.sumOf { it.totalHours * (workerMap[it.workerId]?.hourlyRate ?: 0.0) }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f),
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = MaterialTheme.shapes.extraLarge
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        text = if (isFullYear) "RIEPILOGO ANNUALE" else "RIEPILOGO PERIODO",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = androidx.compose.ui.unit.TextUnit.Unspecified,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        // Colonna Ore
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.AccessTime,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Ore Totali",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Text(
+                                text = "${formatDecimalHours(yHours)} h",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        
+                        // Separatore verticale
+                        VerticalDivider(
+                            modifier = Modifier.height(48.dp).padding(horizontal = 16.dp),
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                        )
+                        
+                        // Colonna Guadagno
+                        Column(modifier = Modifier.weight(1.2f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Payments,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Importo Totale",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Text(
+                                text = String.format(Locale.ITALY, "%.2f €", yEarnings),
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 4.dp)
                             )
                         }
                     }
@@ -145,12 +411,13 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
     }
 }
 
-fun generateReportText(
+fun generateUnifiedReport(
     context: Context,
-    stats: List<com.example.gestbraccianti.data.model.WorkerYearStats>,
-    allLogs: List<com.example.gestbraccianti.data.entity.WorkLog>,
+    logs: List<WorkLog>,
+    yearStats: List<WorkerYearStats>,
     filterTitle: String,
-    referenceDate: Long
+    referenceDate: Long,
+    reportByWeek: Boolean
 ): String {
     val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
     val ownerName = prefs.getString("owner_name", "") ?: ""
@@ -162,70 +429,108 @@ fun generateReportText(
         "Giorno" -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY)
         else -> SimpleDateFormat("yyyy", Locale.ITALY)
     }
-    
     val period = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() }
+
     val sb = StringBuilder()
-    
     sb.append("📊 *RIEPILOGO GESTBRACCIANTI*\n")
-    sb.append("👤 Proprietario: $ownerSurname $ownerName\n")
+    if (ownerSurname.isNotBlank() || ownerName.isNotBlank()) {
+        sb.append("👤 Proprietario: $ownerSurname $ownerName\n")
+    }
     sb.append("📅 Periodo: $filterTitle ($period)\n")
     sb.append("----------------------------------\n\n")
-    
-    // Elenco per lavoratore nel periodo selezionato
-    stats.forEach { stat ->
-        sb.append("📍 *${stat.surname} ${stat.name}*\n")
-        sb.append("   • Ore: ${String.format(Locale.ITALY, "%.1f", stat.totalHours)} h\n")
-        sb.append("   • Totale: ${String.format(Locale.ITALY, "%.2f", stat.totalEarnings)} €\n")
-        sb.append("\n")
-    }
-    
-    // Calcolo Totali Parziali (Settimana, Mese, Anno)
-    val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
-    
-    // Totale Settimana
-    val currentWeek = calendar.get(Calendar.WEEK_OF_YEAR)
-    val weekHours = allLogs.filter { 
-        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
-        c.get(Calendar.WEEK_OF_YEAR) == currentWeek && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
-    }.sumOf { it.totalHours }
-    
-    // Totale Mese
-    val currentMonth = calendar.get(Calendar.MONTH)
-    val monthHours = allLogs.filter {
-        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
-        c.get(Calendar.MONTH) == currentMonth && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
-    }.sumOf { it.totalHours }
-    
-    // Totale Anno
-    val yearHours = allLogs.sumOf { it.totalHours }
 
-    // Poiché non abbiamo i rate per tutti i periodi facilmente qui, 
-    // calcoliamo un rate medio o usiamo quello dei braccianti presenti negli stats
-    val workerRates = stats.associate { it.workerId to it.hourlyRate }
+    val workerMap = yearStats.associateBy { it.workerId }
+    val calendar = Calendar.getInstance(Locale.ITALY)
+    val daySdf = SimpleDateFormat("dd/MM", Locale.ITALY)
     
-    fun calculateEarnings(logs: List<com.example.gestbraccianti.data.entity.WorkLog>): Double {
-        return logs.sumOf { log -> (workerRates[log.workerId] ?: 0.0) * log.totalHours }
-    }
+    if (!reportByWeek) {
+        // RAGGRUPPAMENTO PER MESE
+        val groupedByMonth = logs.groupBy {
+            calendar.timeInMillis = it.date
+            calendar.get(Calendar.MONTH)
+        }.toSortedMap()
 
-    val weekEarnings = calculateEarnings(allLogs.filter { 
-        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
-        c.get(Calendar.WEEK_OF_YEAR) == currentWeek && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
-    })
-    val monthEarnings = calculateEarnings(allLogs.filter {
-        val c = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = it.date }
-        c.get(Calendar.MONTH) == currentMonth && c.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
-    })
-    val yearEarnings = calculateEarnings(allLogs)
+        var totalOverallHours = 0.0
+        var totalOverallEarnings = 0.0
 
-    sb.append("----------------------------------\n")
-    sb.append("💰 *RIEPILOGO TOTALI*\n")
-    if (filterTitle != "Settimana") {
-        sb.append("📅 Questa Settimana: ${String.format(Locale.ITALY, "%.1f", weekHours)} h | ${String.format(Locale.ITALY, "%.2f", weekEarnings)} €\n")
+        groupedByMonth.forEach { (monthIdx, monthLogs) ->
+            calendar.set(Calendar.MONTH, monthIdx)
+            val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).uppercase()
+            sb.append("📅 *$monthName*\n")
+            
+            var totalMonthHours = 0.0
+            var totalMonthEarnings = 0.0
+            
+            monthLogs.sortedBy { it.date }.forEach { log ->
+                val worker = workerMap[log.workerId]
+                val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Lavoratore ${log.workerId}"
+                val earnings = log.totalHours * (worker?.hourlyRate ?: 0.0)
+                
+                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | ${String.format(Locale.ITALY, "%.2f", earnings)}€\n")
+                
+                totalMonthHours += log.totalHours
+                totalMonthEarnings += earnings
+            }
+            
+            sb.append("💰 *Tot. mese: ${formatDecimalHours(totalMonthHours)}h | ${String.format(Locale.ITALY, "%.2f", totalMonthEarnings)}€*\n\n")
+            
+            totalOverallHours += totalMonthHours
+            totalOverallEarnings += totalMonthEarnings
+        }
+
+        sb.append("----------------------------------\n")
+        sb.append("🏆 *TOTALE COMPLESSIVO PERIODO*\n")
+        sb.append("⏱️ Ore: ${formatDecimalHours(totalOverallHours)} h\n")
+        sb.append("💰 Importo: ${String.format(Locale.ITALY, "%.2f", totalOverallEarnings)} €\n")
+    } else {
+        // RAGGRUPPAMENTO PER SETTIMANA
+        val groupedByWeek = logs.groupBy {
+            calendar.timeInMillis = it.date
+            calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR)
+        }.toSortedMap()
+
+        var totalOverallHours = 0.0
+        var totalOverallEarnings = 0.0
+
+        groupedByWeek.forEach { (weekKey, weekLogs) ->
+            val weekYear = weekKey / 100
+            val weekNum = weekKey % 100
+            
+            // Calcolo range della settimana
+            calendar.set(Calendar.YEAR, weekYear)
+            calendar.set(Calendar.WEEK_OF_YEAR, weekNum)
+            calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+            val startWeek = Date(calendar.timeInMillis)
+            calendar.add(Calendar.DAY_OF_YEAR, 6)
+            val endWeek = Date(calendar.timeInMillis)
+            
+            sb.append("🗓️ *SETTIMANA $weekNum (${daySdf.format(startWeek)} - ${daySdf.format(endWeek)})*\n")
+            
+            var totalWeekHours = 0.0
+            var totalWeekEarnings = 0.0
+            
+            weekLogs.sortedBy { it.date }.forEach { log ->
+                val worker = workerMap[log.workerId]
+                val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Lavoratore ${log.workerId}"
+                val earnings = log.totalHours * (worker?.hourlyRate ?: 0.0)
+                
+                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | ${String.format(Locale.ITALY, "%.2f", earnings)}€\n")
+                
+                totalWeekHours += log.totalHours
+                totalWeekEarnings += earnings
+            }
+            
+            sb.append("💰 *Tot. settimana: ${formatDecimalHours(totalWeekHours)}h | ${String.format(Locale.ITALY, "%.2f", totalWeekEarnings)}€*\n\n")
+            
+            totalOverallHours += totalWeekHours
+            totalOverallEarnings += totalWeekEarnings
+        }
+
+        sb.append("----------------------------------\n")
+        sb.append("🏆 *TOTALE COMPLESSIVO PERIODO*\n")
+        sb.append("⏱️ Ore: ${formatDecimalHours(totalOverallHours)} h\n")
+        sb.append("💰 Importo: ${String.format(Locale.ITALY, "%.2f", totalOverallEarnings)} €\n")
     }
-    if (filterTitle != "Mese") {
-        sb.append("📅 Questo Mese: ${String.format(Locale.ITALY, "%.1f", monthHours)} h | ${String.format(Locale.ITALY, "%.2f", monthEarnings)} €\n")
-    }
-    sb.append("📅 Totale Anno: ${String.format(Locale.ITALY, "%.1f", yearHours)} h | ${String.format(Locale.ITALY, "%.2f", yearEarnings)} €\n")
     
     return sb.toString()
 }
@@ -269,27 +574,33 @@ fun PeriodNavigation(
     onNext: () -> Unit
 ) {
     val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
-    val currentYear = calendar.get(Calendar.YEAR)
-
-    val sdf = when (selectedFilter) {
-        1 -> SimpleDateFormat("MMMM yyyy", Locale.ITALY)
-        2 -> SimpleDateFormat("'Settimana' w, yyyy", Locale.ITALY)
-        3 -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY)
-        else -> SimpleDateFormat("yyyy", Locale.ITALY)
-    }
+    val currentYearInRef = calendar.get(Calendar.YEAR)
+    val nowYear = Calendar.getInstance(Locale.ITALY).get(Calendar.YEAR)
 
     val canGoPrev = when (selectedFilter) {
-        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY
-        2 -> calendar.get(Calendar.WEEK_OF_YEAR) > 1 || calendar.get(Calendar.MONTH) > Calendar.JANUARY
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1
+        0 -> currentYearInRef > 2021
+        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY || currentYearInRef > 2021
+        2 -> calendar.get(Calendar.WEEK_OF_YEAR) > 1 || calendar.get(Calendar.MONTH) > Calendar.JANUARY || currentYearInRef > 2021
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1 || currentYearInRef > 2021
         else -> true
     }
 
     val canGoNext = when (selectedFilter) {
-        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER
-        2 -> calendar.get(Calendar.WEEK_OF_YEAR) < calendar.getActualMaximum(Calendar.WEEK_OF_YEAR) || calendar.get(Calendar.MONTH) < Calendar.DECEMBER
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR)
+        0 -> currentYearInRef < nowYear
+        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER || currentYearInRef < nowYear
+        2 -> calendar.get(Calendar.WEEK_OF_YEAR) < calendar.getActualMaximum(Calendar.WEEK_OF_YEAR) || calendar.get(Calendar.MONTH) < Calendar.DECEMBER || currentYearInRef < nowYear
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR) || currentYearInRef < nowYear
         else -> true
+    }
+
+    val sdf = remember(selectedFilter) {
+        when (selectedFilter) {
+            0 -> SimpleDateFormat("yyyy", Locale.ITALY)
+            1 -> SimpleDateFormat("MMMM yyyy", Locale.ITALY)
+            2 -> SimpleDateFormat("'Settimana' w, yyyy", Locale.ITALY)
+            3 -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY)
+            else -> SimpleDateFormat("dd/MM/yyyy", Locale.ITALY)
+        }
     }
 
     Row(

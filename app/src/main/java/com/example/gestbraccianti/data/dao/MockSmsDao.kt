@@ -13,6 +13,9 @@ interface MockSmsDao {
     @Query("SELECT * FROM mock_sms WHERE date >= :start AND date <= :end")
     suspend fun getMockSmsForRange(start: Long, end: Long): List<MockSms>
 
+    @Query("SELECT * FROM mock_sms")
+    suspend fun getAllStatic(): List<MockSms>
+
     @Query("DELETE FROM mock_sms")
     suspend fun deleteAll()
 }

@@ -26,6 +26,8 @@ import com.example.gestbraccianti.data.entity.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.gestbraccianti.ui.utils.formatDecimalHours
+import com.example.gestbraccianti.ui.utils.parseTimeToDouble
 import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -515,39 +517,68 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
         context.contentResolver.openOutputStream(uri)?.use { output ->
             OutputStreamWriter(output).use { writer ->
                 // Workers
-                writer.write("TIPO;ID;NOME;COGNOME;TELEFONO;ARCHIVIATO\n")
-                db.workerDao().getAllWorkersStatic().forEach {
-                    writer.write("W;${it.id};${it.name};${it.surname};${it.phoneNumber};${if (it.isArchived) 1 else 0}\n")
+                val workers = db.workerDao().getAllWorkersStatic()
+                if (workers.isNotEmpty()) {
+                    writer.write("TIPO;ID;NOME;COGNOME;TELEFONO;ARCHIVIATO\n")
+                    workers.forEach {
+                        writer.write("W;${it.id};${it.name};${it.surname};${it.phoneNumber};${if (it.isArchived) 1 else 0}\n")
+                    }
                 }
                 // Years
-                writer.write("TIPO;ID;CORRENTE\n")
-                db.harvestYearDao().getAllYearsStatic().forEach {
-                    writer.write("Y;${it.id};${if (it.isCurrent) 1 else 0}\n")
+                val years = db.harvestYearDao().getAllYearsStatic()
+                if (years.isNotEmpty()) {
+                    writer.write("TIPO;ID;CORRENTE\n")
+                    years.forEach {
+                        writer.write("Y;${it.id};${if (it.isCurrent) 1 else 0}\n")
+                    }
                 }
                 // Configs
-                writer.write("TIPO;LAV_ID;ANNO_ID;TARIFFA\n")
-                db.workerYearConfigDao().getAllConfigsStatic().forEach { conf ->
-                    writer.write("C;${conf.workerId};${conf.harvestYearId};${conf.hourlyRate}\n")
+                val configs = db.workerYearConfigDao().getAllConfigsStatic()
+                if (configs.isNotEmpty()) {
+                    writer.write("TIPO;LAV_ID;ANNO_ID;TARIFFA\n")
+                    configs.forEach { conf ->
+                        writer.write("C;${conf.workerId};${conf.harvestYearId};${conf.hourlyRate}\n")
+                    }
                 }
                 // Logs
-                writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE\n")
-                db.workLogDao().getAllLogsStatic().forEach { log ->
-                    writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${log.totalHours}\n")
+                val logs = db.workLogDao().getAllLogsStatic()
+                if (logs.isNotEmpty()) {
+                    writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE\n")
+                    logs.forEach { log ->
+                        writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)}\n")
+                    }
                 }
                 // Plantations
-                writer.write("TIPO;ID;NOME;ARCHIVIATO\n")
-                db.plantationDao().getAllPlantationsStatic().forEach {
-                    writer.write("P;${it.id};${it.name};${if (it.isArchived) 1 else 0}\n")
+                val plantations = db.plantationDao().getAllPlantationsStatic()
+                if (plantations.isNotEmpty()) {
+                    writer.write("TIPO;ID;NOME;ARCHIVIATO\n")
+                    plantations.forEach {
+                        writer.write("P;${it.id};${it.name};${if (it.isArchived) 1 else 0}\n")
+                    }
                 }
                 // Groups
-                writer.write("TIPO;ID;NOME;ANNO_ID\n")
-                db.workerGroupDao().getAllGroupsStatic().forEach {
-                    writer.write("G;${it.id};${it.name};${it.yearId}\n")
+                val groups = db.workerGroupDao().getAllGroupsStatic()
+                if (groups.isNotEmpty()) {
+                    writer.write("TIPO;ID;NOME;ANNO_ID\n")
+                    groups.forEach {
+                        writer.write("G;${it.id};${it.name};${it.yearId}\n")
+                    }
                 }
                 // CrossRefs
-                writer.write("TIPO;LAV_ID;GRP_ID\n")
-                db.workerGroupDao().getAllCrossRefsStatic().forEach {
-                    writer.write("X;${it.workerId};${it.groupId}\n")
+                val crossRefs = db.workerGroupDao().getAllCrossRefsStatic()
+                if (crossRefs.isNotEmpty()) {
+                    writer.write("TIPO;LAV_ID;GRP_ID\n")
+                    crossRefs.forEach {
+                        writer.write("X;${it.workerId};${it.groupId}\n")
+                    }
+                }
+                // MockSms
+                val mockSms = db.mockSmsDao().getAllStatic()
+                if (mockSms.isNotEmpty()) {
+                    writer.write("TIPO;ID;ADDR;BODY;DATE\n")
+                    mockSms.forEach { sms ->
+                        writer.write("M;${sms.id};${sms.address};${sms.body};${sms.date}\n")
+                    }
                 }
             }
         }
@@ -573,10 +604,11 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
                             "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
                             "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
                             "C" -> if (parts.size >= 4) db.workerYearConfigDao().insertConfig(WorkerYearConfig(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), hourlyRate = parts[3].toDouble()))
-                            "L" -> if (parts.size >= 9) db.workLogDao().insertLog(WorkLog(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), date = parts[3].toLong(), morningStart = parts[4].ifBlank { null }, morningEnd = parts[5].ifBlank { null }, afternoonStart = parts[6].ifBlank { null }, afternoonEnd = parts[7].ifBlank { null }, totalHours = parts[8].toDouble()))
+                            "L" -> if (parts.size >= 9) db.workLogDao().insertLog(WorkLog(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), date = parts[3].toLong(), morningStart = parts[4].ifBlank { null }, morningEnd = parts[5].ifBlank { null }, afternoonStart = parts[6].ifBlank { null }, afternoonEnd = parts[7].ifBlank { null }, totalHours = parseTimeToDouble(parts[8])))
                             "P" -> if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
                             "G" -> if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
                             "X" -> if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
+                            "M" -> if (parts.size >= 5) db.mockSmsDao().insert(MockSms(id = parts[1].toLong(), address = parts[2], body = parts[3], date = parts[4].toLong()))
                         }
                     }
                 }

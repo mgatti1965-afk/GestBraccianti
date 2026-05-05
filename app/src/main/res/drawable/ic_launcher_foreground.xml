@@ -3,19 +3,32 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Pruning Shears Vector Representation -->
-    <group android:translateX="22" android:translateY="22">
-        <!-- Blade 1 and Handle 1 -->
+    <group
+        android:translateX="14"
+        android:translateY="14">
+        <!-- Manico Destro (Rosso tipico delle forbici da potatura professionali) -->
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M15,20 C10,30 10,45 25,55 L50,80 C55,85 65,85 70,80 L75,75 C80,70 80,60 75,55 L50,30 C40,15 25,15 15,20 Z" />
-        <!-- Blade 2 and Handle 2 -->
+            android:fillColor="#D32F2F"
+            android:pathData="M52,50 L70,75 C72,78 76,78 78,75 L85,68 C87,66 87,62 85,60 L55,25" />
+
+        <!-- Manico Sinistro (Rosso) -->
         <path
-            android:fillColor="#E0E0E0"
-            android:pathData="M20,15 C30,10 45,10 55,25 L80,50 C85,55 85,65 80,70 L75,75 C70,80 60,80 55,75 L30,50 C15,40 15,25 20,15 Z" />
-        <!-- Pivot Bolt -->
+            android:fillColor="#D32F2F"
+            android:pathData="M28,50 L10,75 C8,78 4,78 2,75 L-5,68 C-7,66 -7,62 -5,60 L25,25" />
+
+        <!-- Controlama/Gancio (Argento scuro) -->
         <path
-            android:fillColor="#CCCCCC"
-            android:pathData="M32,32 A4,4 0 1,1 40,40 A4,4 0 1,1 32,32" />
+            android:fillColor="#9E9E9E"
+            android:pathData="M40,40 C55,40 65,30 60,10 C50,5 35,15 30,30 L40,40 Z" />
+
+        <!-- Lama Curva (Argento chiaro/Taglio) -->
+        <path
+            android:fillColor="#F5F5F5"
+            android:pathData="M40,40 C25,40 15,30 20,10 C30,5 45,15 50,30 L40,40 Z" />
+
+        <!-- Pivot/Vite centrale -->
+        <path
+            android:fillColor="#424242"
+            android:pathData="M40,40 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0" />
     </group>
 </vector>

@@ -64,6 +64,11 @@ class WorkLogViewModel(
             timeInMillis = _currentReferenceDate.value
         }
         when (filterType) {
+            0 -> { // Anno
+                cal.add(Calendar.YEAR, delta)
+                val newYear = cal.get(Calendar.YEAR)
+                _selectedYearId.value = newYear
+            }
             1 -> cal.add(Calendar.MONTH, delta)
             2 -> cal.add(Calendar.WEEK_OF_YEAR, delta)
             3 -> cal.add(Calendar.DAY_OF_YEAR, delta)
@@ -83,12 +88,24 @@ class WorkLogViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val yearlyStats: StateFlow<List<WorkerYearStats>> = _selectedYearId
+        .flatMapLatest { yearId ->
+            if (yearId == null) flowOf(emptyList())
+            else configRepository.getWorkerStatsForYear(yearId)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val allLogs: StateFlow<List<WorkLog>> = _selectedYearId
         .flatMapLatest { yearId ->
             if (yearId == null) flowOf(emptyList())
             else workLogRepository.getLogsForYear(yearId)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredLogs: StateFlow<List<WorkLog>> = combine(allLogs, _dateRange) { logs, range ->
+        if (range == null) logs
+        else logs.filter { it.date in range.first..range.second }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun saveLog(
         id: Long = 0,
