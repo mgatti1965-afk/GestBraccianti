@@ -275,26 +275,27 @@ fun TestTab() {
         Text("Area Test", style = MaterialTheme.typography.titleMedium)
 
         Card(
-            modifier = Modifier.size(120.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            modifier = Modifier.size(200.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "Anteprima Forbici",
-                    modifier = Modifier.size(80.dp),
+                    contentDescription = "Anteprima Forbici Professionali",
+                    modifier = Modifier.size(160.dp),
                     tint = Color.Unspecified
                 )
             }
         }
-        Text("Anteprima Icona Forbici", style = MaterialTheme.typography.bodySmall)
+        Text("Anteprima Icona Ufficiale (Forbici)", style = MaterialTheme.typography.bodySmall)
 
         HorizontalDivider()
 
         Text(
-            "La simulazione SMS è stata rimossa.\nUsa questa sezione per futuri test di debug.",
+            "L'icona visualizzata sopra è il design definitivo\nbasato sulla tua attrezzatura professionale.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
 }

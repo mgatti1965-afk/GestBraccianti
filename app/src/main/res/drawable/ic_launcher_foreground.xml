@@ -3,59 +3,42 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <group
+        android:translateX="4"
+        android:translateY="4">
 
-    <!-- Sfondo neutro per centrare l'oggetto -->
-    <group android:translateX="5" android:translateY="5">
-
-        <!-- LAMA INFERIORE (Controlama - Argento Chiaro) -->
+        <!-- CONTROLAMA (Argento - Parte inferiore fissa) -->
         <path
             android:fillColor="#E0E0E0"
-            android:pathData="M24.5,88.5 C18,85 11,74 13,63 C14,56 19,49 26,45 L48,65 L38,82 Z" />
+            android:pathData="M25,88 C18,85 14,75 16,65 C18,55 28,52 42,55 L58,72 L32,95 Z" />
 
-        <!-- LAMA SUPERIORE (Lama mobile - Argento Scuro/Acciaio) -->
+        <!-- LAMA MOBILE (Argento scuro - La lama curva che taglia) -->
         <path
             android:fillColor="#BDBDBD"
-            android:pathData="M13,78 C8,70 12,58 20,50 C28,42 40,38 48,65 L28,78 Z" />
+            android:pathData="M15,80 C8,70 14,50 30,45 C42,42 55,50 58,72 L32,88 Z" />
 
-        <!-- CORPO CENTRALE / SUPPORTO LAME (Grigio Metallo) -->
+        <!-- IL MECCANISMO CENTRALE (La ghiera nera dentata della foto) -->
+        <path
+            android:fillColor="#1A1A1A"
+            android:pathData="M58,72 m-15,0 a15,15 0 1,1 30,0 a15,15 0 1,1 -30,0" />
+        <!-- Perno centrale argento -->
         <path
             android:fillColor="#9E9E9E"
-            android:pathData="M48,65 L40,60 L45,45 C50,40 55,42 60,48 L70,60 L48,65 Z" />
+            android:pathData="M58,72 m-4,0 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0" />
 
-        <!-- MANICO SUPERIORE (Giallo/Verde con sagoma ergonomica) -->
+        <!-- MANICO SUPERIORE (Giallo-Lime ergonomico con coda ricurva) -->
         <path
-            android:fillColor="#CDDC39"
-            android:pathData="M55,42 C65,25 85,15 98,22 C102,25 102,32 95,38 C85,35 75,40 65,55 L55,42 Z" />
-        <!-- Dettaglio ergonomico manico superiore -->
-        <path
-            android:fillColor="#AFB42B"
-            android:pathData="M70,35 C80,30 90,30 95,33 C90,38 80,38 70,42 Z" />
+            android:fillColor="#D4E157"
+            android:pathData="M62,62 C70,45 80,30 100,30 C108,30 110,40 106,48 C102,52 95,58 85,60 C75,62 70,70 65,85 L62,62 Z" />
 
-        <!-- MANICO INFERIORE (Giallo/Verde con sagoma ergonomica) -->
+        <!-- MANICO INFERIORE (Giallo-Lime con le 3 scanalature per le dita) -->
         <path
-            android:fillColor="#CDDC39"
-            android:pathData="M60,65 C75,70 90,75 102,68 C106,65 106,58 100,52 C95,58 80,62 65,60 L60,65 Z" />
-        <!-- Dettaglio ergonomico manico inferiore -->
-        <path
-            android:fillColor="#AFB42B"
-            android:pathData="M75,65 C85,68 95,68 100,65 C95,62 85,60 75,62 Z" />
+            android:fillColor="#D4E157"
+            android:pathData="M70,85 C75,92 82,95 90,95 C98,95 105,92 108,85 C110,78 105,72 95,72 C85,72 78,75 70,72 L70,85 Z" />
 
-        <!-- PERNO CENTRALE (Nero con dettaglio meccanico) -->
+        <!-- Sicura inferiore nera -->
         <path
-            android:fillColor="#212121"
-            android:pathData="M48,65 m-8,0 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0" />
-        <path
-            android:fillColor="#424242"
-            android:pathData="M48,65 m-5,0 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0" />
-        <!-- Vite centrale -->
-        <path
-            android:fillColor="#757575"
-            android:pathData="M48,65 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
-
-        <!-- Bullone di blocco inferiore (Nero) -->
-        <path
-            android:fillColor="#212121"
-            android:pathData="M52,75 m-4,0 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0" />
-
+            android:fillColor="#1A1A1A"
+            android:pathData="M65,92 L72,96 L68,100 L60,95 Z" />
     </group>
 </vector>
