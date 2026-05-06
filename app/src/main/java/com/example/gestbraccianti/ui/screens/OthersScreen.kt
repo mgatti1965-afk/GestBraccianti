@@ -259,14 +259,20 @@ fun OthersScreen(
                 }
             }
             1 -> {
-                TestTab()
+                TestTab(workerViewModel, yearId)
             }
         }
     }
 }
 
 @Composable
-fun TestTab() {
+fun TestTab(
+    workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel,
+    yearId: Int
+) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -291,9 +297,31 @@ fun TestTab() {
 
         HorizontalDivider()
 
+        Button(
+            onClick = {
+                scope.launch {
+                    for (i in 1..10) {
+                        workerViewModel.addWorkerToYear(
+                            name = "Bracciante",
+                            surname = "$i",
+                            phoneNumber = "331000000$i",
+                            hourlyRate = 10.0,
+                            yearId = yearId
+                        )
+                    }
+                    Toast.makeText(context, "Creati 10 braccianti di test", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Crea 10 Braccianti di Test")
+        }
+
         Text(
-            "L'icona visualizzata sopra è il design definitivo\nbasato sulla tua attrezzatura professionale.",
-            style = MaterialTheme.typography.bodyMedium,
+            "Usa questo tasto per generare rapidamente dati di prova.\nL'icona sopra è il design basato sulla tua attrezzatura.",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
