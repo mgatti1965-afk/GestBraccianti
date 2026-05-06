@@ -30,9 +30,14 @@ class HarvestViewModel(private val repository: HarvestRepository) : ViewModel() 
         }
     }
 
-    fun createYear(year: Int, migrateFrom: Int? = null) {
+    fun createYear(
+        year: Int,
+        migrateFrom: Int? = null,
+        migrateWorkers: Boolean = false,
+        migrateGroups: Boolean = false
+    ) {
         viewModelScope.launch {
-            repository.createNewYear(year, migrateFrom)
+            repository.createNewYear(year, migrateFrom, migrateWorkers, migrateGroups)
             refreshCurrentYear()
         }
     }

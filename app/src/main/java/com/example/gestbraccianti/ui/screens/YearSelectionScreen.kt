@@ -35,11 +35,13 @@ fun YearSelectionScreen(
                 Log.d("YearSelection", "Dismissing dialog")
                 showAddDialog = false 
             },
-            onConfirm = { year ->
-                Log.d("YearSelection", "Confirming year: $year")
-                viewModel.createYear(year)
+            onConfirm = { year, migrateWorkers, migrateGroups ->
+                Log.d("YearSelection", "Confirming year: $year, w:$migrateWorkers, g:$migrateGroups")
+                val lastYear = years.maxByOrNull { it.id }?.id
+                viewModel.createYear(year, lastYear, migrateWorkers, migrateGroups)
                 showAddDialog = false
-            }
+            },
+            hasPreviousYear = years.isNotEmpty()
         )
     }
 
@@ -132,25 +134,50 @@ fun YearSelectionScreen(
 @Composable
 fun AddYearDialog(
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int, Boolean, Boolean) -> Unit,
+    hasPreviousYear: Boolean
 ) {
-    // Propone l'anno in corso (NOW) come valore predefinito
     val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR).toString()
     var yearText by remember { mutableStateOf(currentYear) }
+    var migrateWorkers by remember { mutableStateOf(true) }
+    var migrateGroups by remember { mutableStateOf(true) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nuova Annata") },
         text = {
-            TextField(
-                value = yearText,
-                onValueChange = { if (it.all { char -> char.isDigit() }) yearText = it },
-                label = { Text("Anno (es. 2024)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextField(
+                    value = yearText,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) yearText = it },
+                    label = { Text("Anno (es. 2024)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                if (hasPreviousYear) {
+                    Text(
+                        text = "Copia dati dall'ultima annata:",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = migrateWorkers, onCheckedChange = { migrateWorkers = it })
+                        Text("Anagrafica Braccianti")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = migrateGroups, onCheckedChange = { migrateGroups = it })
+                        Text("Gruppi di Lavoro")
+                    }
+                }
+            }
         },
         confirmButton = {
-            Button(onClick = { yearText.toIntOrNull()?.let { onConfirm(it) } }) {
+            Button(onClick = { 
+                yearText.toIntOrNull()?.let { 
+                    onConfirm(it, migrateWorkers && hasPreviousYear, migrateGroups && hasPreviousYear) 
+                } 
+            }) {
                 Text("Crea")
             }
         },

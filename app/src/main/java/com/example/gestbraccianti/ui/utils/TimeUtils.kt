@@ -12,15 +12,16 @@ fun formatDecimalHours(hours: Double): String {
 }
 
 fun parseTimeToDouble(timeStr: String): Double {
+    val cleanStr = timeStr.trim()
     return try {
-        if (timeStr.contains(":")) {
-            val parts = timeStr.split(":")
-            val h = parts[0].toIntOrNull() ?: 0
-            val m = parts[1].toIntOrNull() ?: 0
+        if (cleanStr.contains(":")) {
+            val parts = cleanStr.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
             h.toDouble() + (m.toDouble() / 60.0)
         } else {
             // Fallback for old decimal format
-            timeStr.toDoubleOrNull() ?: 0.0
+            cleanStr.replace(",", ".").toDoubleOrNull() ?: 0.0
         }
     } catch (e: Exception) {
         0.0

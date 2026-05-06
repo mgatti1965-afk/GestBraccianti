@@ -11,8 +11,14 @@ interface WorkerGroupDao {
     @Query("SELECT * FROM worker_groups WHERE yearId = :yearId")
     fun getGroupsForYear(yearId: Int): Flow<List<WorkerGroup>>
 
+    @Query("SELECT * FROM worker_groups WHERE yearId = :yearId")
+    suspend fun getGroupsForYearStatic(yearId: Int): List<WorkerGroup>
+
     @Query("SELECT * FROM worker_groups")
     suspend fun getAllGroupsStatic(): List<WorkerGroup>
+
+    @Query("SELECT * FROM worker_group_cross_ref WHERE groupId = :groupId")
+    suspend fun getCrossRefsForGroupStatic(groupId: Long): List<WorkerGroupCrossRef>
 
     @Query("SELECT * FROM worker_group_cross_ref")
     suspend fun getAllCrossRefsStatic(): List<WorkerGroupCrossRef>

@@ -17,10 +17,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.room.withTransaction
+import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.AppDatabase
 import com.example.gestbraccianti.data.entity.*
 import kotlinx.coroutines.Dispatchers
@@ -34,14 +37,13 @@ import java.util.*
 
 @Composable
 fun OthersScreen(
+    harvestViewModel: com.example.gestbraccianti.ui.viewmodel.HarvestViewModel,
     workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel,
     yearId: Int
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var backupFiles by remember { mutableStateOf(emptyList<File>()) }
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Database", "Test")
     
     // Gestione dati proprietario con SharedPreferences per semplicità
     val prefs = remember { context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE) }
@@ -141,7 +143,6 @@ fun OthersScreen(
                 scope.launch {
                     val success = exportToCsv(context, destUri)
                     if (success) {
-                        // Salva anche una copia interna per la cronologia
                         withContext(Dispatchers.IO) {
                             try {
                                 val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
@@ -176,12 +177,14 @@ fun OthersScreen(
                     if (success) {
                         Toast.makeText(context, "Dati importati!", Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(context, "Errore durante l'importazione del file di testo.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Errore durante l'importazione del file.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
         }
     )
+
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -189,80 +192,110 @@ fun OthersScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Impostazioni e Dati", style = MaterialTheme.typography.headlineSmall)
+        Text("Varie", style = MaterialTheme.typography.headlineSmall)
 
-        // Sezione Proprietario
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Proprietario", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    IconButton(onClick = {
-                        when (PackageManager.PERMISSION_GRANTED) {
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
-                                contactPickerLauncher.launch(null)
-                            }
-                            else -> {
-                                permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                            }
-                        }
-                    }) {
-                        Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = ownerSurname,
-                        onValueChange = { 
-                            ownerSurname = it
-                            prefs.edit().putString("owner_surname", it).apply()
-                        },
-                        label = { Text("Cognome (Obbligatorio)") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = ownerName,
-                        onValueChange = { 
-                            ownerName = it
-                            prefs.edit().putString("owner_name", it).apply()
-                        },
-                        label = { Text("Nome") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-            }
-        }
-
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.primary,
-            divider = {}
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { Text(title) }
-                )
-            }
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Dati") })
+            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Test") })
         }
 
         when (selectedTab) {
-            0 -> DatabaseTab(
-                onExport = {
-                    val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
-                    val timestamp = sdf.format(Date())
-                    csvExportLauncher.launch("gest_braccianti_$timestamp.csv")
-                },
-                onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
-                backupFiles = backupFiles,
-                onRefresh = { refreshBackupList() }
-            )
-            1 -> TestTab(scope = scope, workerViewModel = workerViewModel, yearId = yearId)
+            0 -> {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Sezione Proprietario
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Proprietario", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                IconButton(onClick = {
+                                    when (PackageManager.PERMISSION_GRANTED) {
+                                        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
+                                            contactPickerLauncher.launch(null)
+                                        }
+                                        else -> {
+                                            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                                        }
+                                    }
+                                }) {
+                                    Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = ownerSurname,
+                                    onValueChange = {
+                                        ownerSurname = it
+                                        prefs.edit().putString("owner_surname", it).apply()
+                                    },
+                                    label = { Text("Cognome") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                OutlinedTextField(
+                                    value = ownerName,
+                                    onValueChange = {
+                                        ownerName = it
+                                        prefs.edit().putString("owner_name", it).apply()
+                                    },
+                                    label = { Text("Nome") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+                        }
+                    }
+
+                    DatabaseTab(
+                        onExport = {
+                            val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
+                            val timestamp = sdf.format(Date())
+                            csvExportLauncher.launch("gest_braccianti_$timestamp.csv")
+                        },
+                        onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
+                        backupFiles = backupFiles,
+                        onRefresh = { refreshBackupList() }
+                    )
+                }
+            }
+            1 -> {
+                TestTab()
+            }
         }
+    }
+}
+
+@Composable
+fun TestTab() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Area Test", style = MaterialTheme.typography.titleMedium)
+
+        Card(
+            modifier = Modifier.size(120.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    contentDescription = "Anteprima Forbici",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color.Unspecified
+                )
+            }
+        }
+        Text("Anteprima Icona Forbici", style = MaterialTheme.typography.bodySmall)
+
+        HorizontalDivider()
+
+        Text(
+            "La simulazione SMS è stata rimossa.\nUsa questa sezione per futuri test di debug.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -281,7 +314,7 @@ fun DatabaseTab(
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Esportazione e Backup (CSV)", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Formato leggibile compatibile con Excel o Blocco Note. I dati vengono salvati anche nella cronologia interna.", style = MaterialTheme.typography.bodySmall)
+                Text("Formato leggibile compatibile con Excel o Blocco Note.", style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onExport, modifier = Modifier.weight(1f)) {
@@ -298,10 +331,10 @@ fun DatabaseTab(
             }
         }
 
-        Text("Cronologia Backup CSV", style = MaterialTheme.typography.titleMedium)
+        Text("Cronologia Backup Interni", style = MaterialTheme.typography.titleMedium)
         
         if (backupFiles.isEmpty()) {
-            Text("Nessun backup CSV salvato internamente.", style = MaterialTheme.typography.bodySmall)
+            Text("Nessun backup salvato internamente.", style = MaterialTheme.typography.bodySmall)
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -326,96 +359,6 @@ fun DatabaseTab(
                             }
                         }
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TestTab(
-    scope: kotlinx.coroutines.CoroutineScope,
-    workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel,
-    yearId: Int
-) {
-    val context = LocalContext.current
-    
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Simulazione SMS", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Simula la ricezione di SMS dai lavoratori per testare l'importazione automatica.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                val count = simulateSmsReception(context)
-                                if (count > 0) {
-                                    Toast.makeText(context, "Simulati $count SMS per oggi!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Nessun lavoratore trovato con numero di telefono.", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.BugReport, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Simula SMS")
-                    }
-                    
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch {
-                                withContext(Dispatchers.IO) {
-                                    AppDatabase.getDatabase(context).mockSmsDao().deleteAll()
-                                }
-                                Toast.makeText(context, "Mock SMS eliminati.", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Pulisci Mock")
-                    }
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Generazione Dati Test", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Crea 10 braccianti di prova nell'annata corrente per testare l'app velocemente.", style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        val names = listOf("Mario", "Luigi", "Giuseppe", "Antonio", "Francesco", "Giovanni", "Roberto", "Marco", "Paolo", "Angelo")
-                        val surnames = listOf("Rossi", "Bianchi", "Verdi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana")
-                        
-                        names.forEachIndexed { i, name ->
-                            workerViewModel.addWorkerToYear(
-                                name = name,
-                                surname = surnames[i],
-                                phoneNumber = "340${1000000 + (Math.random() * 9000000).toInt()}",
-                                hourlyRate = 7.5,
-                                yearId = yearId
-                            )
-                        }
-                        Toast.makeText(context, "Creati 10 braccianti!", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.People, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Genera 10 Braccianti")
                 }
             }
         }
@@ -466,49 +409,6 @@ fun shareFile(context: Context, file: File) {
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(android.content.Intent.createChooser(intent, "Invia Backup"))
-}
-
-suspend fun simulateSmsReception(context: Context): Int = withContext(Dispatchers.IO) {
-    val db = AppDatabase.getDatabase(context)
-    val workers = db.workerDao().getAllWorkersStatic().filter { it.phoneNumber.isNotBlank() }
-    if (workers.isEmpty()) return@withContext 0
-
-    val now = Calendar.getInstance()
-    val random = Random()
-    var smsCount = 0
-
-    workers.forEach { worker ->
-        // Simulate Inizio
-        if (random.nextBoolean()) {
-            val cal = now.clone() as Calendar
-            val hour = if (random.nextBoolean()) 8 else 13
-            cal.set(Calendar.HOUR_OF_DAY, hour)
-            cal.set(Calendar.MINUTE, random.nextInt(15)) // 0-14 min delay
-            
-            db.mockSmsDao().insert(MockSms(
-                address = worker.phoneNumber,
-                body = "Inizio",
-                date = cal.timeInMillis
-            ))
-            smsCount++
-        }
-
-        // Simulate Fine
-        if (random.nextBoolean()) {
-            val cal = now.clone() as Calendar
-            val hour = if (random.nextBoolean()) 12 else 17
-            cal.set(Calendar.HOUR_OF_DAY, hour)
-            cal.set(Calendar.MINUTE, random.nextInt(15))
-            
-            db.mockSmsDao().insert(MockSms(
-                address = worker.phoneNumber,
-                body = "Fine",
-                date = cal.timeInMillis
-            ))
-            smsCount++
-        }
-    }
-    smsCount
 }
 
 suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
@@ -572,14 +472,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                         writer.write("X;${it.workerId};${it.groupId}\n")
                     }
                 }
-                // MockSms
-                val mockSms = db.mockSmsDao().getAllStatic()
-                if (mockSms.isNotEmpty()) {
-                    writer.write("TIPO;ID;ADDR;BODY;DATE\n")
-                    mockSms.forEach { sms ->
-                        writer.write("M;${sms.id};${sms.address};${sms.body};${sms.date}\n")
-                    }
-                }
             }
         }
         true
@@ -598,8 +490,8 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
                     db.clearAllTables()
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
-                        val parts = line!!.split(";")
-                        if (parts.isEmpty()) continue
+                        val parts = line!!.split(";").map { it.trim() }
+                        if (parts.isEmpty() || parts[0].startsWith("TIPO")) continue
                         when (parts[0]) {
                             "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
                             "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
@@ -608,7 +500,6 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
                             "P" -> if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
                             "G" -> if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
                             "X" -> if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
-                            "M" -> if (parts.size >= 5) db.mockSmsDao().insert(MockSms(id = parts[1].toLong(), address = parts[2], body = parts[3], date = parts[4].toLong()))
                         }
                     }
                 }

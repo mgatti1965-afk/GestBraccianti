@@ -392,7 +392,7 @@ suspend fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): 
 
     val timeSdf = SimpleDateFormat("HH:mm", Locale.ITALY)
 
-    // 1. Read REAL SMS
+    // Read REAL SMS
     val uri = Uri.parse("content://sms/inbox")
     val projection = arrayOf("address", "body", "date")
     val selection = "date >= ? AND date <= ?"
@@ -410,13 +410,6 @@ suspend fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): 
             
             processSmsEntry(address, body, smsDate, workers, timeSdf, result)
         }
-    }
-
-    // 2. Read MOCK SMS from database
-    val db = com.example.gestbraccianti.data.AppDatabase.getDatabase(context)
-    val mockSmsList = db.mockSmsDao().getMockSmsForRange(startOfDay, endOfDay)
-    mockSmsList.forEach { mock ->
-        processSmsEntry(mock.address, mock.body, mock.date, workers, timeSdf, result)
     }
 
     return result.sortedBy { it.timestamp }

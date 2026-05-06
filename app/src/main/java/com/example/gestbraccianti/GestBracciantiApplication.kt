@@ -8,7 +8,7 @@ class GestBracciantiApplication : Application() {
     val database by lazy { AppDatabase.getDatabase(this) }
     
     val harvestRepository by lazy { 
-        HarvestRepository(database.harvestYearDao(), database.workerYearConfigDao()) 
+        HarvestRepository(database.harvestYearDao(), database.workerYearConfigDao(), database.workerGroupDao())
     }
     val workerRepository by lazy { WorkerRepository(database.workerDao()) }
     val workLogRepository by lazy { WorkLogRepository(database.workLogDao()) }

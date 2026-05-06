@@ -4,31 +4,40 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:translateX="14"
-        android:translateY="14">
-        <!-- Manico Destro (Rosso tipico delle forbici da potatura professionali) -->
-        <path
-            android:fillColor="#D32F2F"
-            android:pathData="M52,50 L70,75 C72,78 76,78 78,75 L85,68 C87,66 87,62 85,60 L55,25" />
+        android:translateX="10"
+        android:translateY="10"
+        android:scaleX="0.8"
+        android:scaleY="0.8">
 
-        <!-- Manico Sinistro (Rosso) -->
+        <!-- Lama inferiore (Argento) -->
         <path
-            android:fillColor="#D32F2F"
-            android:pathData="M28,50 L10,75 C8,78 4,78 2,75 L-5,68 C-7,66 -7,62 -5,60 L25,25" />
+            android:fillColor="#CFD8DC"
+            android:pathData="M25,85 C10,75 5,55 15,40 L45,65 Z" />
+        <path
+            android:fillColor="#B0BEC5"
+            android:pathData="M25,85 C15,80 10,65 18,50 L45,65 Z" />
 
-        <!-- Controlama/Gancio (Argento scuro) -->
+        <!-- Meccanismo centrale (Nero/Grigio scuro) -->
         <path
-            android:fillColor="#9E9E9E"
-            android:pathData="M40,40 C55,40 65,30 60,10 C50,5 35,15 30,30 L40,40 Z" />
+            android:fillColor="#263238"
+            android:pathData="M45,65 m-10,0 a10,10 0 1,1 20,0 a10,10 0 1,1 -20,0" />
+        <path
+            android:fillColor="#37474F"
+            android:pathData="M45,65 m-7,0 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0" />
 
-        <!-- Lama Curva (Argento chiaro/Taglio) -->
+        <!-- Manico Superiore (Giallo/Verde acido) -->
         <path
-            android:fillColor="#F5F5F5"
-            android:pathData="M40,40 C25,40 15,30 20,10 C30,5 45,15 50,30 L40,40 Z" />
+            android:fillColor="#CDDC39"
+            android:pathData="M45,65 L55,30 C60,20 80,15 95,20 L100,35 C90,30 75,35 65,55 Z" />
 
-        <!-- Pivot/Vite centrale -->
+        <!-- Manico Inferiore (Giallo/Verde acido) -->
         <path
-            android:fillColor="#424242"
-            android:pathData="M40,40 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0" />
+            android:fillColor="#CDDC39"
+            android:pathData="M45,65 L80,75 C90,80 105,75 110,60 L105,50 C100,65 85,70 70,65 Z" />
+
+        <!-- Dettagli Pivot -->
+        <path
+            android:fillColor="#ECEFF1"
+            android:pathData="M45,65 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
     </group>
 </vector>
