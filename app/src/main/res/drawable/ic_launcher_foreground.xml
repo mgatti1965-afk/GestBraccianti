@@ -3,41 +3,59 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:translateX="10"
-        android:translateY="10"
-        android:scaleX="0.8"
-        android:scaleY="0.8">
 
-        <!-- Lama inferiore (Argento) -->
-        <path
-            android:fillColor="#CFD8DC"
-            android:pathData="M25,85 C10,75 5,55 15,40 L45,65 Z" />
-        <path
-            android:fillColor="#B0BEC5"
-            android:pathData="M25,85 C15,80 10,65 18,50 L45,65 Z" />
+    <!-- Sfondo neutro per centrare l'oggetto -->
+    <group android:translateX="5" android:translateY="5">
 
-        <!-- Meccanismo centrale (Nero/Grigio scuro) -->
+        <!-- LAMA INFERIORE (Controlama - Argento Chiaro) -->
         <path
-            android:fillColor="#263238"
-            android:pathData="M45,65 m-10,0 a10,10 0 1,1 20,0 a10,10 0 1,1 -20,0" />
-        <path
-            android:fillColor="#37474F"
-            android:pathData="M45,65 m-7,0 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0" />
+            android:fillColor="#E0E0E0"
+            android:pathData="M24.5,88.5 C18,85 11,74 13,63 C14,56 19,49 26,45 L48,65 L38,82 Z" />
 
-        <!-- Manico Superiore (Giallo/Verde acido) -->
+        <!-- LAMA SUPERIORE (Lama mobile - Argento Scuro/Acciaio) -->
+        <path
+            android:fillColor="#BDBDBD"
+            android:pathData="M13,78 C8,70 12,58 20,50 C28,42 40,38 48,65 L28,78 Z" />
+
+        <!-- CORPO CENTRALE / SUPPORTO LAME (Grigio Metallo) -->
+        <path
+            android:fillColor="#9E9E9E"
+            android:pathData="M48,65 L40,60 L45,45 C50,40 55,42 60,48 L70,60 L48,65 Z" />
+
+        <!-- MANICO SUPERIORE (Giallo/Verde con sagoma ergonomica) -->
         <path
             android:fillColor="#CDDC39"
-            android:pathData="M45,65 L55,30 C60,20 80,15 95,20 L100,35 C90,30 75,35 65,55 Z" />
+            android:pathData="M55,42 C65,25 85,15 98,22 C102,25 102,32 95,38 C85,35 75,40 65,55 L55,42 Z" />
+        <!-- Dettaglio ergonomico manico superiore -->
+        <path
+            android:fillColor="#AFB42B"
+            android:pathData="M70,35 C80,30 90,30 95,33 C90,38 80,38 70,42 Z" />
 
-        <!-- Manico Inferiore (Giallo/Verde acido) -->
+        <!-- MANICO INFERIORE (Giallo/Verde con sagoma ergonomica) -->
         <path
             android:fillColor="#CDDC39"
-            android:pathData="M45,65 L80,75 C90,80 105,75 110,60 L105,50 C100,65 85,70 70,65 Z" />
-
-        <!-- Dettagli Pivot -->
+            android:pathData="M60,65 C75,70 90,75 102,68 C106,65 106,58 100,52 C95,58 80,62 65,60 L60,65 Z" />
+        <!-- Dettaglio ergonomico manico inferiore -->
         <path
-            android:fillColor="#ECEFF1"
-            android:pathData="M45,65 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+            android:fillColor="#AFB42B"
+            android:pathData="M75,65 C85,68 95,68 100,65 C95,62 85,60 75,62 Z" />
+
+        <!-- PERNO CENTRALE (Nero con dettaglio meccanico) -->
+        <path
+            android:fillColor="#212121"
+            android:pathData="M48,65 m-8,0 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0" />
+        <path
+            android:fillColor="#424242"
+            android:pathData="M48,65 m-5,0 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0" />
+        <!-- Vite centrale -->
+        <path
+            android:fillColor="#757575"
+            android:pathData="M48,65 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+
+        <!-- Bullone di blocco inferiore (Nero) -->
+        <path
+            android:fillColor="#212121"
+            android:pathData="M52,75 m-4,0 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0" />
+
     </group>
 </vector>
