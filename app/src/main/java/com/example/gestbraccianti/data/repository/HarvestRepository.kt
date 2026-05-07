@@ -1,5 +1,6 @@
 package com.example.gestbraccianti.data.repository
 
+import android.util.Log
 import com.example.gestbraccianti.data.dao.HarvestYearDao
 import com.example.gestbraccianti.data.dao.WorkerYearConfigDao
 import com.example.gestbraccianti.data.dao.WorkerGroupDao
@@ -16,7 +17,12 @@ class HarvestRepository(
 ) {
     val allYears: Flow<List<HarvestYear>> = harvestYearDao.getAllHarvestYears()
 
-    suspend fun getCurrentYear(): HarvestYear? = harvestYearDao.getCurrentYear()
+    suspend fun getCurrentYear(): HarvestYear? = try {
+        harvestYearDao.getCurrentYear()
+    } catch (e: Exception) {
+        Log.e("HarvestRepository", "Error getting current year", e)
+        null
+    }
     
     suspend fun createNewYear(
         year: Int,
@@ -24,51 +30,71 @@ class HarvestRepository(
         migrateWorkers: Boolean = false,
         migrateGroups: Boolean = false
     ) {
-        harvestYearDao.clearCurrentYear()
-        harvestYearDao.insertYear(HarvestYear(id = year, isCurrent = true))
+        try {
+            Log.d("HarvestRepository", "Creating new year: $year")
+            harvestYearDao.clearCurrentYear()
+            harvestYearDao.insertYear(HarvestYear(id = year, isCurrent = true))
 
-        if (migrateFromYear != null) {
-            if (migrateWorkers) {
-                val previousConfigs = workerYearConfigDao.getConfigsForYear(migrateFromYear)
-                previousConfigs.forEach { config ->
-                    workerYearConfigDao.insertConfig(
-                        WorkerYearConfig(
-                            workerId = config.workerId,
-                            harvestYearId = year,
-                            hourlyRate = config.hourlyRate
-                        )
-                    )
-                }
-            }
-
-            if (migrateGroups) {
-                val previousGroups = workerGroupDao.getGroupsForYearStatic(migrateFromYear)
-                previousGroups.forEach { group ->
-                    val newGroupId = workerGroupDao.insertGroup(
-                        WorkerGroup(name = group.name, yearId = year)
-                    )
-                    // Migra i membri del gruppo
-                    val members = workerGroupDao.getCrossRefsForGroupStatic(group.id)
-                    members.forEach { member ->
-                        workerGroupDao.insertWorkerToGroup(
-                            WorkerGroupCrossRef(workerId = member.workerId, groupId = newGroupId)
+            if (migrateFromYear != null) {
+                if (migrateWorkers) {
+                    Log.d("HarvestRepository", "Migrating workers from $migrateFromYear to $year")
+                    val previousConfigs = workerYearConfigDao.getConfigsForYear(migrateFromYear)
+                    previousConfigs.forEach { config ->
+                        workerYearConfigDao.insertConfig(
+                            WorkerYearConfig(
+                                workerId = config.workerId,
+                                harvestYearId = year,
+                                hourlyRate = config.hourlyRate
+                            )
                         )
                     }
                 }
+
+                if (migrateGroups) {
+                    Log.d("HarvestRepository", "Migrating groups from $migrateFromYear to $year")
+                    val previousGroups = workerGroupDao.getGroupsForYearStatic(migrateFromYear)
+                    previousGroups.forEach { group ->
+                        val newGroupId = workerGroupDao.insertGroup(
+                            WorkerGroup(name = group.name, yearId = year)
+                        )
+                        // Migra i membri del gruppo
+                        val members = workerGroupDao.getCrossRefsForGroupStatic(group.id)
+                        members.forEach { member ->
+                            workerGroupDao.insertWorkerToGroup(
+                                WorkerGroupCrossRef(workerId = member.workerId, groupId = newGroupId)
+                            )
+                        }
+                    }
+                }
             }
+        } catch (e: Exception) {
+            Log.e("HarvestRepository", "Error creating new year", e)
+            throw e
         }
     }
 
     suspend fun switchYear(yearId: Int) {
-        harvestYearDao.clearCurrentYear()
-        harvestYearDao.setCurrentYear(yearId)
+        try {
+            harvestYearDao.clearCurrentYear()
+            harvestYearDao.setCurrentYear(yearId)
+        } catch (e: Exception) {
+            Log.e("HarvestRepository", "Error switching year to $yearId", e)
+        }
     }
 
     suspend fun deselectYear() {
-        harvestYearDao.clearCurrentYear()
+        try {
+            harvestYearDao.clearCurrentYear()
+        } catch (e: Exception) {
+            Log.e("HarvestRepository", "Error deselecting year", e)
+        }
     }
 
     suspend fun deleteYear(yearId: Int) {
-        harvestYearDao.deleteYear(yearId)
+        try {
+            harvestYearDao.deleteYear(yearId)
+        } catch (e: Exception) {
+            Log.e("HarvestRepository", "Error deleting year $yearId", e)
+        }
     }
 }

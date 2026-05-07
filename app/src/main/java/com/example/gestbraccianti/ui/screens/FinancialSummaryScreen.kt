@@ -472,7 +472,7 @@ fun generateUnifiedReport(
                 totalMonthEarnings += earnings
             }
             
-            sb.append("💰 *Tot. mese: ${formatDecimalHours(totalMonthHours)}h | ${String.format(Locale.ITALY, "%.2f", totalMonthEarnings)}€*\n\n")
+            sb.append("*Tot. mese: ${formatDecimalHours(totalMonthHours)}h | ${String.format(Locale.ITALY, "%.2f", totalMonthEarnings)}€*\n\n")
             
             totalOverallHours += totalMonthHours
             totalOverallEarnings += totalMonthEarnings
@@ -520,7 +520,7 @@ fun generateUnifiedReport(
                 totalWeekEarnings += earnings
             }
             
-            sb.append("💰 *Tot. settimana: ${formatDecimalHours(totalWeekHours)}h | ${String.format(Locale.ITALY, "%.2f", totalWeekEarnings)}€*\n\n")
+            sb.append("*Tot. settimana: ${formatDecimalHours(totalWeekHours)}h | ${String.format(Locale.ITALY, "%.2f", totalWeekEarnings)}€*\n\n")
             
             totalOverallHours += totalWeekHours
             totalOverallEarnings += totalWeekEarnings

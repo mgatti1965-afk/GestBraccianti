@@ -194,9 +194,13 @@ fun OthersScreen(
     ) {
         Text("Varie", style = MaterialTheme.typography.headlineSmall)
 
+        val isOwner = ownerPhone.replace("+39", "").replace(" ", "") == "3286449326"
+
         TabRow(selectedTabIndex = selectedTab) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Dati") })
-            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Test") })
+            if (isOwner) {
+                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Test") })
+            }
         }
 
         when (selectedTab) {
@@ -259,7 +263,11 @@ fun OthersScreen(
                 }
             }
             1 -> {
-                TestTab(workerViewModel, yearId)
+                if (isOwner) {
+                    TestTab(workerViewModel, yearId)
+                } else {
+                    selectedTab = 0
+                }
             }
         }
     }
@@ -286,14 +294,14 @@ fun TestTab(
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "Anteprima Forbici Professionali",
+                    painter = painterResource(id = R.mipmap.ic_launcher_round),
+                    contentDescription = "Tua Icona Reale",
                     modifier = Modifier.size(160.dp),
                     tint = Color.Unspecified
                 )
             }
         }
-        Text("Anteprima Icona Ufficiale (Forbici)", style = MaterialTheme.typography.bodySmall)
+        Text("Anteprima Icona Reale (Modificata da te)", style = MaterialTheme.typography.bodySmall)
 
         HorizontalDivider()
 
