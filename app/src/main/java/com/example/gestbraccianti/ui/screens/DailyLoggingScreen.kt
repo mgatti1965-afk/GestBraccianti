@@ -66,6 +66,19 @@ fun DailyLoggingScreen(
         }
     }
 
+    // Mappa dei giorni lavorati per questo mese (Giorno -> Totale Ore)
+    val workedDaysMap = remember(allLogs, selectedCalendar) {
+        allLogs.filter { log ->
+            val cal = Calendar.getInstance().apply { timeInMillis = log.date }
+            cal.get(Calendar.MONTH) == selectedCalendar.get(Calendar.MONTH) &&
+                    cal.get(Calendar.YEAR) == selectedCalendar.get(Calendar.YEAR)
+        }.groupBy { 
+            Calendar.getInstance().apply { timeInMillis = it.date }.get(Calendar.DAY_OF_MONTH)
+        }.mapValues { entry ->
+            entry.value.sumOf { it.totalHours }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Month Selector
@@ -87,10 +100,7 @@ fun DailyLoggingScreen(
 
                     IconButton(
                         onClick = {
-                            val newCal = (selectedCalendar.clone() as Calendar).apply {
-                                add(Calendar.MONTH, -1)
-                            }
-                            selectedCalendar = newCal
+                            viewModel.moveReferenceDate(1, -1)
                         },
                         enabled = !isFirstMonth
                     ) {
@@ -109,10 +119,7 @@ fun DailyLoggingScreen(
 
                     IconButton(
                         onClick = {
-                            val newCal = (selectedCalendar.clone() as Calendar).apply {
-                                add(Calendar.MONTH, 1)
-                            }
-                            selectedCalendar = newCal
+                            viewModel.moveReferenceDate(1, 1)
                         },
                         enabled = !isLastMonth
                     ) {
@@ -125,21 +132,25 @@ fun DailyLoggingScreen(
                 }
             }
 
+            // Calendario a Griglia
+            MonthGrid(
+                calendar = selectedCalendar,
+                workedDaysMap = workedDaysMap,
+                onDateClick = onDateClick
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
+                "Giornate registrate",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.primary
+            )
+
             if (filteredDays.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Nessuna giornata registrata per questo mese.")
-                        if (workedDays.isNotEmpty()) {
-                            TextButton(onClick = {
-                                // Jump to latest worked day's month
-                                val latest = Calendar.getInstance().apply { timeInMillis = workedDays.first() }
-                                latest.set(Calendar.DAY_OF_MONTH, 1)
-                                selectedCalendar = latest
-                            }) {
-                                Text("Vai all'ultimo mese lavorato")
-                            }
-                        }
-                    }
+                    Text("Nessun dato per questo mese.", style = MaterialTheme.typography.bodySmall)
                 }
             } else {
                 LazyColumn(
@@ -162,102 +173,149 @@ fun DailyLoggingScreen(
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Row(
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Date Badge
-                                Surface(
-                                    modifier = Modifier.size(56.dp),
-                                    shape = MaterialTheme.shapes.medium,
-                                    color = MaterialTheme.colorScheme.secondaryContainer
-                                ) {
-                                    val cal = Calendar.getInstance().apply { timeInMillis = date }
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = cal.get(Calendar.DAY_OF_MONTH).toString(),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                        Text(
-                                            text = SimpleDateFormat("MMM", Locale.ITALY).format(cal.time).uppercase(),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
+                                val cal = Calendar.getInstance().apply { timeInMillis = date }
+                                Text(
+                                    text = cal.get(Calendar.DAY_OF_MONTH).toString(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.width(32.dp)
+                                )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = sdf.format(Date(date)).replaceFirstChar { it.uppercase() },
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        text = SimpleDateFormat("EEEE", Locale.ITALY).format(cal.time).replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.bodyMedium
                                     )
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "$totalWorkers braccianti",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = " • ",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = "${String.format(Locale.ITALY, "%.1f", totalHours)} ore totali",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                                    Text(
+                                        text = "$totalWorkers bracc. • ${String.format(Locale.ITALY, "%.1f", totalHours)} ore",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                Icon(
-                                    Icons.Default.ChevronRight,
-                                    contentDescription = "Dettagli",
-                                    tint = MaterialTheme.colorScheme.outline
-                                )
+                                Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
 
-        FloatingActionButton(
-            onClick = {
-                // Inizializza il calendario con la data di riferimento del ViewModel (che segue l'anno scelto)
-                val calendar = Calendar.getInstance(Locale.ITALY).apply {
-                    timeInMillis = referenceDate
-                }
-                
-                val dialog = DatePickerDialog(
-                    context,
-                    { _, y, m, d ->
-                        val newCal = Calendar.getInstance(Locale.ITALY).apply {
-                            set(y, m, d, 0, 0, 0)
-                            set(Calendar.MILLISECOND, 0)
-                        }
-                        onDateClick(newCal.timeInMillis)
-                    },
-                    calendar.get(Calendar.YEAR),
-                    calendar.get(Calendar.MONTH),
-                    calendar.get(Calendar.DAY_OF_MONTH)
+@Composable
+fun MonthGrid(
+    calendar: Calendar,
+    workedDaysMap: Map<Int, Double>,
+    onDateClick: (Long) -> Unit
+) {
+    val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val firstDayOfMonth = (calendar.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
+    val firstDayOfWeek = firstDayOfMonth.get(Calendar.DAY_OF_WEEK) // Dom=1, Lun=2...
+    
+    // Offset per far partire il lunedì come primo giorno (Lun=0, Mar=1... Dom=6)
+    val offset = (firstDayOfWeek - 2 + 7) % 7
+    
+    val today = Calendar.getInstance()
+    val isCurrentMonth = today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
+                         today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        // Intestazione giorni settimana
+        Row(modifier = Modifier.fillMaxWidth()) {
+            listOf("L", "M", "M", "G", "V", "S", "D").forEach { day ->
+                Text(
+                    text = day,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
                 )
-                // Imposta la localizzazione esplicita in italiano per il dialogo
-                dialog.datePicker.calendarViewShown = false // Forza lo stile moderno
-                context.resources.configuration.setLocale(Locale.ITALY)
-                dialog.show()
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Aggiungi Giornata")
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Griglia giorni
+        val totalCells = daysInMonth + offset
+        val rows = (totalCells + 6) / 7
+        
+        for (row in 0 until rows) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                for (col in 0 until 7) {
+                    val cellIndex = row * 7 + col
+                    val dayNum = cellIndex - offset + 1
+                    
+                    if (dayNum in 1..daysInMonth) {
+                        val isToday = isCurrentMonth && dayNum == today.get(Calendar.DAY_OF_MONTH)
+                        val totalHours = workedDaysMap[dayNum]
+                        
+                        DayCell(
+                            day = dayNum,
+                            isToday = isToday,
+                            totalHours = totalHours,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                val clickCal = (calendar.clone() as Calendar).apply {
+                                    set(Calendar.DAY_OF_MONTH, dayNum)
+                                    set(Calendar.HOUR_OF_DAY, 0)
+                                    set(Calendar.MINUTE, 0)
+                                    set(Calendar.SECOND, 0)
+                                    set(Calendar.MILLISECOND, 0)
+                                }
+                                onDateClick(clickCal.timeInMillis)
+                            }
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
+
+@Composable
+fun DayCell(
+    day: Int,
+    isToday: Boolean,
+    totalHours: Double?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val hasWorked = totalHours != null && totalHours > 0
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier.aspectRatio(1f),
+        shape = MaterialTheme.shapes.small,
+        color = when {
+            hasWorked -> MaterialTheme.colorScheme.primaryContainer
+            isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+            else -> MaterialTheme.colorScheme.surface
+        },
+        border = if (isToday) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+        tonalElevation = if (hasWorked) 4.dp else 0.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = day.toString(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (hasWorked || isToday) FontWeight.Bold else FontWeight.Normal,
+                    color = if (hasWorked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                )
+                if (hasWorked) {
+                    Text(
+                        text = "${String.format(Locale.ITALY, "%.0f", totalHours)}h",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+

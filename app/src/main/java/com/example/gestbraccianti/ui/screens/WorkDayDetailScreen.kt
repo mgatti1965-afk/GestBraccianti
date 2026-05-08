@@ -7,16 +7,16 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -459,22 +459,7 @@ fun AddGroupToDayDialog(
     var afternoonStart by remember { mutableStateOf("") }
     var afternoonEnd by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    fun showTimePicker(initialValue: String, onTimeSelected: (String) -> Unit) {
-        val calendar = Calendar.getInstance()
-        if (initialValue.isNotBlank()) {
-            val parts = initialValue.split(":")
-            if (parts.size == 2) {
-                calendar.set(Calendar.HOUR_OF_DAY, parts[0].toInt())
-                calendar.set(Calendar.MINUTE, parts[1].toInt())
-            }
-        }
-        TimePickerDialog(context, { _, h, m ->
-            onTimeSelected(String.format(Locale.ITALY, "%02d:%02d", h, m))
-        }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
-    }
 
     fun validateTimes(): Boolean {
         val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
@@ -519,16 +504,29 @@ fun AddGroupToDayDialog(
                     }
                 }
                 
-                Text("Mattina", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showTimePicker(morningStart) { morningStart = it } }, modifier = Modifier.weight(1f)) { Text(morningStart.ifBlank { "Inizio" }) }
-                    OutlinedButton(onClick = { showTimePicker(morningEnd) { morningEnd = it } }, modifier = Modifier.weight(1f)) { Text(morningEnd.ifBlank { "Fine" }) }
-                }
-                Text("Pomeriggio", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showTimePicker(afternoonStart) { afternoonStart = it } }, modifier = Modifier.weight(1f)) { Text(afternoonStart.ifBlank { "Inizio" }) }
-                    OutlinedButton(onClick = { showTimePicker(afternoonEnd) { afternoonEnd = it } }, modifier = Modifier.weight(1f)) { Text(afternoonEnd.ifBlank { "Fine" }) }
-                }
+                HorizontalDivider()
+                
+                TimePickerSection(
+                    label = "Mattina",
+                    start = morningStart,
+                    end = morningEnd,
+                    onStartChange = { morningStart = it },
+                    onEndChange = { morningEnd = it },
+                    defaultStart = "08:00",
+                    defaultEnd = "12:00"
+                )
+                
+                HorizontalDivider()
+
+                TimePickerSection(
+                    label = "Pomeriggio",
+                    start = afternoonStart,
+                    end = afternoonEnd,
+                    onStartChange = { afternoonStart = it },
+                    onEndChange = { afternoonEnd = it },
+                    defaultStart = "13:00",
+                    defaultEnd = "17:00"
+                )
 
                 if (errorMessage != null) {
                     Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -545,6 +543,126 @@ fun AddGroupToDayDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )
 }
+
+@Composable
+fun TimePickerSection(
+    label: String,
+    start: String,
+    end: String,
+    onStartChange: (String) -> Unit,
+    onEndChange: (String) -> Unit,
+    defaultStart: String = "08:00",
+    defaultEnd: String = "12:00"
+) {
+    Column {
+        Text(label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Inizio", style = MaterialTheme.typography.labelSmall)
+                TactileTimePicker(value = start, defaultValue = defaultStart, onValueChange = onStartChange)
+            }
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Fine", style = MaterialTheme.typography.labelSmall)
+                TactileTimePicker(value = end, defaultValue = defaultEnd, onValueChange = onEndChange)
+            }
+        }
+    }
+}
+
+@Composable
+fun TactileTimePicker(
+    value: String,
+    defaultValue: String = "08:00",
+    onValueChange: (String) -> Unit
+) {
+    val displayValue = value.ifBlank { "--:--" }
+    var showManualEdit by remember { mutableStateOf(false) }
+
+    fun adjust(deltaMinutes: Int) {
+        val current = if (value.isBlank()) defaultValue else value
+        try {
+            val parts = current.split(":")
+            val h = parts[0].toInt()
+            val m = parts[1].toInt()
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, h)
+                set(Calendar.MINUTE, m)
+                add(Calendar.MINUTE, deltaMinutes)
+            }
+            onValueChange(String.format(Locale.ITALY, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)))
+        } catch (e: Exception) {
+            onValueChange(defaultValue)
+        }
+    }
+
+    if (showManualEdit) {
+        var tempTime by remember { mutableStateOf(value.ifBlank { defaultValue }) }
+        AlertDialog(
+            onDismissRequest = { showManualEdit = false },
+            title = { Text("Inserimento Manuale") },
+            text = {
+                TextField(
+                    value = tempTime,
+                    onValueChange = { tempTime = it },
+                    placeholder = { Text("HH:mm") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    ),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (tempTime.matches(Regex("""^([01]\d|2[0-3]):([0-5]\d)$"""))) {
+                        onValueChange(tempTime)
+                        showManualEdit = false
+                    }
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showManualEdit = false }) { Text("Annulla") }
+            }
+        )
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(
+            onClick = { adjust(15) },
+            modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Più", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+        
+        Text(
+            text = displayValue,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.padding(vertical = 4.dp).clickable { 
+                if (value.isBlank()) onValueChange(defaultValue) else showManualEdit = true
+            }
+        )
+
+        IconButton(
+            onClick = { adjust(-15) },
+            modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+        ) {
+            Icon(Icons.Default.Remove, contentDescription = "Meno")
+        }
+        
+        if (value.isNotBlank()) {
+            Text(
+                "Canc.", 
+                style = MaterialTheme.typography.labelSmall, 
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.clickable { onValueChange("") }
+            )
+        } else {
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+    }
+}
+
 
 private fun Modifier.menuAnchor(type: MenuAnchorType, enabled: Boolean = true): Modifier = this // Mock to fix deprecation warning in the flow
 
@@ -574,22 +692,7 @@ fun AddWorkerToDayDialog(
     var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "") }
     
     var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    fun showTimePicker(initialValue: String, onTimeSelected: (String) -> Unit) {
-        val calendar = Calendar.getInstance()
-        if (initialValue.isNotBlank()) {
-            val parts = initialValue.split(":")
-            if (parts.size == 2) {
-                calendar.set(Calendar.HOUR_OF_DAY, parts[0].toInt())
-                calendar.set(Calendar.MINUTE, parts[1].toInt())
-            }
-        }
-        TimePickerDialog(context, { _, h, m ->
-            onTimeSelected(String.format(Locale.ITALY, "%02d:%02d", h, m))
-        }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
-    }
 
     fun validateTimes(): Boolean {
         val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
@@ -654,25 +757,29 @@ fun AddWorkerToDayDialog(
                     )
                 }
                 
-                Text("Mattina", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showTimePicker(morningStart) { morningStart = it } }, modifier = Modifier.weight(1f)) {
-                        Text(morningStart.ifBlank { "Inizio" })
-                    }
-                    OutlinedButton(onClick = { showTimePicker(morningEnd) { morningEnd = it } }, modifier = Modifier.weight(1f)) {
-                        Text(morningEnd.ifBlank { "Fine" })
-                    }
-                }
+                HorizontalDivider()
                 
-                Text("Pomeriggio", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showTimePicker(afternoonStart) { afternoonStart = it } }, modifier = Modifier.weight(1f)) {
-                        Text(afternoonStart.ifBlank { "Inizio" })
-                    }
-                    OutlinedButton(onClick = { showTimePicker(afternoonEnd) { afternoonEnd = it } }, modifier = Modifier.weight(1f)) {
-                        Text(afternoonEnd.ifBlank { "Fine" })
-                    }
-                }
+                TimePickerSection(
+                    label = "Mattina",
+                    start = morningStart,
+                    end = morningEnd,
+                    onStartChange = { morningStart = it },
+                    onEndChange = { morningEnd = it },
+                    defaultStart = "08:00",
+                    defaultEnd = "12:00"
+                )
+                
+                HorizontalDivider()
+
+                TimePickerSection(
+                    label = "Pomeriggio",
+                    start = afternoonStart,
+                    end = afternoonEnd,
+                    onStartChange = { afternoonStart = it },
+                    onEndChange = { afternoonEnd = it },
+                    defaultStart = "13:00",
+                    defaultEnd = "17:00"
+                )
 
                 if (errorMessage != null) {
                     Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

@@ -293,11 +293,10 @@ fun TestTab(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(
-                    painter = painterResource(id = R.mipmap.ic_launcher_round),
+                androidx.compose.foundation.Image(
+                    painter = painterResource(id = R.drawable.gest_braccianti),
                     contentDescription = "Tua Icona Reale",
-                    modifier = Modifier.size(160.dp),
-                    tint = Color.Unspecified
+                    modifier = Modifier.size(160.dp)
                 )
             }
         }
