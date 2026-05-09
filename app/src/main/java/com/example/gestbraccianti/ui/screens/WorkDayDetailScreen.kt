@@ -1,7 +1,6 @@
 package com.example.gestbraccianti.ui.screens
 
 import android.Manifest
-import android.app.TimePickerDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -50,8 +49,8 @@ fun WorkDayDetailScreen(
 ) {
     val allLogs by workLogViewModel.allLogs.collectAsState()
     val logsForDay = remember(allLogs, date) { allLogs.filter { it.date == date } }
-    val workers by workerViewModel.workersForCurrentYear.collectAsState()
-    val groups by groupViewModel.groupsForYear.collectAsState()
+    val workers = workerViewModel.workersForCurrentYear.collectAsState().value
+    val groups = groupViewModel.groupsForYear.collectAsState().value
     val scope = rememberCoroutineScope()
     
     var showAddWorkerDialog by remember { mutableStateOf(false) }
@@ -525,7 +524,7 @@ fun AddGroupToDayDialog(
                         readOnly = true,
                         textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         groups.forEach { group ->
@@ -707,9 +706,6 @@ fun TactileTimePicker(
     }
 }
 
-
-private fun Modifier.menuAnchor(type: MenuAnchorType, enabled: Boolean = true): Modifier = this // Mock to fix deprecation warning in the flow
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddWorkerToDayDialog(
@@ -797,7 +793,7 @@ fun AddWorkerToDayDialog(
                             readOnly = true,
                             textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
                         )
                         ExposedDropdownMenu(
                             expanded = expanded,

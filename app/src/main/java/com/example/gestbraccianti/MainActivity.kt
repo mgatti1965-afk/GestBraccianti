@@ -34,15 +34,7 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import com.example.gestbraccianti.ui.navigation.Screen
 import com.example.gestbraccianti.ui.screens.*
 import com.example.gestbraccianti.ui.theme.GestBracciantiTheme
-import com.example.gestbraccianti.ui.viewmodel.HarvestViewModel
-import com.example.gestbraccianti.ui.viewmodel.HarvestViewModelFactory
-import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
-import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModelFactory
-import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
-import com.example.gestbraccianti.ui.viewmodel.WorkerViewModelFactory
-
-import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
-import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModelFactory
+import com.example.gestbraccianti.ui.viewmodel.*
 
 class MainActivity : ComponentActivity() {
     private val harvestViewModel: HarvestViewModel by viewModels {

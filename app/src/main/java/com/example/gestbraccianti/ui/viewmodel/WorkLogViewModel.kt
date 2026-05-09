@@ -9,7 +9,6 @@ import com.example.gestbraccianti.data.repository.WorkerYearConfigRepository
 import com.example.gestbraccianti.data.model.WorkerYearStats
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -56,7 +55,7 @@ class WorkLogViewModel(
     }
 
     fun setDateRange(start: Long?, end: Long?) {
-        if (start == null || end == null) {
+        if ((start == null) || (end == null)) {
             _dateRange.value = null
         } else {
             _dateRange.value = Pair(start, end)
@@ -79,18 +78,6 @@ class WorkLogViewModel(
         }
         _currentReferenceDate.value = cal.timeInMillis
     }
-
-    val workerStats: StateFlow<List<WorkerYearStats>> = combine(_selectedYearId, _dateRange) { yearId, range ->
-        Pair(yearId, range)
-    }.flatMapLatest { (yearId, range) ->
-        if (yearId == null) {
-            MutableStateFlow(emptyList())
-        } else if (range == null) {
-            configRepository.getWorkerStatsForYear(yearId)
-        } else {
-            configRepository.getWorkerStatsForRange(yearId, range.first, range.second)
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val yearlyStats: StateFlow<List<WorkerYearStats>> = _selectedYearId
         .flatMapLatest { yearId ->
@@ -171,7 +158,7 @@ class WorkLogViewModel(
                     hours
                 } else 0.0
             } else 0.0
-        } catch (e: Exception) {
+        } catch (ignored: Exception) {
             0.0
         }
     }
