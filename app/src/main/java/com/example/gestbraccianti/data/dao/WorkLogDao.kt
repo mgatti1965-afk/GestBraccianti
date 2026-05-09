@@ -32,6 +32,20 @@ interface WorkLogDao {
     @Query("SELECT * FROM work_logs WHERE date = :date AND harvestYearId = :yearId")
     suspend fun getLogsByDate(date: Long, yearId: Int): List<WorkLog>
 
+    @Query("SELECT * FROM work_logs WHERE id = :id")
+    suspend fun getLogById(id: Long): WorkLog?
+
+    @Query("""
+        UPDATE work_logs 
+        SET hourlyRate = (
+            SELECT hourlyRate FROM worker_year_configs 
+            WHERE worker_year_configs.workerId = work_logs.workerId 
+            AND worker_year_configs.harvestYearId = work_logs.harvestYearId
+        )
+        WHERE hourlyRate = 0.0
+    """)
+    suspend fun fillMissingRates()
+
     @Query("SELECT * FROM work_logs")
     suspend fun getAllLogsStatic(): List<WorkLog>
 }

@@ -18,7 +18,7 @@ interface WorkerYearConfigDao {
             w.surname, 
             wyc.hourlyRate,
             SUM(wl.totalHours) as totalHours,
-            SUM(wl.totalHours) * wyc.hourlyRate as totalEarnings
+            SUM(wl.totalHours * wl.hourlyRate) as totalEarnings
         FROM workers w
         INNER JOIN worker_year_configs wyc ON w.id = wyc.workerId
         INNER JOIN work_logs wl ON w.id = wl.workerId AND wl.harvestYearId = :yearId
@@ -35,7 +35,7 @@ interface WorkerYearConfigDao {
             w.surname, 
             wyc.hourlyRate,
             SUM(wl.totalHours) as totalHours,
-            SUM(wl.totalHours) * wyc.hourlyRate as totalEarnings
+            SUM(wl.totalHours * wl.hourlyRate) as totalEarnings
         FROM workers w
         INNER JOIN worker_year_configs wyc ON w.id = wyc.workerId
         INNER JOIN work_logs wl ON w.id = wl.workerId AND wl.harvestYearId = :yearId AND wl.date BETWEEN :startDate AND :endDate

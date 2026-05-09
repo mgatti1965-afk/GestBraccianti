@@ -28,6 +28,10 @@ class WorkLogViewModel(
 
     fun setSelectedYear(yearId: Int) {
         _selectedYearId.value = yearId
+        // Ripara i dati storici se mancano le tariffe
+        viewModelScope.launch {
+            workLogRepository.fillMissingRates()
+        }
         // Inizializza la data di riferimento: 
         // Se è l'anno in corso, usa la data attuale (mese corrente).
         // Altrimenti, usa il 1° gennaio dell'anno selezionato.
@@ -119,6 +123,21 @@ class WorkLogViewModel(
     ) {
         viewModelScope.launch {
             val totalHours = calculateHours(morningStart, morningEnd) + calculateHours(afternoonStart, afternoonEnd)
+            
+            // Recupera la tariffa oraria attuale per questo bracciante in questo anno
+            // Se stiamo modificando un log esistente e ha già una tariffa, potremmo volerla mantenere o aggiornarla.
+            // La logica richiesta è che il cambio di tariffa NON deve cambiare i log passati.
+            // Quindi se il log è NUOVO, prendiamo la tariffa attuale.
+            // Se il log ESISTE, di solito manteniamo quella che aveva, a meno che l'utente non voglia "correggerla".
+            // Per ora, se è un nuovo inserimento prendiamo la tariffa corrente.
+            
+            val currentRate = if (id == 0L) {
+                configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
+            } else {
+                // Se esiste già, carichiamo il vecchio log per vedere che tariffa aveva
+                workLogRepository.getLogById(id)?.hourlyRate ?: configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
+            }
+
             val log = WorkLog(
                 id = id,
                 workerId = workerId,
@@ -128,7 +147,8 @@ class WorkLogViewModel(
                 morningEnd = morningEnd,
                 afternoonStart = afternoonStart,
                 afternoonEnd = afternoonEnd,
-                totalHours = totalHours
+                totalHours = totalHours,
+                hourlyRate = currentRate
             )
             if (id == 0L) {
                 workLogRepository.insertLog(log)

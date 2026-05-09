@@ -206,11 +206,11 @@ fun OthersScreen(
         when (selectedTab) {
             0 -> {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Sezione Proprietario
+                    // Sezione Azienda
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Proprietario", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                Text("Azienda / Titolare", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                                 IconButton(onClick = {
                                     when (PackageManager.PERMISSION_GRANTED) {
                                         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {

@@ -19,6 +19,9 @@ import com.example.gestbraccianti.data.dao.WorkerGroupDao
 import com.example.gestbraccianti.data.entity.WorkerGroup
 import com.example.gestbraccianti.data.entity.WorkerGroupCrossRef
 
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
 @Database(
     entities = [
         HarvestYear::class, 
@@ -29,7 +32,7 @@ import com.example.gestbraccianti.data.entity.WorkerGroupCrossRef
         WorkerGroup::class,
         WorkerGroupCrossRef::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -44,6 +47,12 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN hourlyRate REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -51,6 +60,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gest_braccianti_db"
                 )
+                    .addMigrations(MIGRATION_5_6)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
