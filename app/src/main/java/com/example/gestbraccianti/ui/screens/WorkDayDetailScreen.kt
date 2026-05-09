@@ -114,7 +114,7 @@ fun WorkDayDetailScreen(
         Box(modifier = Modifier.weight(1f)) {
             if (logsForDay.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nessun bracciante inserito per oggi.")
+                    Text("Nessun bracciante inserito per oggi.", style = MaterialTheme.typography.titleMedium)
                 }
             } else {
                 LazyColumn(
@@ -211,6 +211,7 @@ fun WorkDayDetailScreen(
     if (showAddGroupDialog) {
         AddGroupToDayDialog(
             groups = groups,
+            existingLogs = logsForDay,
             onDismiss = { showAddGroupDialog = false },
             onConfirm = { group, mStart, mEnd, pStart, pEnd ->
                 scope.launch {
@@ -450,14 +451,42 @@ private fun processSmsEntry(
 @Composable
 fun AddGroupToDayDialog(
     groups: List<WorkerGroup>,
+    existingLogs: List<WorkLog>,
     onDismiss: () -> Unit,
     onConfirm: (WorkerGroup, String, String, String, String) -> Unit
 ) {
     var selectedGroup by remember { mutableStateOf<WorkerGroup?>(if (groups.size == 1) groups.first() else null) }
-    var morningStart by remember { mutableStateOf("08:00") }
-    var morningEnd by remember { mutableStateOf("") }
-    var afternoonStart by remember { mutableStateOf("") }
-    var afternoonEnd by remember { mutableStateOf("") }
+    
+    // Logica incrementale basata sui log esistenti della giornata
+    val firstLog = existingLogs.firstOrNull()
+    var morningStart by remember(existingLogs) { 
+        val firstLog = existingLogs.firstOrNull()
+        mutableStateOf(firstLog?.morningStart ?: "08:00") 
+    }
+    var morningEnd by remember(existingLogs) { 
+        val firstLog = existingLogs.firstOrNull()
+        mutableStateOf(
+            if (firstLog?.morningEnd?.isNotBlank() == true) firstLog.morningEnd!!
+            else if (firstLog?.morningStart?.isNotBlank() == true) "12:00"
+            else ""
+        )
+    }
+    var afternoonStart by remember(existingLogs) {
+        val firstLog = existingLogs.firstOrNull()
+        mutableStateOf(
+            if (firstLog?.afternoonStart?.isNotBlank() == true) firstLog.afternoonStart!!
+            else if (firstLog?.morningEnd?.isNotBlank() == true) "13:00"
+            else ""
+        )
+    }
+    var afternoonEnd by remember(existingLogs) {
+        val firstLog = existingLogs.firstOrNull()
+        mutableStateOf(
+            if (firstLog?.afternoonEnd?.isNotBlank() == true) firstLog.afternoonEnd!!
+            else if (firstLog?.afternoonStart?.isNotBlank() == true) "17:00"
+            else ""
+        )
+    }
     var expanded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -486,7 +515,7 @@ fun AddGroupToDayDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Aggiungi Gruppo") },
+        title = { Text("Aggiungi Gruppo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
@@ -494,12 +523,17 @@ fun AddGroupToDayDialog(
                         value = selectedGroup?.name ?: "Seleziona Gruppo",
                         onValueChange = {},
                         readOnly = true,
+                        textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                     )
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         groups.forEach { group ->
-                            DropdownMenuItem(text = { Text(group.name) }, onClick = { selectedGroup = group; expanded = false })
+                            DropdownMenuItem(
+                                text = { Text(group.name, style = MaterialTheme.typography.titleMedium) }, 
+                                onClick = { selectedGroup = group; expanded = false },
+                                contentPadding = PaddingValues(16.dp)
+                            )
                         }
                     }
                 }
@@ -555,15 +589,20 @@ fun TimePickerSection(
     defaultEnd: String = "12:00"
 ) {
     Column {
-        Text(label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        Text(
+            text = label, 
+            style = MaterialTheme.typography.titleLarge, 
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Inizio", style = MaterialTheme.typography.labelSmall)
+                Text("Inizio", style = MaterialTheme.typography.labelMedium)
                 TactileTimePicker(value = start, defaultValue = defaultStart, onValueChange = onStartChange)
             }
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Fine", style = MaterialTheme.typography.labelSmall)
+                Text("Fine", style = MaterialTheme.typography.labelMedium)
                 TactileTimePicker(value = end, defaultValue = defaultEnd, onValueChange = onEndChange)
             }
         }
@@ -606,9 +645,14 @@ fun TactileTimePicker(
                     value = tempTime,
                     onValueChange = { tempTime = it },
                     placeholder = { Text("HH:mm") },
+                    textStyle = MaterialTheme.typography.displaySmall.copy(
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
+                    ),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                     ),
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
             },
@@ -686,10 +730,30 @@ fun AddWorkerToDayDialog(
             ?: if (selectableWorkers.size == 1) selectableWorkers.first() else null
         ) 
     }
-    var morningStart by remember { mutableStateOf(editingLog?.morningStart ?: "08:00") }
-    var morningEnd by remember { mutableStateOf(editingLog?.morningEnd ?: "") }
-    var afternoonStart by remember { mutableStateOf(editingLog?.afternoonStart ?: "") }
-    var afternoonEnd by remember { mutableStateOf(editingLog?.afternoonEnd ?: "") }
+    var morningStart by remember(editingLog) { 
+        mutableStateOf(editingLog?.morningStart ?: "08:00") 
+    }
+    var morningEnd by remember(editingLog) { 
+        mutableStateOf(
+            if (editingLog?.morningEnd?.isNotBlank() == true) editingLog.morningEnd!!
+            else if (editingLog?.morningStart?.isNotBlank() == true) "12:00"
+            else ""
+        )
+    }
+    var afternoonStart by remember(editingLog) {
+        mutableStateOf(
+            if (editingLog?.afternoonStart?.isNotBlank() == true) editingLog.afternoonStart!!
+            else if (editingLog?.morningEnd?.isNotBlank() == true) "13:00"
+            else ""
+        )
+    }
+    var afternoonEnd by remember(editingLog) {
+        mutableStateOf(
+            if (editingLog?.afternoonEnd?.isNotBlank() == true) editingLog.afternoonEnd!!
+            else if (editingLog?.afternoonStart?.isNotBlank() == true) "17:00"
+            else ""
+        )
+    }
     
     var expanded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -719,7 +783,7 @@ fun AddWorkerToDayDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (editingLog == null) "Aggiungi Bracciante" else "Modifica Orari") },
+        title = { Text(if (editingLog == null) "Aggiungi Bracciante" else "Modifica Orari", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (editingLog == null) {
@@ -731,6 +795,7 @@ fun AddWorkerToDayDialog(
                             value = selectedWorker?.let { "${it.surname} ${it.name}".trim() } ?: "Seleziona Bracciante",
                             onValueChange = {},
                             readOnly = true,
+                            textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                         )
@@ -740,20 +805,27 @@ fun AddWorkerToDayDialog(
                         ) {
                             selectableWorkers.forEach { worker ->
                                 DropdownMenuItem(
-                                    text = { Text("${worker.surname} ${worker.name}".trim()) },
+                                    text = { 
+                                        Text(
+                                            text = "${worker.surname} ${worker.name}".trim(),
+                                            style = MaterialTheme.typography.titleMedium
+                                        ) 
+                                    },
                                     onClick = {
                                         selectedWorker = worker
                                         expanded = false
-                                    }
+                                    },
+                                    contentPadding = PaddingValues(16.dp)
                                 )
                             }
                         }
                     }
                 } else {
                     Text(
-                        "Lavoratore: ${selectedWorker?.surname} ${selectedWorker?.name}".trim(),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
+                        "Bracciante: ${selectedWorker?.surname} ${selectedWorker?.name}".trim(),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 

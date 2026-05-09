@@ -296,8 +296,8 @@ fun DayCell(
             isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             else -> MaterialTheme.colorScheme.surface
         },
-        border = if (isToday) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-        tonalElevation = if (hasWorked) 4.dp else 0.dp
+        border = if (isToday) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
+        tonalElevation = if (hasWorked) 4.dp else if (isToday) 2.dp else 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
