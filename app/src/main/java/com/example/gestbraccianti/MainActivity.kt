@@ -32,9 +32,21 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.material.icons.filled.MoreHoriz
 import com.example.gestbraccianti.ui.navigation.Screen
-import com.example.gestbraccianti.ui.screens.*
+import com.example.gestbraccianti.ui.screens.DailyLoggingScreen
+import com.example.gestbraccianti.ui.screens.FinancialSummaryScreen
+import com.example.gestbraccianti.ui.screens.OthersScreen
+import com.example.gestbraccianti.ui.screens.WorkDayDetailScreen
+import com.example.gestbraccianti.ui.screens.WorkerRegistryScreen
+import com.example.gestbraccianti.ui.screens.YearSelectionScreen
 import com.example.gestbraccianti.ui.theme.GestBracciantiTheme
-import com.example.gestbraccianti.ui.viewmodel.*
+import com.example.gestbraccianti.ui.viewmodel.HarvestViewModel
+import com.example.gestbraccianti.ui.viewmodel.HarvestViewModelFactory
+import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
+import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModelFactory
+import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
+import com.example.gestbraccianti.ui.viewmodel.WorkerViewModelFactory
+import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
+import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModelFactory
 
 class MainActivity : ComponentActivity() {
     private val harvestViewModel: HarvestViewModel by viewModels {

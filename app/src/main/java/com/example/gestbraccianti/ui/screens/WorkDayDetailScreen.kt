@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.*
@@ -49,8 +53,8 @@ fun WorkDayDetailScreen(
 ) {
     val allLogs by workLogViewModel.allLogs.collectAsState()
     val logsForDay = remember(allLogs, date) { allLogs.filter { it.date == date } }
-    val workers = workerViewModel.workersForCurrentYear.collectAsState().value
-    val groups = groupViewModel.groupsForYear.collectAsState().value
+    val workers by workerViewModel.workersForCurrentYear.collectAsState()
+    val groups by groupViewModel.groupsForYear.collectAsState()
     val scope = rememberCoroutineScope()
     
     var showAddWorkerDialog by remember { mutableStateOf(false) }
@@ -524,7 +528,7 @@ fun AddGroupToDayDialog(
                         readOnly = true,
                         textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     )
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         groups.forEach { group ->
@@ -793,7 +797,7 @@ fun AddWorkerToDayDialog(
                             readOnly = true,
                             textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth()
                         )
                         ExposedDropdownMenu(
                             expanded = expanded,
