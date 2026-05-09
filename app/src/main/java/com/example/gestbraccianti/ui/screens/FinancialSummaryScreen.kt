@@ -3,6 +3,7 @@ package com.example.gestbraccianti.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -35,6 +36,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
     var selectedFilter by remember { mutableIntStateOf(0) }
     val filters = listOf("Anno", "Mese", "Settimana", "Giorno")
     val context = LocalContext.current
+    
     var showReportDialog by remember { mutableStateOf(false) }
     var reportTargetAll by remember { mutableStateOf(true) }
     var selectedWorkerForReport by remember { mutableStateOf<Long?>(null) }
@@ -94,102 +96,102 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
             }
         }
     ) { innerPadding ->
-    if (showReportDialog) {
-        AlertDialog(
-            onDismissRequest = { 
-                showReportDialog = false
-                reportStep = 0
-            },
-            title = { 
-                Text(
-                    text = if (reportStep == 0) "Selezione Bracciante" else "Tipo di Totale",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                ) 
-            },
-            text = {
-                if (reportStep == 0) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { 
-                                reportTargetAll = true
-                                reportStep = 1 
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Tutti i Braccianti") }
-                        
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        Text("Singolo Bracciante:", style = MaterialTheme.typography.labelMedium)
-                        
-                        val workersInPeriod = filteredLogs.map { it.workerId }.distinct()
-                        LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
-                            items(workersInPeriod) { wId ->
-                                val w = stats.find { it.workerId == wId }
-                                OutlinedButton(
-                                    onClick = {
-                                        reportTargetAll = false
-                                        selectedWorkerForReport = wId
-                                        reportStep = 1
-                                    },
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                                ) {
-                                    Text("${w?.surname ?: ""} ${w?.name ?: "Bracc. $wId"}")
+        if (showReportDialog) {
+            AlertDialog(
+                onDismissRequest = { 
+                    showReportDialog = false
+                    reportStep = 0
+                },
+                title = { 
+                    Text(
+                        text = if (reportStep == 0) "Selezione Bracciante" else "Tipo di Totale",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
+                text = {
+                    if (reportStep == 0) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { 
+                                    reportTargetAll = true
+                                    reportStep = 1 
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Tutti i Braccianti") }
+                            
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            Text("Singolo Bracciante:", style = MaterialTheme.typography.labelMedium)
+                            
+                            val workersInPeriod = filteredLogs.map { it.workerId }.distinct()
+                            LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
+                                items(workersInPeriod) { wId ->
+                                    val w = stats.find { it.workerId == wId }
+                                    OutlinedButton(
+                                        onClick = {
+                                            reportTargetAll = false
+                                            selectedWorkerForReport = wId
+                                            reportStep = 1
+                                        },
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                                    ) {
+                                        Text("${w?.surname ?: ""} ${w?.name ?: "Bracc. $wId"}")
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = if (reportTargetAll) "Report completo" else "Report per: ${stats.find { it.workerId == selectedWorkerForReport }?.surname ?: ""}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Button(
+                                onClick = {
+                                    showReportDialog = false
+                                    reportStep = 0
+                                    val reportText = generateUnifiedReport(
+                                        context = context,
+                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
+                                        yearStats = stats,
+                                        filterTitle = filters[selectedFilter],
+                                        referenceDate = referenceDate,
+                                        reportByWeek = false
+                                    )
+                                    shareReport(context, reportText)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Totali Mensili") }
+                            
+                            Button(
+                                onClick = {
+                                    showReportDialog = false
+                                    reportStep = 0
+                                    val reportText = generateUnifiedReport(
+                                        context = context,
+                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
+                                        yearStats = stats,
+                                        filterTitle = filters[selectedFilter],
+                                        referenceDate = referenceDate,
+                                        reportByWeek = true
+                                    )
+                                    shareReport(context, reportText)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Totali Settimanali") }
+                        }
                     }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = if (reportTargetAll) "Report completo" else "Report per: ${stats.find { it.workerId == selectedWorkerForReport }?.surname ?: ""}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Button(
-                            onClick = {
-                                showReportDialog = false
-                                reportStep = 0
-                                val reportText = generateUnifiedReport(
-                                    context = context,
-                                    logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
-                                    yearStats = stats,
-                                    filterTitle = filters[selectedFilter],
-                                    referenceDate = referenceDate,
-                                    reportByWeek = false
-                                )
-                                shareReport(context, reportText)
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Totali Mensili") }
-                        
-                        Button(
-                            onClick = {
-                                showReportDialog = false
-                                reportStep = 0
-                                val reportText = generateUnifiedReport(
-                                    context = context,
-                                    logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
-                                    yearStats = stats,
-                                    filterTitle = filters[selectedFilter],
-                                    referenceDate = referenceDate,
-                                    reportByWeek = true
-                                )
-                                shareReport(context, reportText)
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Totali Settimanali") }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { 
+                        if (reportStep > 0) reportStep = 0 else showReportDialog = false
+                    }) { 
+                        Text(if (reportStep > 0) "Indietro" else "Annulla") 
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { 
-                    if (reportStep > 0) reportStep = 0 else showReportDialog = false
-                }) { 
-                    Text(if (reportStep > 0) "Indietro" else "Annulla") 
-                }
-            }
-        )
-    }
+            )
+        }
         Column(modifier = Modifier.padding(innerPadding)) {
             ScrollableTabRow(
                 selectedTabIndex = selectedFilter,
@@ -225,8 +227,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 } else {
                     GroupedFinancialView(
                         logs = filteredLogs,
-                        yearStats = stats,
-                        isFullYear = selectedFilter == 0
+                        yearStats = stats
                     )
                 }
             }
@@ -235,14 +236,14 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
 }
 
 @Composable
-fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>, isFullYear: Boolean) {
+fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) {
     val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
     val calendar = remember { Calendar.getInstance(Locale.ITALY) }
     val daySdf = remember { SimpleDateFormat("dd/MM", Locale.ITALY) }
 
     val monthlyLogs = remember(logs) {
-        logs.groupBy {
-            calendar.timeInMillis = it.date
+        logs.groupBy { log ->
+            calendar.timeInMillis = log.date
             calendar.get(Calendar.MONTH)
         }.toSortedMap()
     }
@@ -274,7 +275,6 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>, 
             
             items(mLogs.sortedBy { it.date }) { log ->
                 val worker = workerMap[log.workerId]
-                // Usa sempre la tariffa salvata nel log (snapshot)
                 val effectiveRate = log.hourlyRate
                 val earnings = log.totalHours * effectiveRate
                 
@@ -395,17 +395,15 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>, 
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(
-                        text = if (isFullYear) "RIEPILOGO ANNUALE" else "RIEPILOGO PERIODO",
+                        text = "RIEPILOGO COMPLESSIVO",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = androidx.compose.ui.unit.TextUnit.Unspecified,
                         color = MaterialTheme.colorScheme.primary
                     )
                     
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        // Colonna Ore
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -429,14 +427,12 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>, 
                             )
                         }
                         
-                        // Separatore verticale
                         VerticalDivider(
                             modifier = Modifier.height(48.dp).padding(horizontal = 16.dp),
                             thickness = 1.dp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
                         )
                         
-                        // Colonna Guadagno
                         Column(modifier = Modifier.weight(1.2f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -500,9 +496,8 @@ fun generateUnifiedReport(
     val daySdf = SimpleDateFormat("dd/MM", Locale.ITALY)
     
     if (!reportByWeek) {
-        // RAGGRUPPAMENTO PER MESE
-        val groupedByMonth = logs.groupBy {
-            calendar.timeInMillis = it.date
+        val groupedByMonth = logs.groupBy { log ->
+            calendar.timeInMillis = log.date
             calendar.get(Calendar.MONTH)
         }.toSortedMap()
 
@@ -520,17 +515,14 @@ fun generateUnifiedReport(
             monthLogs.sortedBy { it.date }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val effectiveRate = log.hourlyRate
-                val earnings = log.totalHours * effectiveRate
+                val earnings = log.totalHours * log.hourlyRate
                 
                 sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | ${String.format(Locale.ITALY, "%.2f", earnings)}€\n")
                 
                 totalMonthHours += log.totalHours
                 totalMonthEarnings += earnings
             }
-            
             sb.append("Totale mese: ${formatDecimalHours(totalMonthHours)}h | ${String.format(Locale.ITALY, "%.2f", totalMonthEarnings)}€\n\n")
-            
             totalOverallHours += totalMonthHours
             totalOverallEarnings += totalMonthEarnings
         }
@@ -540,9 +532,8 @@ fun generateUnifiedReport(
         sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
         sb.append("Importo totale: ${String.format(Locale.ITALY, "%.2f", totalOverallEarnings)} €\n")
     } else {
-        // RAGGRUPPAMENTO PER SETTIMANA
-        val groupedByWeek = logs.groupBy {
-            calendar.timeInMillis = it.date
+        val groupedByWeek = logs.groupBy { log ->
+            calendar.timeInMillis = log.date
             calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR)
         }.toSortedMap()
 
@@ -552,8 +543,6 @@ fun generateUnifiedReport(
         groupedByWeek.forEach { (weekKey, weekLogs) ->
             val weekYear = weekKey / 100
             val weekNum = weekKey % 100
-            
-            // Calcolo range della settimana
             calendar.set(Calendar.YEAR, weekYear)
             calendar.set(Calendar.WEEK_OF_YEAR, weekNum)
             calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
@@ -562,66 +551,49 @@ fun generateUnifiedReport(
             val endWeek = Date(calendar.timeInMillis)
             
             sb.append("*SETTIMANA $weekNum (${daySdf.format(startWeek)} - ${daySdf.format(endWeek)})*\n")
-            
             var totalWeekHours = 0.0
             var totalWeekEarnings = 0.0
-            
             weekLogs.sortedBy { it.date }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val effectiveRate = log.hourlyRate
-                val earnings = log.totalHours * effectiveRate
-                
+                val earnings = log.totalHours * log.hourlyRate
                 sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | ${String.format(Locale.ITALY, "%.2f", earnings)}€\n")
-                
                 totalWeekHours += log.totalHours
                 totalWeekEarnings += earnings
             }
-            
             sb.append("Totale settimana: ${formatDecimalHours(totalWeekHours)}h | ${String.format(Locale.ITALY, "%.2f", totalWeekEarnings)}€\n\n")
-            
             totalOverallHours += totalWeekHours
             totalOverallEarnings += totalWeekEarnings
         }
-
         sb.append("----------------------------------\n")
         sb.append("*TOTALE COMPLESSIVO*\n")
         sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
         sb.append("Importo totale: ${String.format(Locale.ITALY, "%.2f", totalOverallEarnings)} €\n")
     }
-    
     return sb.toString()
 }
 
 fun shareReport(context: Context, text: String) {
     val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
     val ownerPhone = prefs.getString("owner_phone", "") ?: ""
-    
-    // Rimuove eventuali caratteri non numerici tranne il +
     val cleanPhone = ownerPhone.filter { it.isDigit() || it == '+' }
     
     if (cleanPhone.isNotBlank()) {
         try {
-            // URL specifico per aprire direttamente la chat di WhatsApp con quel numero e il testo pronto
             val url = "https://wa.me/$cleanPhone?text=${Uri.encode(text)}"
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse(url)
-                setPackage("com.whatsapp") // Forza l'uso di WhatsApp
+                data = url.toUri()
+                setPackage("com.whatsapp")
             }
             context.startActivity(intent)
             return
-        } catch (e: Exception) {
-            // Fallback se WhatsApp non è installato
-        }
+        } catch (ignored: Exception) {}
     }
-    
-    // Se non c'è il numero o WhatsApp fallisce, usa il selettore di sistema come ultima risorsa
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    val shareIntent = Intent.createChooser(sendIntent, "Invia riepilogo...")
-    context.startActivity(shareIntent)
+    context.startActivity(Intent.createChooser(sendIntent, "Invia riepilogo..."))
 }
 
 @Composable
@@ -683,103 +655,6 @@ fun PeriodNavigation(
                 Icons.Default.ChevronRight,
                 contentDescription = "Successivo",
                 tint = if (canGoNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            )
-        }
-    }
-}
-
-@Composable
-fun SummaryHeader() {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text("Bracciante", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(2f))
-        Text("Ore", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-        Text("Totale (€)", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1.5f))
-    }
-}
-
-@Composable
-fun WorkerStatCard(stat: com.example.gestbraccianti.data.model.WorkerYearStats) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.medium
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar or Initial
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stat.surname.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "${stat.surname} ${stat.name}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", stat.hourlyRate),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = formatDecimalHours(stat.totalHours),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = String.format(Locale.ITALY, "%.2f €", stat.totalEarnings),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun TotalFooter(totalHours: Double, totalEarnings: Double) {
-    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("TOTALE GENERALE", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-        Column(horizontalAlignment = Alignment.End) {
-            Text(formatDecimalHours(totalHours), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = String.format(Locale.ITALY, "%.2f €", totalEarnings),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.ExtraBold
             )
         }
     }

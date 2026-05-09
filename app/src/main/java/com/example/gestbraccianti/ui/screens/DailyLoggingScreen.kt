@@ -26,9 +26,7 @@ fun DailyLoggingScreen(
 ) {
     val allLogs by viewModel.allLogs.collectAsState()
     val referenceDate by viewModel.currentReferenceDate.collectAsState()
-    val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ITALY)
     val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.ITALY)
-    val context = LocalContext.current
 
     var selectedCalendar by remember {
         mutableStateOf(Calendar.getInstance().apply {

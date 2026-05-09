@@ -11,14 +11,8 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,14 +24,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.material.icons.filled.MoreHoriz
 import com.example.gestbraccianti.ui.navigation.Screen
-import com.example.gestbraccianti.ui.screens.DailyLoggingScreen
-import com.example.gestbraccianti.ui.screens.FinancialSummaryScreen
-import com.example.gestbraccianti.ui.screens.OthersScreen
-import com.example.gestbraccianti.ui.screens.WorkDayDetailScreen
-import com.example.gestbraccianti.ui.screens.WorkerRegistryScreen
-import com.example.gestbraccianti.ui.screens.YearSelectionScreen
+import com.example.gestbraccianti.ui.screens.*
 import com.example.gestbraccianti.ui.theme.GestBracciantiTheme
 import com.example.gestbraccianti.ui.viewmodel.HarvestViewModel
 import com.example.gestbraccianti.ui.viewmodel.HarvestViewModelFactory
@@ -90,7 +78,6 @@ fun MainApp(
     val navController = rememberNavController()
     val currentYear by harvestViewModel.currentYear.collectAsState()
 
-    // Sincronizza l'anno selezionato nei ViewModel
     LaunchedEffect(currentYear) {
         currentYear?.let {
             workerViewModel.setSelectedYear(it.id)
@@ -99,7 +86,6 @@ fun MainApp(
         }
     }
 
-    // Redirect to YearSelection if no year is selected
     val startDestination = if (currentYear == null) Screen.YearSelection.route else Screen.Home.route
 
     Scaffold(
@@ -132,7 +118,7 @@ fun MainApp(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.YearSelection.route) {
-                YearSelectionScreen(harvestViewModel) { yearId ->
+                YearSelectionScreen(harvestViewModel) { _ ->
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.YearSelection.route) { inclusive = true }
                     }
@@ -169,7 +155,7 @@ fun MainApp(
                 FinancialSummaryScreen(workLogViewModel) 
             }
             composable(Screen.Others.route) {
-                OthersScreen(harvestViewModel, workerViewModel, currentYear?.id ?: 0)
+                OthersScreen(workerViewModel, currentYear?.id ?: 0)
             }
         }
     }

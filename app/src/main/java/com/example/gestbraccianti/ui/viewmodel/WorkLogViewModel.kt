@@ -16,7 +16,7 @@ import java.util.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkLogViewModel(
     private val workLogRepository: WorkLogRepository,
-    private val configRepository: WorkerYearConfigRepository
+    private val configRepository: WorkerYearConfigRepository,
 ) : ViewModel() {
 
     private val _selectedYearId = MutableStateFlow<Int?>(null)
@@ -27,15 +27,11 @@ class WorkLogViewModel(
 
     fun setSelectedYear(yearId: Int) {
         _selectedYearId.value = yearId
-        // Ripara i dati storici se mancano le tariffe
         viewModelScope.launch {
             workLogRepository.fillMissingRates()
         }
-        // Inizializza la data di riferimento: 
-        // Se è l'anno in corso, usa la data attuale (mese corrente).
-        // Altrimenti, usa il 1° gennaio dell'anno selezionato.
         val now = Calendar.getInstance(Locale.ITALY)
-        val currentSystemYear = now.get(Calendar.YEAR)
+        val currentSystemYear = now[Calendar.YEAR]
         
         val cal = Calendar.getInstance(Locale.ITALY).apply {
             if (yearId == currentSystemYear) {
@@ -45,7 +41,6 @@ class WorkLogViewModel(
                 set(Calendar.MONTH, Calendar.JANUARY)
                 set(Calendar.DAY_OF_MONTH, 1)
             }
-            // Normalizza a inizio giornata
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
@@ -67,9 +62,9 @@ class WorkLogViewModel(
             timeInMillis = _currentReferenceDate.value
         }
         when (filterType) {
-            0 -> { // Anno
+            0 -> { 
                 cal.add(Calendar.YEAR, delta)
-                val newYear = cal.get(Calendar.YEAR)
+                val newYear = cal[Calendar.YEAR]
                 _selectedYearId.value = newYear
             }
             1 -> cal.add(Calendar.MONTH, delta)
@@ -110,18 +105,9 @@ class WorkLogViewModel(
     ) {
         viewModelScope.launch {
             val totalHours = calculateHours(morningStart, morningEnd) + calculateHours(afternoonStart, afternoonEnd)
-            
-            // Recupera la tariffa oraria attuale per questo bracciante in questo anno
-            // Se stiamo modificando un log esistente e ha già una tariffa, potremmo volerla mantenere o aggiornarla.
-            // La logica richiesta è che il cambio di tariffa NON deve cambiare i log passati.
-            // Quindi se il log è NUOVO, prendiamo la tariffa attuale.
-            // Se il log ESISTE, di solito manteniamo quella che aveva, a meno che l'utente non voglia "correggerla".
-            // Per ora, se è un nuovo inserimento prendiamo la tariffa corrente.
-            
             val currentRate = if (id == 0L) {
                 configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
             } else {
-                // Se esiste già, carichiamo il vecchio log per vedere che tariffa aveva
                 workLogRepository.getLogById(id)?.hourlyRate ?: configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
             }
 
@@ -151,11 +137,10 @@ class WorkLogViewModel(
             val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
             val startDate = sdf.parse(start)
             val endDate = sdf.parse(end)
-            if (startDate != null && endDate != null) {
+            if ((startDate != null) && (endDate != null)) {
                 val diff = endDate.time - startDate.time
                 if (diff > 0) {
-                    val hours = diff.toDouble() / (1000 * 60 * 60)
-                    hours
+                    diff.toDouble() / (1000 * 60 * 60)
                 } else 0.0
             } else 0.0
         } catch (ignored: Exception) {

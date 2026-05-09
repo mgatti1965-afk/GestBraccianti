@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.room.withTransaction
 import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.AppDatabase
@@ -37,7 +38,6 @@ import java.util.*
 
 @Composable
 fun OthersScreen(
-    harvestViewModel: com.example.gestbraccianti.ui.viewmodel.HarvestViewModel,
     workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel,
     yearId: Int
 ) {
@@ -45,7 +45,6 @@ fun OthersScreen(
     val scope = rememberCoroutineScope()
     var backupFiles by remember { mutableStateOf(emptyList<File>()) }
     
-    // Gestione dati proprietario con SharedPreferences per semplicità
     val prefs = remember { context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE) }
     var ownerName by remember { mutableStateOf(prefs.getString("owner_name", "") ?: "") }
     var ownerSurname by remember { mutableStateOf(prefs.getString("owner_surname", "") ?: "") }
@@ -99,18 +98,17 @@ fun OthersScreen(
                                     ownerSurname = parts.getOrNull(1) ?: ""
                                 }
                             }
-                        } catch (e: Exception) {
+                        } catch (ignored: Exception) {
                             val parts = displayName.split(" ", limit = 2)
                             ownerName = parts.getOrNull(0) ?: ""
                             ownerSurname = parts.getOrNull(1) ?: ""
                         }
                         
-                        // Salva nelle preferenze
-                        prefs.edit()
-                            .putString("owner_name", ownerName)
-                            .putString("owner_surname", ownerSurname)
-                            .putString("owner_phone", ownerPhone)
-                            .apply()
+                        prefs.edit {
+                            putString("owner_name", ownerName)
+                            putString("owner_surname", ownerSurname)
+                            putString("owner_phone", ownerPhone)
+                        }
                     }
                 }
             }
@@ -156,9 +154,7 @@ fun OthersScreen(
                                         input.copyTo(output)
                                     }
                                 }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                            } catch (ignored: Exception) {}
                         }
                         Toast.makeText(context, "Dati esportati!", Toast.LENGTH_SHORT).show()
                         refreshBackupList()
@@ -206,7 +202,6 @@ fun OthersScreen(
         when (selectedTab) {
             0 -> {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Sezione Azienda
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -230,7 +225,7 @@ fun OthersScreen(
                                     value = ownerSurname,
                                     onValueChange = {
                                         ownerSurname = it
-                                        prefs.edit().putString("owner_surname", it).apply()
+                                        prefs.edit { putString("owner_surname", it) }
                                     },
                                     label = { Text("Cognome") },
                                     modifier = Modifier.weight(1f),
@@ -240,7 +235,7 @@ fun OthersScreen(
                                     value = ownerName,
                                     onValueChange = {
                                         ownerName = it
-                                        prefs.edit().putString("owner_name", it).apply()
+                                        prefs.edit { putString("owner_name", it) }
                                     },
                                     label = { Text("Nome") },
                                     modifier = Modifier.weight(1f),
@@ -452,7 +447,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
     try {
         context.contentResolver.openOutputStream(uri)?.use { output ->
             OutputStreamWriter(output).use { writer ->
-                // Workers
                 val workers = db.workerDao().getAllWorkersStatic()
                 if (workers.isNotEmpty()) {
                     writer.write("TIPO;ID;NOME;COGNOME;TELEFONO;ARCHIVIATO\n")
@@ -460,7 +454,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                         writer.write("W;${it.id};${it.name};${it.surname};${it.phoneNumber};${if (it.isArchived) 1 else 0}\n")
                     }
                 }
-                // Years
                 val years = db.harvestYearDao().getAllYearsStatic()
                 if (years.isNotEmpty()) {
                     writer.write("TIPO;ID;CORRENTE\n")
@@ -468,7 +461,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                         writer.write("Y;${it.id};${if (it.isCurrent) 1 else 0}\n")
                     }
                 }
-                // Configs
                 val configs = db.workerYearConfigDao().getAllConfigsStatic()
                 if (configs.isNotEmpty()) {
                     writer.write("TIPO;LAV_ID;ANNO_ID;TARIFFA\n")
@@ -476,7 +468,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                         writer.write("C;${conf.workerId};${conf.harvestYearId};${conf.hourlyRate}\n")
                     }
                 }
-                // Logs
                 val logs = db.workLogDao().getAllLogsStatic()
                 if (logs.isNotEmpty()) {
                     writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE\n")
@@ -484,7 +475,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                         writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)}\n")
                     }
                 }
-                // Plantations
                 val plantations = db.plantationDao().getAllPlantationsStatic()
                 if (plantations.isNotEmpty()) {
                     writer.write("TIPO;ID;NOME;ARCHIVIATO\n")
@@ -492,7 +482,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                         writer.write("P;${it.id};${it.name};${if (it.isArchived) 1 else 0}\n")
                     }
                 }
-                // Groups
                 val groups = db.workerGroupDao().getAllGroupsStatic()
                 if (groups.isNotEmpty()) {
                     writer.write("TIPO;ID;NOME;ANNO_ID\n")
@@ -500,7 +489,6 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                         writer.write("G;${it.id};${it.name};${it.yearId}\n")
                     }
                 }
-                // CrossRefs
                 val crossRefs = db.workerGroupDao().getAllCrossRefsStatic()
                 if (crossRefs.isNotEmpty()) {
                     writer.write("TIPO;LAV_ID;GRP_ID\n")
@@ -511,8 +499,7 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
             }
         }
         true
-    } catch (e: Exception) {
-        e.printStackTrace()
+    } catch (ignored: Exception) {
         false
     }
 }
@@ -542,8 +529,7 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
             }
         }
         true
-    } catch (e: Exception) {
-        e.printStackTrace()
+    } catch (ignored: Exception) {
         false
     }
 }
