@@ -11,15 +11,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,18 +26,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
+import com.example.gestbraccianti.ui.utils.formatDecimalHours
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import com.example.gestbraccianti.ui.utils.formatDecimalHours
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -462,12 +462,8 @@ fun AddGroupToDayDialog(
     
     // Logica incrementale basata sui log esistenti della giornata
     val firstLog = existingLogs.firstOrNull()
-    var morningStart by remember(existingLogs) { 
-        val firstLog = existingLogs.firstOrNull()
-        mutableStateOf(firstLog?.morningStart ?: "08:00") 
-    }
+    var morningStart by remember(existingLogs) { mutableStateOf(firstLog?.morningStart ?: "08:00") }
     var morningEnd by remember(existingLogs) { 
-        val firstLog = existingLogs.firstOrNull()
         mutableStateOf(
             if (firstLog?.morningEnd?.isNotBlank() == true) firstLog.morningEnd!!
             else if (firstLog?.morningStart?.isNotBlank() == true) "12:00"
@@ -475,7 +471,6 @@ fun AddGroupToDayDialog(
         )
     }
     var afternoonStart by remember(existingLogs) {
-        val firstLog = existingLogs.firstOrNull()
         mutableStateOf(
             if (firstLog?.afternoonStart?.isNotBlank() == true) firstLog.afternoonStart!!
             else if (firstLog?.morningEnd?.isNotBlank() == true) "13:00"
@@ -483,7 +478,6 @@ fun AddGroupToDayDialog(
         )
     }
     var afternoonEnd by remember(existingLogs) {
-        val firstLog = existingLogs.firstOrNull()
         mutableStateOf(
             if (firstLog?.afternoonEnd?.isNotBlank() == true) firstLog.afternoonEnd!!
             else if (firstLog?.afternoonStart?.isNotBlank() == true) "17:00"
