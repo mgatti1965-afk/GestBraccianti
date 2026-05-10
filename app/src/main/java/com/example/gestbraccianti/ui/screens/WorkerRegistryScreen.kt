@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -195,14 +196,14 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "${worker.surname} ${worker.name}".trim(),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.ExtraBold
                                     )
                                     Text(
                                         text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", rate),
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.headlineSmall,
                                         color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Icon(
@@ -263,12 +264,17 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                     Card(modifier = Modifier.fillMaxWidth().clickable { groupToEditMembers = group }) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = group.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                Text(
+                                    text = group.name, 
+                                    style = MaterialTheme.typography.headlineSmall, 
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1.2f)
+                                )
                                 IconButton(onClick = { groupViewModel.deleteGroup(group) }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Elimina", tint = MaterialTheme.colorScheme.error)
                                 }
                             }
-                            Text(text = "${members.size} membri", style = MaterialTheme.typography.bodySmall)
+                            Text(text = "${members.size} braccianti", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                             if (members.isNotEmpty()) {
                                 Text(
                                     text = members.sortedWith(compareBy({ it.surname }, { it.name }))
@@ -292,8 +298,16 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
         var groupName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddGroupDialog = false },
-            title = { Text("Nuovo Gruppo") },
-            text = { TextField(value = groupName, onValueChange = { groupName = it }, label = { Text("Nome Gruppo") }) },
+            title = { Text("Nuovo Gruppo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+            text = { 
+                TextField(
+                    value = groupName, 
+                    onValueChange = { groupName = it }, 
+                    label = { Text("Nome Gruppo") },
+                    textStyle = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.fillMaxWidth()
+                ) 
+            },
             confirmButton = {
                 Button(onClick = {
                     if (groupName.isNotBlank()) {
@@ -311,18 +325,31 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
         val members by groupViewModel.getWorkersInGroup(group.id).collectAsState(initial = emptyList())
         AlertDialog(
             onDismissRequest = { groupToEditMembers = null },
-            title = { Text("Membri Gruppo: ${group.name}") },
+            title = { Text("Componenti: ${group.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
             text = {
-                LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                LazyColumn(modifier = Modifier.heightIn(max = 500.dp)) {
                     items(allWorkers) { worker ->
                         val isMember = members.any { it.id == worker.id }
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable {
-                            if (isMember) groupViewModel.removeWorkerFromGroup(worker.id, group.id)
-                            else groupViewModel.addWorkerToGroup(worker.id, group.id)
-                        }.padding(8.dp)) {
-                            Checkbox(checked = isMember, onCheckedChange = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("${worker.surname} ${worker.name}".trim())
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically, 
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isMember) groupViewModel.removeWorkerFromGroup(worker.id, group.id)
+                                    else groupViewModel.addWorkerToGroup(worker.id, group.id)
+                                }
+                                .padding(vertical = 12.dp)
+                        ) {
+                            Checkbox(
+                                checked = isMember, 
+                                onCheckedChange = null,
+                                modifier = Modifier.scale(1.5f)
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                text = "${worker.surname} ${worker.name}".trim(),
+                                style = MaterialTheme.typography.headlineSmall
+                            )
                         }
                     }
                 }
@@ -418,7 +445,12 @@ fun AddEditWorkerDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (worker == null) "Nuovo Bracciante" else "Modifica Bracciante", modifier = Modifier.weight(1f))
+                Text(
+                    text = if (worker == null) "Nuovo Bracciante" else "Modifica Bracciante", 
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
                 IconButton(onClick = {
                     when (PackageManager.PERMISSION_GRANTED) {
                         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
@@ -434,10 +466,29 @@ fun AddEditWorkerDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(value = surname, onValueChange = { surname = it }, label = { Text("Cognome (Obbligatorio)") })
-                TextField(value = name, onValueChange = { name = it }, label = { Text("Nome") })
-                TextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = { Text("Telefono") }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone))
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                TextField(
+                    value = surname, 
+                    onValueChange = { surname = it }, 
+                    label = { Text("Cognome (Obbligatorio)", style = MaterialTheme.typography.headlineSmall) },
+                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextField(
+                    value = name, 
+                    onValueChange = { name = it }, 
+                    label = { Text("Nome", style = MaterialTheme.typography.headlineSmall) },
+                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextField(
+                    value = phoneNumber, 
+                    onValueChange = { phoneNumber = it }, 
+                    label = { Text("Telefono", style = MaterialTheme.typography.headlineSmall) }, 
+                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone)
+                )
                 TextField(
                     value = rate,
                     onValueChange = { input ->
@@ -445,7 +496,9 @@ fun AddEditWorkerDialog(
                             rate = input.replace(',', '.')
                         }
                     },
-                    label = { Text("Paga Oraria (€)") },
+                    label = { Text("Paga Oraria (€)", style = MaterialTheme.typography.headlineSmall) },
+                    textStyle = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
                     )

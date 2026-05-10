@@ -422,7 +422,7 @@ fun AddGroupToDayDialog(
     var afternoonEnd by remember(existingLogs) {
         mutableStateOf(if (firstLog?.afternoonEnd != null && firstLog.afternoonEnd!!.isNotBlank()) firstLog.afternoonEnd!! else if (firstLog?.afternoonStart != null && firstLog.afternoonStart!!.isNotBlank()) "17:00" else "")
     }
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(groups.size > 1) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun validateTimes(): Boolean {
@@ -464,13 +464,16 @@ fun AddGroupToDayDialog(
                         readOnly = true,
                         textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                     )
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         groups.forEach { group ->
                             DropdownMenuItem(
                                 text = { Text(group.name, style = MaterialTheme.typography.titleMedium) }, 
-                                onClick = { selectedGroup = group; expanded = false },
+                                onClick = { 
+                                    selectedGroup = group
+                                    expanded = false 
+                                },
                                 contentPadding = PaddingValues(16.dp)
                             )
                         }
@@ -572,18 +575,39 @@ fun AddWorkerToDayDialog(
     val selectableWorkers = remember(availableWorkers, existingLogs) {
         availableWorkers.filter { w -> existingLogs.none { it.workerId == w.id } }.sortedWith(compareBy({ it.surname }, { it.name }))
     }
-    var selectedWorker by remember { mutableStateOf<Worker?>(editingLog?.let { log -> availableWorkers.find { it.id == log.workerId } } ?: if (selectableWorkers.size == 1) selectableWorkers.first() else null) }
-    var morningStart by remember(editingLog) { mutableStateOf(editingLog?.morningStart ?: "08:00") }
-    var morningEnd by remember(editingLog) { 
-        mutableStateOf(if (editingLog?.morningEnd != null && editingLog.morningEnd!!.isNotBlank()) editingLog.morningEnd!! else if (editingLog?.morningStart != null && editingLog.morningStart!!.isNotBlank()) "12:00" else "") 
+    var selectedWorker by remember(editingLog) { mutableStateOf<Worker?>(editingLog?.let { log -> availableWorkers.find { it.id == log.workerId } } ?: if (selectableWorkers.size == 1) selectableWorkers.first() else null) }
+    val firstLog = existingLogs.firstOrNull()
+    var morningStart by remember(editingLog, existingLogs) {
+        mutableStateOf(editingLog?.morningStart ?: firstLog?.morningStart ?: "08:00")
     }
-    var afternoonStart by remember(editingLog) {
-        mutableStateOf(if (editingLog?.afternoonStart != null && editingLog.afternoonStart!!.isNotBlank()) editingLog.afternoonStart!! else if (editingLog?.morningEnd != null && editingLog.morningEnd!!.isNotBlank()) "13:00" else "")
+    var morningEnd by remember(editingLog, existingLogs) {
+        val base = editingLog ?: firstLog
+        mutableStateOf(
+            if (base?.morningEnd != null && base.morningEnd!!.isNotBlank()) base.morningEnd!!
+            else if (base?.morningStart != null && base.morningStart!!.isNotBlank()) "12:00"
+            else ""
+        )
     }
-    var afternoonEnd by remember(editingLog) {
-        mutableStateOf(if (editingLog?.afternoonEnd != null && editingLog.afternoonEnd!!.isNotBlank()) editingLog.afternoonEnd!! else if (editingLog?.afternoonStart != null && editingLog.afternoonStart!!.isNotBlank()) "17:00" else "")
+    var afternoonStart by remember(editingLog, existingLogs) {
+        val base = editingLog ?: firstLog
+        mutableStateOf(
+            if (base?.afternoonStart != null && base.afternoonStart!!.isNotBlank()) base.afternoonStart!!
+            else if (base?.morningEnd != null && base.morningEnd!!.isNotBlank()) "13:00"
+            else ""
+        )
     }
-    var expanded by remember { mutableStateOf(false) }
+    var afternoonEnd by remember(editingLog, existingLogs) {
+        val base = editingLog ?: firstLog
+        mutableStateOf(
+            if (base?.afternoonEnd != null && base.afternoonEnd!!.isNotBlank()) base.afternoonEnd!!
+            else if (base?.afternoonStart != null && base.afternoonStart!!.isNotBlank()) "17:00"
+            else ""
+        )
+    }
+    
+    // RIMOSSI I LAUNCHED EFFECT CHE CAUSAVANO IL DOMINO
+
+    var expanded by remember { mutableStateOf(editingLog == null && selectableWorkers.size > 1) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun validateTimes(): Boolean {
@@ -620,10 +644,24 @@ fun AddWorkerToDayDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (editingLog == null) {
                     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-                        TextField(value = selectedWorker?.let { "${it.surname} ${it.name}".trim() } ?: "Seleziona Bracciante", onValueChange = {}, readOnly = true, textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }, modifier = Modifier.fillMaxWidth())
+                        TextField(
+                            value = selectedWorker?.let { "${it.surname} ${it.name}".trim() } ?: "Seleziona Bracciante", 
+                            onValueChange = {}, 
+                            readOnly = true, 
+                            textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), 
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }, 
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        )
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             selectableWorkers.forEach { worker ->
-                                DropdownMenuItem(text = { Text("${worker.surname} ${worker.name}".trim(), style = MaterialTheme.typography.titleMedium) }, onClick = { selectedWorker = worker; expanded = false }, contentPadding = PaddingValues(16.dp))
+                                DropdownMenuItem(
+                                    text = { Text("${worker.surname} ${worker.name}".trim(), style = MaterialTheme.typography.titleMedium) }, 
+                                    onClick = { 
+                                        selectedWorker = worker
+                                        expanded = false 
+                                    }, 
+                                    contentPadding = PaddingValues(16.dp)
+                                )
                             }
                         }
                     }

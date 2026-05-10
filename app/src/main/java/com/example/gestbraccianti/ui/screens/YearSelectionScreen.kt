@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.data.entity.HarvestYear
@@ -29,14 +30,9 @@ fun YearSelectionScreen(
     var yearToDelete by remember { mutableStateOf<HarvestYear?>(null) }
 
     if (showAddDialog) {
-        Log.d("YearSelection", "Showing AddYearDialog")
         AddYearDialog(
-            onDismiss = { 
-                Log.d("YearSelection", "Dismissing dialog")
-                showAddDialog = false 
-            },
+            onDismiss = { showAddDialog = false },
             onConfirm = { year, migrateWorkers, migrateGroups ->
-                Log.d("YearSelection", "Confirming year: $year, w:$migrateWorkers, g:$migrateGroups")
                 val lastYear = years.maxByOrNull { it.id }?.id
                 viewModel.createYear(year, lastYear, migrateWorkers, migrateGroups)
                 showAddDialog = false
@@ -74,10 +70,7 @@ fun YearSelectionScreen(
             TopAppBar(title = { Text("Seleziona Annata") })
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { 
-                Log.d("YearSelection", "FAB Clicked")
-                showAddDialog = true 
-            }) {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Aggiungi Annata")
             }
         }
@@ -107,7 +100,8 @@ fun YearSelectionScreen(
                         ) {
                             Text(
                                 text = "Vendemmia ${year.id}",
-                                style = MaterialTheme.typography.titleLarge
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
                             )
                             Spacer(Modifier.weight(1f))
                             if (year.isCurrent) {
@@ -139,35 +133,54 @@ fun AddYearDialog(
 ) {
     val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR).toString()
     var yearText by remember { mutableStateOf(currentYear) }
-    var migrateWorkers by remember { mutableStateOf(true) }
-    var migrateGroups by remember { mutableStateOf(true) }
+    var migrateWorkers by remember { mutableStateOf(false) }
+    var migrateGroups by remember { mutableStateOf(false) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nuova Annata") },
+        title = { Text("Nuova Annata", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 TextField(
                     value = yearText,
                     onValueChange = { if (it.all { char -> char.isDigit() }) yearText = it },
                     label = { Text("Anno (es. 2024)") },
+                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
                 
                 if (hasPreviousYear) {
                     Text(
-                        text = "Copia dati dall'ultima annata:",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(top = 8.dp)
+                        text = "Importa dati dall'ultima annata:",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = migrateWorkers, onCheckedChange = { migrateWorkers = it })
-                        Text("Anagrafica Braccianti")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { migrateWorkers = !migrateWorkers }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text("Braccianti", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = migrateWorkers,
+                            onCheckedChange = { migrateWorkers = it }
+                        )
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = migrateGroups, onCheckedChange = { migrateGroups = it })
-                        Text("Gruppi di Lavoro")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { migrateGroups = !migrateGroups }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text("Gruppi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = migrateGroups,
+                            onCheckedChange = { migrateGroups = it }
+                        )
                     }
                 }
             }
