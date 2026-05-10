@@ -2,6 +2,7 @@ package com.example.gestbraccianti.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -25,7 +26,6 @@ import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
 import java.util.*
 import java.text.SimpleDateFormat
-import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +95,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 }
             }
         }
-    ) { _ ->
+    ) { innerPadding ->
         if (showReportDialog) {
             AlertDialog(
                 onDismissRequest = { 
@@ -192,7 +192,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 }
             )
         }
-        Column {
+        Column(modifier = Modifier.padding(innerPadding)) {
             ScrollableTabRow(
                 selectedTabIndex = selectedFilter,
                 edgePadding = 16.dp,
@@ -406,6 +406,7 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth()) {
+                        // Colonna Ore
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
