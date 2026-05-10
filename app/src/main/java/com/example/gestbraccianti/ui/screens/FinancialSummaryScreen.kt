@@ -2,7 +2,6 @@ package com.example.gestbraccianti.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -26,6 +25,7 @@ import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
 import java.util.*
 import java.text.SimpleDateFormat
+import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,15 +40,15 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
     var showReportDialog by remember { mutableStateOf(false) }
     var reportTargetAll by remember { mutableStateOf(true) }
     var selectedWorkerForReport by remember { mutableStateOf<Long?>(null) }
-    var reportStep by remember { mutableIntStateOf(0) } // 0: Scelta Target, 1: Scelta Frequenza
+    var reportStep by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(selectedFilter, referenceDate) {
         val calendar = Calendar.getInstance(Locale.ITALY)
         calendar.timeInMillis = referenceDate
         
         when (selectedFilter) {
-            0 -> viewModel.setDateRange(null, null) // Anno (full)
-            1 -> { // Mese
+            0 -> viewModel.setDateRange(null, null)
+            1 -> {
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
                 calendar.set(Calendar.HOUR_OF_DAY, 0)
                 calendar.set(Calendar.MINUTE, 0)
@@ -59,7 +59,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 calendar.add(Calendar.MILLISECOND, -1)
                 viewModel.setDateRange(start, calendar.timeInMillis)
             }
-            2 -> { // Settimana
+            2 -> {
                 calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
                 calendar.set(Calendar.HOUR_OF_DAY, 0)
                 calendar.set(Calendar.MINUTE, 0)
@@ -70,7 +70,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 calendar.add(Calendar.MILLISECOND, -1)
                 viewModel.setDateRange(start, calendar.timeInMillis)
             }
-            3 -> { // Giorno
+            3 -> {
                 calendar.set(Calendar.HOUR_OF_DAY, 0)
                 calendar.set(Calendar.MINUTE, 0)
                 calendar.set(Calendar.SECOND, 0)
@@ -95,7 +95,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 }
             }
         }
-    ) { innerPadding ->
+    ) { _ ->
         if (showReportDialog) {
             AlertDialog(
                 onDismissRequest = { 
@@ -192,7 +192,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 }
             )
         }
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column {
             ScrollableTabRow(
                 selectedTabIndex = selectedFilter,
                 edgePadding = 16.dp,
@@ -308,8 +308,9 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                                 fontWeight = FontWeight.Bold
                             )
                             if (effectiveRate > 0) {
+                                val rateStr = String.format(Locale.ITALY, "%.2f", effectiveRate)
                                 Text(
-                                    text = "@ ${String.format(Locale.ITALY, "%.2f", effectiveRate)} €/h",
+                                    text = "@ $rateStr €/h",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.outline
                                 )
@@ -321,8 +322,9 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            val earnStr = String.format(Locale.ITALY, "%.2f €", earnings)
                             Text(
-                                text = String.format(Locale.ITALY, "%.2f €", earnings),
+                                text = earnStr,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -363,8 +365,9 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                             )
                             Text(" h", style = MaterialTheme.typography.labelSmall)
                             Spacer(modifier = Modifier.width(16.dp))
+                            val mEarnStr = String.format(Locale.ITALY, "%.2f €", mEarnings)
                             Text(
-                                String.format(Locale.ITALY, "%.2f €", mEarnings),
+                                text = mEarnStr,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary
@@ -375,7 +378,6 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
             }
         }
         
-        // Totale Finale del Periodo
         item {
             val yHours = logs.sumOf { it.totalHours }
             val yEarnings = logs.sumOf { log -> log.totalHours * log.hourlyRate }
@@ -448,8 +450,9 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                             }
+                            val yEarnStr = String.format(Locale.ITALY, "%.2f €", yEarnings)
                             Text(
-                                text = String.format(Locale.ITALY, "%.2f €", yEarnings),
+                                text = yEarnStr,
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -515,22 +518,24 @@ fun generateUnifiedReport(
             monthLogs.sortedBy { it.date }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val earnings = log.totalHours * log.hourlyRate
+                val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
                 
-                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | ${String.format(Locale.ITALY, "%.2f", earnings)}€\n")
+                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
                 
                 totalMonthHours += log.totalHours
-                totalMonthEarnings += earnings
+                totalMonthEarnings += (log.totalHours * log.hourlyRate)
             }
-            sb.append("Totale mese: ${formatDecimalHours(totalMonthHours)}h | ${String.format(Locale.ITALY, "%.2f", totalMonthEarnings)}€\n\n")
+            val totMonthEarnStr = String.format(Locale.ITALY, "%.2f", totalMonthEarnings)
+            sb.append("Totale mese: ${formatDecimalHours(totalMonthHours)}h | $totMonthEarnStr€\n\n")
             totalOverallHours += totalMonthHours
             totalOverallEarnings += totalMonthEarnings
         }
 
+        val totalEarnStr = String.format(Locale.ITALY, "%.2f", totalOverallEarnings)
         sb.append("----------------------------------\n")
         sb.append("*TOTALE COMPLESSIVO*\n")
         sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
-        sb.append("Importo totale: ${String.format(Locale.ITALY, "%.2f", totalOverallEarnings)} €\n")
+        sb.append("Importo totale: $totalEarnStr €\n")
     } else {
         val groupedByWeek = logs.groupBy { log ->
             calendar.timeInMillis = log.date
@@ -556,19 +561,21 @@ fun generateUnifiedReport(
             weekLogs.sortedBy { it.date }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val earnings = log.totalHours * log.hourlyRate
-                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | ${String.format(Locale.ITALY, "%.2f", earnings)}€\n")
+                val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
+                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
                 totalWeekHours += log.totalHours
-                totalWeekEarnings += earnings
+                totalWeekEarnings += (log.totalHours * log.hourlyRate)
             }
-            sb.append("Totale settimana: ${formatDecimalHours(totalWeekHours)}h | ${String.format(Locale.ITALY, "%.2f", totalWeekEarnings)}€\n\n")
+            val totWeekEarnStr = String.format(Locale.ITALY, "%.2f", totalWeekEarnings)
+            sb.append("Totale settimana: ${formatDecimalHours(totalWeekHours)}h | $totWeekEarnStr€\n\n")
             totalOverallHours += totalWeekHours
             totalOverallEarnings += totalWeekEarnings
         }
+        val totalEarnStr = String.format(Locale.ITALY, "%.2f", totalOverallEarnings)
         sb.append("----------------------------------\n")
         sb.append("*TOTALE COMPLESSIVO*\n")
         sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
-        sb.append("Importo totale: ${String.format(Locale.ITALY, "%.2f", totalOverallEarnings)} €\n")
+        sb.append("Importo totale: $totalEarnStr €\n")
     }
     return sb.toString()
 }
@@ -587,7 +594,7 @@ fun shareReport(context: Context, text: String) {
             }
             context.startActivity(intent)
             return
-        } catch (ignored: Exception) {}
+        } catch (_: Exception) {}
     }
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"

@@ -190,10 +190,7 @@ fun WorkDayDetailScreen(
             availableWorkers = workers,
             existingLogs = logsForDay,
             editingLog = editingLog,
-            onDismiss = { 
-                showAddWorkerDialog = false
-                editingLog = null
-            },
+            onDismiss = { showAddWorkerDialog = false },
             onConfirm = { workerId, mStart, mEnd, pStart, pEnd ->
                 workLogViewModel.saveLog(
                     id = editingLog?.id ?: 0L,
@@ -206,7 +203,6 @@ fun WorkDayDetailScreen(
                     afternoonEnd = pEnd
                 )
                 showAddWorkerDialog = false
-                editingLog = null
             }
         )
     }
@@ -418,13 +414,13 @@ fun AddGroupToDayDialog(
     val firstLog = existingLogs.firstOrNull()
     var morningStart by remember(existingLogs) { mutableStateOf(firstLog?.morningStart ?: "08:00") }
     var morningEnd by remember(existingLogs) { 
-        mutableStateOf(if (firstLog?.morningEnd?.isNotBlank() == true) firstLog.morningEnd!! else if (firstLog?.morningStart?.isNotBlank() == true) "12:00" else "") 
+        mutableStateOf(if (firstLog?.morningEnd != null && firstLog.morningEnd!!.isNotBlank()) firstLog.morningEnd!! else if (firstLog?.morningStart != null && firstLog.morningStart!!.isNotBlank()) "12:00" else "") 
     }
     var afternoonStart by remember(existingLogs) {
-        mutableStateOf(if (firstLog?.afternoonStart?.isNotBlank() == true) firstLog.afternoonStart!! else if (firstLog?.morningEnd?.isNotBlank() == true) "13:00" else "")
+        mutableStateOf(if (firstLog?.afternoonStart != null && firstLog.afternoonStart!!.isNotBlank()) firstLog.afternoonStart!! else if (firstLog?.morningEnd != null && firstLog.morningEnd!!.isNotBlank()) "13:00" else "")
     }
     var afternoonEnd by remember(existingLogs) {
-        mutableStateOf(if (firstLog?.afternoonEnd?.isNotBlank() == true) firstLog.afternoonEnd!! else if (firstLog?.afternoonStart?.isNotBlank() == true) "17:00" else "")
+        mutableStateOf(if (firstLog?.afternoonEnd != null && firstLog.afternoonEnd!!.isNotBlank()) firstLog.afternoonEnd!! else if (firstLog?.afternoonStart != null && firstLog.afternoonStart!!.isNotBlank()) "17:00" else "")
     }
     var expanded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -448,7 +444,7 @@ fun AddGroupToDayDialog(
                     return false
                 }
             }
-        } catch (ignored: Exception) {
+        } catch (_: Exception) {
             errorMessage = "Formato orario non valido"
             return false
         }
@@ -530,7 +526,9 @@ fun TactileTimePicker(value: String, defaultValue: String = "08:00", onValueChan
             val m = parts[1].toInt()
             val cal = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, m); add(Calendar.MINUTE, deltaMinutes) }
             onValueChange(String.format(Locale.ITALY, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)))
-        } catch (ignored: Exception) { onValueChange(defaultValue) }
+        } catch (_: Exception) {
+            onValueChange(defaultValue)
+        }
     }
     if (showManualEdit) {
         var tempTime by remember { mutableStateOf(value.ifBlank { defaultValue }) }
@@ -549,11 +547,11 @@ fun TactileTimePicker(value: String, defaultValue: String = "08:00", onValueChan
         )
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = { adjust(15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape)) {
+        IconButton(onClick = { adjust(15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape) ) {
             Icon(Icons.Default.Add, contentDescription = "Più", tint = MaterialTheme.colorScheme.onPrimaryContainer)
         }
         Text(text = displayValue, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(vertical = 4.dp).clickable { if (value.isBlank()) onValueChange(defaultValue) else showManualEdit = true })
-        IconButton(onClick = { adjust(-15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)) {
+        IconButton(onClick = { adjust(-15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape) ) {
             Icon(Icons.Default.Remove, contentDescription = "Meno")
         }
         if (value.isNotBlank()) {
@@ -576,9 +574,15 @@ fun AddWorkerToDayDialog(
     }
     var selectedWorker by remember { mutableStateOf<Worker?>(editingLog?.let { log -> availableWorkers.find { it.id == log.workerId } } ?: if (selectableWorkers.size == 1) selectableWorkers.first() else null) }
     var morningStart by remember(editingLog) { mutableStateOf(editingLog?.morningStart ?: "08:00") }
-    var morningEnd by remember(editingLog) { mutableStateOf(if (editingLog?.morningEnd?.isNotBlank() == true) editingLog.morningEnd!! else if (editingLog?.morningStart?.isNotBlank() == true) "12:00" else "") }
-    var afternoonStart by remember(editingLog) { mutableStateOf(if (editingLog?.afternoonStart?.isNotBlank() == true) editingLog.afternoonStart!! else if (editingLog?.morningEnd?.isNotBlank() == true) "13:00" else "") }
-    var afternoonEnd by remember(editingLog) { mutableStateOf(if (editingLog?.afternoonEnd?.isNotBlank() == true) editingLog.afternoonEnd!! else if (editingLog?.afternoonStart?.isNotBlank() == true) "17:00" else "") }
+    var morningEnd by remember(editingLog) { 
+        mutableStateOf(if (editingLog?.morningEnd != null && editingLog.morningEnd!!.isNotBlank()) editingLog.morningEnd!! else if (editingLog?.morningStart != null && editingLog.morningStart!!.isNotBlank()) "12:00" else "") 
+    }
+    var afternoonStart by remember(editingLog) {
+        mutableStateOf(if (editingLog?.afternoonStart != null && editingLog.afternoonStart!!.isNotBlank()) editingLog.afternoonStart!! else if (editingLog?.morningEnd != null && editingLog.morningEnd!!.isNotBlank()) "13:00" else "")
+    }
+    var afternoonEnd by remember(editingLog) {
+        mutableStateOf(if (editingLog?.afternoonEnd != null && editingLog.afternoonEnd!!.isNotBlank()) editingLog.afternoonEnd!! else if (editingLog?.afternoonStart != null && editingLog.afternoonStart!!.isNotBlank()) "17:00" else "")
+    }
     var expanded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -601,7 +605,7 @@ fun AddWorkerToDayDialog(
                     return false
                 }
             }
-        } catch (ignored: Exception) {
+        } catch (_: Exception) {
             errorMessage = "Formato orario non valido"
             return false
         }

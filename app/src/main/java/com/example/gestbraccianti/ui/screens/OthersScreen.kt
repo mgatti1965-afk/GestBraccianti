@@ -17,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -98,7 +97,7 @@ fun OthersScreen(
                                     ownerSurname = parts.getOrNull(1) ?: ""
                                 }
                             }
-                        } catch (ignored: Exception) {
+                        } catch (_: Exception) {
                             val parts = displayName.split(" ", limit = 2)
                             ownerName = parts.getOrNull(0) ?: ""
                             ownerSurname = parts.getOrNull(1) ?: ""
@@ -154,7 +153,7 @@ fun OthersScreen(
                                         input.copyTo(output)
                                     }
                                 }
-                            } catch (ignored: Exception) {}
+                            } catch (_: Exception) {}
                         }
                         Toast.makeText(context, "Dati esportati!", Toast.LENGTH_SHORT).show()
                         refreshBackupList()
@@ -499,7 +498,7 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
             }
         }
         true
-    } catch (ignored: Exception) {
+    } catch (_: Exception) {
         false
     }
 }
@@ -529,7 +528,7 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
             }
         }
         true
-    } catch (ignored: Exception) {
+    } catch (_: Exception) {
         false
     }
 }

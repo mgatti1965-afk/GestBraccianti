@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
@@ -39,7 +38,6 @@ fun DailyLoggingScreen(
         })
     }
 
-    // Sincronizza il calendario se cambia la data di riferimento nel ViewModel
     LaunchedEffect(referenceDate) {
         val cal = Calendar.getInstance().apply {
             timeInMillis = referenceDate
@@ -48,7 +46,6 @@ fun DailyLoggingScreen(
         selectedCalendar = cal
     }
 
-    // Group logs by date to identify worked days
     val workedDays = remember(allLogs) {
         allLogs.map { it.date }.distinct().sortedDescending()
     }
@@ -61,7 +58,6 @@ fun DailyLoggingScreen(
         }
     }
 
-    // Mappa dei giorni lavorati per questo mese (Giorno -> Totale Ore)
     val workedDaysMap = remember(allLogs, selectedCalendar) {
         allLogs.filter { log ->
             val cal = Calendar.getInstance().apply { timeInMillis = log.date }
@@ -76,7 +72,6 @@ fun DailyLoggingScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Month Selector
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -94,9 +89,7 @@ fun DailyLoggingScreen(
                     val isLastMonth = selectedCalendar.get(Calendar.MONTH) == Calendar.DECEMBER
 
                     IconButton(
-                        onClick = {
-                            viewModel.moveReferenceDate(1, -1)
-                        },
+                        onClick = { viewModel.moveReferenceDate(1, -1) },
                         enabled = !isFirstMonth
                     ) {
                         Icon(
@@ -113,9 +106,7 @@ fun DailyLoggingScreen(
                     )
 
                     IconButton(
-                        onClick = {
-                            viewModel.moveReferenceDate(1, 1)
-                        },
+                        onClick = { viewModel.moveReferenceDate(1, 1) },
                         enabled = !isLastMonth
                     ) {
                         Icon(
@@ -127,7 +118,6 @@ fun DailyLoggingScreen(
                 }
             }
 
-            // Calendario a Griglia
             MonthGrid(
                 calendar = selectedCalendar,
                 workedDaysMap = workedDaysMap,
@@ -207,9 +197,8 @@ fun MonthGrid(
 ) {
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
     val firstDayOfMonth = (calendar.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
-    val firstDayOfWeek = firstDayOfMonth.get(Calendar.DAY_OF_WEEK) // Dom=1, Lun=2...
+    val firstDayOfWeek = firstDayOfMonth.get(Calendar.DAY_OF_WEEK)
     
-    // Offset per far partire il lunedì come primo giorno (Lun=0, Mar=1... Dom=6)
     val offset = (firstDayOfWeek - 2 + 7) % 7
     
     val today = Calendar.getInstance()
@@ -217,7 +206,6 @@ fun MonthGrid(
                          today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        // Intestazione giorni settimana
         Row(modifier = Modifier.fillMaxWidth()) {
             listOf("L", "M", "M", "G", "V", "S", "D").forEach { day ->
                 Text(
@@ -232,7 +220,6 @@ fun MonthGrid(
         
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Griglia giorni
         val totalCells = daysInMonth + offset
         val rows = (totalCells + 6) / 7
         
@@ -313,4 +300,3 @@ fun DayCell(
         }
     }
 }
-

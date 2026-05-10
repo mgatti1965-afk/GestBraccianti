@@ -143,7 +143,7 @@ class WorkLogViewModel(
                     diff.toDouble() / (1000 * 60 * 60)
                 } else 0.0
             } else 0.0
-        } catch (ignored: Exception) {
+        } catch (_: Exception) {
             0.0
         }
     }
