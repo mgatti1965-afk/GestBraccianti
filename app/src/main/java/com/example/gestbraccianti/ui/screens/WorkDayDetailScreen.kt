@@ -521,7 +521,7 @@ fun AddGroupToDayDialog(
                 if (validateTimes()) {
                     selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd) }
                 }
-            }, enabled = selectedGroup != null) { Text("Aggiungi") }
+            }, enabled = selectedGroup != null) { Text("Salva") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )
