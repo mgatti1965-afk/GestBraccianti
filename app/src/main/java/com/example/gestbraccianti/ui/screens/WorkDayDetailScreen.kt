@@ -411,16 +411,22 @@ fun AddGroupToDayDialog(
     onConfirm: (WorkerGroup, String, String, String, String) -> Unit
 ) {
     var selectedGroup by remember { mutableStateOf<WorkerGroup?>(if (groups.size == 1) groups.first() else null) }
-    val firstLog = existingLogs.firstOrNull()
-    var morningStart by remember(existingLogs) { mutableStateOf(firstLog?.morningStart ?: "08:00") }
-    var morningEnd by remember(existingLogs) { 
-        mutableStateOf(if (firstLog?.morningEnd != null && firstLog.morningEnd!!.isNotBlank()) firstLog.morningEnd!! else if (firstLog?.morningStart != null && firstLog.morningStart!!.isNotBlank()) "12:00" else "") 
-    }
-    var afternoonStart by remember(existingLogs) {
-        mutableStateOf(if (firstLog?.afternoonStart != null && firstLog.afternoonStart!!.isNotBlank()) firstLog.afternoonStart!! else if (firstLog?.morningEnd != null && firstLog.morningEnd!!.isNotBlank()) "13:00" else "")
-    }
-    var afternoonEnd by remember(existingLogs) {
-        mutableStateOf(if (firstLog?.afternoonEnd != null && firstLog.afternoonEnd!!.isNotBlank()) firstLog.afternoonEnd!! else if (firstLog?.afternoonStart != null && firstLog.afternoonStart!!.isNotBlank()) "17:00" else "")
+    
+    // Logica di inizializzazione "a cascata" per NUOVO o MODIFICA
+    var morningStart by remember { mutableStateOf("08:00") }
+    var morningEnd by remember { mutableStateOf("") }
+    var afternoonStart by remember { mutableStateOf("") }
+    var afternoonEnd by remember { mutableStateOf("") }
+
+    // Riferimenti per i suggerimenti (servono per il colore)
+    var suggestedMorningEnd by remember { mutableStateOf("") }
+    var suggestedAfternoonStart by remember { mutableStateOf("") }
+    var suggestedAfternoonEnd by remember { mutableStateOf("") }
+
+    // Logica basata sulla PRESENZA - Solo all'ingresso (per i gruppi è sempre "nuovo")
+    LaunchedEffect(Unit) {
+        // In "Aggiungi Gruppo" non suggeriamo mai nulla all'ingresso (morningEnd resta vuoto)
+        // E non ci sono LaunchedEffect che ascoltano le modifiche manuali, quindi non succederà nulla dopo.
     }
     var expanded by remember { mutableStateOf(groups.size > 1) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -480,9 +486,31 @@ fun AddGroupToDayDialog(
                     }
                 }
                 HorizontalDivider()
-                TimePickerSection(label = "Mattina", start = morningStart, end = morningEnd, onStartChange = { morningStart = it }, onEndChange = { morningEnd = it }, defaultStart = "08:00", defaultEnd = "12:00")
+                TimePickerSection(
+                    label = "Mattina",
+                    start = morningStart,
+                    end = morningEnd,
+                    onStartChange = { morningStart = it },
+                    onEndChange = { morningEnd = it },
+                    suggestedEnd = suggestedMorningEnd,
+                    onConfirmSuggestedEnd = { suggestedMorningEnd = "" },
+                    defaultStart = "08:00",
+                    defaultEnd = "12:00"
+                )
                 HorizontalDivider()
-                TimePickerSection(label = "Pomeriggio", start = afternoonStart, end = afternoonEnd, onStartChange = { afternoonStart = it }, onEndChange = { afternoonEnd = it }, defaultStart = "13:00", defaultEnd = "17:00")
+                TimePickerSection(
+                    label = "Pomeriggio",
+                    start = afternoonStart,
+                    end = afternoonEnd,
+                    onStartChange = { afternoonStart = it },
+                    onEndChange = { afternoonEnd = it },
+                    suggestedStart = suggestedAfternoonStart,
+                    suggestedEnd = suggestedAfternoonEnd,
+                    onConfirmSuggestedStart = { suggestedAfternoonStart = "" },
+                    onConfirmSuggestedEnd = { suggestedAfternoonEnd = "" },
+                    defaultStart = "13:00",
+                    defaultEnd = "17:00"
+                )
                 if (errorMessage != null) {
                     Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
@@ -500,26 +528,59 @@ fun AddGroupToDayDialog(
 }
 
 @Composable
-fun TimePickerSection(label: String, start: String, end: String, onStartChange: (String) -> Unit, onEndChange: (String) -> Unit, defaultStart: String = "08:00", defaultEnd: String = "12:00") {
+fun TimePickerSection(
+    label: String,
+    start: String,
+    end: String,
+    onStartChange: (String) -> Unit,
+    onEndChange: (String) -> Unit,
+    suggestedStart: String = "",
+    suggestedEnd: String = "",
+    onConfirmSuggestedStart: () -> Unit = {},
+    onConfirmSuggestedEnd: () -> Unit = {},
+    defaultStart: String = "08:00",
+    defaultEnd: String = "12:00"
+) {
     Column {
         Text(text = label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Inizio", style = MaterialTheme.typography.labelMedium)
-                TactileTimePicker(value = start, defaultValue = defaultStart, onValueChange = onStartChange)
+                TactileTimePicker(
+                    value = start,
+                    defaultValue = defaultStart,
+                    onValueChange = onStartChange,
+                    isSuggested = suggestedStart.isNotBlank() && start == suggestedStart,
+                    onConfirmSuggested = onConfirmSuggestedStart
+                )
             }
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Fine", style = MaterialTheme.typography.labelMedium)
-                TactileTimePicker(value = end, defaultValue = defaultEnd, onValueChange = onEndChange)
+                TactileTimePicker(
+                    value = end,
+                    defaultValue = defaultEnd,
+                    onValueChange = onEndChange,
+                    isSuggested = suggestedEnd.isNotBlank() && end == suggestedEnd,
+                    onConfirmSuggested = onConfirmSuggestedEnd
+                )
             }
         }
     }
 }
 
 @Composable
-fun TactileTimePicker(value: String, defaultValue: String = "08:00", onValueChange: (String) -> Unit) {
+fun TactileTimePicker(
+    value: String,
+    defaultValue: String = "08:00",
+    onValueChange: (String) -> Unit,
+    isSuggested: Boolean = false,
+    onConfirmSuggested: () -> Unit = {}
+) {
     val displayValue = value.ifBlank { "--:--" }
+    val textColor = if (isSuggested) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
+    val fontWeight = if (isSuggested) FontWeight.Normal else FontWeight.ExtraBold
+    
     var showManualEdit by remember { mutableStateOf(false) }
     fun adjust(deltaMinutes: Int) {
         val current = value.ifBlank { defaultValue }
@@ -553,7 +614,23 @@ fun TactileTimePicker(value: String, defaultValue: String = "08:00", onValueChan
         IconButton(onClick = { adjust(15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape) ) {
             Icon(Icons.Default.Add, contentDescription = "Più", tint = MaterialTheme.colorScheme.onPrimaryContainer)
         }
-        Text(text = displayValue, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(vertical = 4.dp).clickable { if (value.isBlank()) onValueChange(defaultValue) else showManualEdit = true })
+        Text(
+            text = displayValue,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = fontWeight,
+            color = textColor,
+            modifier = Modifier
+                .padding(vertical = 4.dp)
+                .clickable { 
+                    if (isSuggested) {
+                        onConfirmSuggested()
+                    } else if (value.isBlank()) {
+                        onValueChange(defaultValue)
+                    } else {
+                        showManualEdit = true
+                    }
+                }
+        )
         IconButton(onClick = { adjust(-15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape) ) {
             Icon(Icons.Default.Remove, contentDescription = "Meno")
         }
@@ -576,33 +653,39 @@ fun AddWorkerToDayDialog(
         availableWorkers.filter { w -> existingLogs.none { it.workerId == w.id } }.sortedWith(compareBy({ it.surname }, { it.name }))
     }
     var selectedWorker by remember(editingLog) { mutableStateOf<Worker?>(editingLog?.let { log -> availableWorkers.find { it.id == log.workerId } } ?: if (selectableWorkers.size == 1) selectableWorkers.first() else null) }
-    val firstLog = existingLogs.firstOrNull()
-    var morningStart by remember(editingLog, existingLogs) {
-        mutableStateOf(editingLog?.morningStart ?: firstLog?.morningStart ?: "08:00")
-    }
-    var morningEnd by remember(editingLog, existingLogs) {
-        val base = editingLog ?: firstLog
-        mutableStateOf(
-            if (base?.morningEnd != null && base.morningEnd!!.isNotBlank()) base.morningEnd!!
-            else if (base?.morningStart != null && base.morningStart!!.isNotBlank()) "12:00"
-            else ""
-        )
-    }
-    var afternoonStart by remember(editingLog, existingLogs) {
-        val base = editingLog ?: firstLog
-        mutableStateOf(
-            if (base?.afternoonStart != null && base.afternoonStart!!.isNotBlank()) base.afternoonStart!!
-            else if (base?.morningEnd != null && base.morningEnd!!.isNotBlank()) "13:00"
-            else ""
-        )
-    }
-    var afternoonEnd by remember(editingLog, existingLogs) {
-        val base = editingLog ?: firstLog
-        mutableStateOf(
-            if (base?.afternoonEnd != null && base.afternoonEnd!!.isNotBlank()) base.afternoonEnd!!
-            else if (base?.afternoonStart != null && base.afternoonStart!!.isNotBlank()) "17:00"
-            else ""
-        )
+
+    // Logica di inizializzazione "a cascata" per NUOVO o MODIFICA
+    var morningStart by remember(editingLog) { mutableStateOf(editingLog?.morningStart ?: "08:00") }
+    var morningEnd by remember(editingLog) { mutableStateOf(editingLog?.morningEnd ?: "") }
+    var afternoonStart by remember(editingLog) { mutableStateOf(editingLog?.afternoonStart ?: "") }
+    var afternoonEnd by remember(editingLog) { mutableStateOf(editingLog?.afternoonEnd ?: "") }
+
+    // Riferimenti per i suggerimenti (servono per il colore)
+    var suggestedMorningEnd by remember { mutableStateOf("") }
+    var suggestedAfternoonStart by remember { mutableStateOf("") }
+    var suggestedAfternoonEnd by remember { mutableStateOf("") }
+
+    // Logica basata sulla PRESENZA - SOLO INGRESSO DI DIALOG
+    LaunchedEffect(Unit) {
+        // 1. Se è un NUOVO inserimento (Aggiungi), non suggeriamo NULLA
+        if (editingLog == null) return@LaunchedEffect
+
+        // 2. Se è una MODIFICA, applichiamo lo schema solo una volta all'apertura
+        // Step 1: Solo Inizio presente -> Suggerisco 12:00
+        if (morningStart.isNotBlank() && morningEnd.isBlank()) {
+            morningEnd = "12:00"
+            suggestedMorningEnd = "12:00"
+        } 
+        // Step 2: Inizio e Fine presenti -> Suggerisco 13:00
+        else if (morningStart.isNotBlank() && morningEnd.isNotBlank() && afternoonStart.isBlank()) {
+            afternoonStart = "13:00"
+            suggestedAfternoonStart = "13:00"
+        } 
+        // Step 3: Mattina (I/F) e Inizio pomeriggio presenti -> Suggerisco 17:00
+        else if (morningStart.isNotBlank() && morningEnd.isNotBlank() && afternoonStart.isNotBlank() && afternoonEnd.isBlank()) {
+            afternoonEnd = "17:00"
+            suggestedAfternoonEnd = "17:00"
+        }
     }
     
     // RIMOSSI I LAUNCHED EFFECT CHE CAUSAVANO IL DOMINO
@@ -669,9 +752,31 @@ fun AddWorkerToDayDialog(
                     Text("Bracciante: ${selectedWorker?.surname} ${selectedWorker?.name}".trim(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                 }
                 HorizontalDivider()
-                TimePickerSection(label = "Mattina", start = morningStart, end = morningEnd, onStartChange = { morningStart = it }, onEndChange = { morningEnd = it }, defaultStart = "08:00", defaultEnd = "12:00")
+                TimePickerSection(
+                    label = "Mattina",
+                    start = morningStart,
+                    end = morningEnd,
+                    onStartChange = { morningStart = it },
+                    onEndChange = { morningEnd = it },
+                    suggestedEnd = suggestedMorningEnd,
+                    onConfirmSuggestedEnd = { suggestedMorningEnd = "" },
+                    defaultStart = "08:00",
+                    defaultEnd = "12:00"
+                )
                 HorizontalDivider()
-                TimePickerSection(label = "Pomeriggio", start = afternoonStart, end = afternoonEnd, onStartChange = { afternoonStart = it }, onEndChange = { afternoonEnd = it }, defaultStart = "13:00", defaultEnd = "17:00")
+                TimePickerSection(
+                    label = "Pomeriggio",
+                    start = afternoonStart,
+                    end = afternoonEnd,
+                    onStartChange = { afternoonStart = it },
+                    onEndChange = { afternoonEnd = it },
+                    suggestedStart = suggestedAfternoonStart,
+                    suggestedEnd = suggestedAfternoonEnd,
+                    onConfirmSuggestedStart = { suggestedAfternoonStart = "" },
+                    onConfirmSuggestedEnd = { suggestedAfternoonEnd = "" },
+                    defaultStart = "13:00",
+                    defaultEnd = "17:00"
+                )
                 if (errorMessage != null) {
                     Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
