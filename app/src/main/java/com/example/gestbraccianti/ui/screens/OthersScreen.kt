@@ -288,7 +288,7 @@ fun TestTab(
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 androidx.compose.foundation.Image(
-                    painter = painterResource(id = R.drawable.gest_braccianti),
+                    painter = painterResource(id = R.mipmap.ic_launcher),
                     contentDescription = "Tua Icona Reale",
                     modifier = Modifier.size(160.dp)
                 )
