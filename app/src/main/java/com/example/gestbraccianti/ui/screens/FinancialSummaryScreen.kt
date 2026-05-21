@@ -10,6 +10,9 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.utils.formatDecimalHours
 import com.example.gestbraccianti.data.entity.WorkLog
@@ -605,6 +609,46 @@ fun shareReport(context: Context, text: String) {
 }
 
 @Composable
+fun DynamicCalendarIcon(date: Long) {
+    val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = date }
+    val day = calendar.get(Calendar.DAY_OF_MONTH).toString()
+    val monthShort = SimpleDateFormat("MMM", Locale.ITALY).format(calendar.time).uppercase()
+
+    Column(
+        modifier = Modifier
+            .size(32.dp)
+            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp)),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = monthShort,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.sp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = day,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 14.sp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
 fun PeriodNavigation(
     selectedFilter: Int,
     referenceDate: Long,
@@ -653,11 +697,17 @@ fun PeriodNavigation(
                 tint = if (canGoPrev) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
             )
         }
-        Text(
-            text = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() },
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
+        
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            DynamicCalendarIcon(date = referenceDate)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
         IconButton(onClick = onNext, enabled = canGoNext) {
             Icon(
                 Icons.Default.ChevronRight,
