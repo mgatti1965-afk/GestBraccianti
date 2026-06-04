@@ -236,6 +236,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
 
 @Composable
 fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerViewModel, yearId: Int) {
+    val context = LocalContext.current
     val groups by groupViewModel.groupsForYear.collectAsState()
     val allWorkers by workerViewModel.workersForCurrentYear.collectAsState()
     var showAddGroupDialog by remember { mutableStateOf(false) }
@@ -244,10 +245,24 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
     Box(modifier = Modifier.fillMaxSize()) {
         if (groups.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Nessun gruppo creato.")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Nessun gruppo creato.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            groupViewModel.copyGroupsFromPreviousYear(yearId) { count ->
+                                Toast.makeText(context, "Copiati $count gruppi!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Copia da anno precedente")
+                    }
+                }
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(groups) { group ->
                     val members by groupViewModel.getWorkersInGroup(group.id).collectAsState(initial = emptyList())
                     Card(
@@ -310,6 +325,27 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
             onClick = { showAddGroupDialog = true },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
         ) { Icon(Icons.Default.Add, contentDescription = "Crea Gruppo") }
+
+        if (groups.isNotEmpty()) {
+            SmallFloatingActionButton(
+                onClick = {
+                    groupViewModel.copyGroupsFromPreviousYear(yearId) { count ->
+                        if (count > 0) {
+                            Toast.makeText(context, "Copiati $count nuovi gruppi!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Nessun nuovo gruppo da copiare.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 80.dp, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copia da anno precedente")
+            }
+        }
     }
 
     if (showAddGroupDialog) {

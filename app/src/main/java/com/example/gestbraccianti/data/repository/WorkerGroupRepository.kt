@@ -15,6 +15,10 @@ class WorkerGroupRepository(private val workerGroupDao: WorkerGroupDao) {
         workerGroupDao.insertGroup(WorkerGroup(name = name, yearId = yearId))
     }
 
+    suspend fun createGroupAndReturnId(name: String, yearId: Int): Long {
+        return workerGroupDao.insertGroup(WorkerGroup(name = name, yearId = yearId))
+    }
+
     suspend fun deleteGroup(group: WorkerGroup) {
         workerGroupDao.deleteAllWorkersFromGroup(group.id)
         workerGroupDao.deleteGroup(group)

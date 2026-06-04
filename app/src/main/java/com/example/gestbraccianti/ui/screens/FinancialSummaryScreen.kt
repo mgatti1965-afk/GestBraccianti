@@ -727,19 +727,31 @@ fun PeriodNavigation(
     val currentYearInRef = calendar.get(Calendar.YEAR)
     val nowYear = Calendar.getInstance(Locale.ITALY).get(Calendar.YEAR)
 
+    // Logica di blocco: se non siamo in visualizzazione "Anno" (0), 
+    // impediamo di andare oltre i limiti dell'anno correntemente visualizzato
     val canGoPrev = when (selectedFilter) {
-        0 -> currentYearInRef > 2021
-        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY || currentYearInRef > 2021
-        2 -> calendar.get(Calendar.WEEK_OF_YEAR) > 1 || calendar.get(Calendar.MONTH) > Calendar.JANUARY || currentYearInRef > 2021
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1 || currentYearInRef > 2021
+        0 -> currentYearInRef > 2021 // Limite storico
+        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY // Resta nell'anno
+        2 -> {
+            // Verifica se l'inizio della settimana precedente è ancora nello stesso anno
+            val tempCal = calendar.clone() as Calendar
+            tempCal.add(Calendar.WEEK_OF_YEAR, -1)
+            tempCal.get(Calendar.YEAR) == currentYearInRef
+        }
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1 // Resta nell'anno
         else -> true
     }
 
     val canGoNext = when (selectedFilter) {
-        0 -> currentYearInRef < nowYear
-        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER || currentYearInRef < nowYear
-        2 -> calendar.get(Calendar.WEEK_OF_YEAR) < calendar.getActualMaximum(Calendar.WEEK_OF_YEAR) || calendar.get(Calendar.MONTH) < Calendar.DECEMBER || currentYearInRef < nowYear
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR) || currentYearInRef < nowYear
+        0 -> currentYearInRef < nowYear // Non andare nel futuro
+        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER // Resta nell'anno
+        2 -> {
+            // Verifica se la fine della settimana successiva è ancora nello stesso anno
+            val tempCal = calendar.clone() as Calendar
+            tempCal.add(Calendar.WEEK_OF_YEAR, 1)
+            tempCal.get(Calendar.YEAR) == currentYearInRef
+        }
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR) // Resta nell'anno
         else -> true
     }
 

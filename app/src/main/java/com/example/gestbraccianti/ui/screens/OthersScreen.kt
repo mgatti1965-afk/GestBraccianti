@@ -189,7 +189,15 @@ fun OthersScreen(
     ) {
         Text("Varie", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
-        val isOwner = ownerPhone.replace("+39", "").replace(" ", "") == "3286449326"
+        val isOwner = remember(ownerPhone, ownerName, ownerSurname) {
+            val phone = ownerPhone.replace("+39", "").replace(" ", "")
+            val surname = ownerSurname.trim().lowercase()
+            val name = ownerName.trim().lowercase()
+            
+            phone == "3286449326" || 
+            (surname == "gatti" && name == "marco") || 
+            (surname == "marco" && name == "cell")
+        }
 
         TabRow(selectedTabIndex = selectedTab) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Dati") })

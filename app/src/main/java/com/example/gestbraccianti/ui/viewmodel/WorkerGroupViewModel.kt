@@ -54,6 +54,41 @@ class WorkerGroupViewModel(private val repository: WorkerGroupRepository) : View
     fun getWorkersInGroup(groupId: Long): Flow<List<Worker>> {
         return repository.getWorkersInGroup(groupId)
     }
+
+    fun copyGroupsFromPreviousYear(currentYearId: Int, onResult: (Int) -> Unit) {
+        viewModelScope.launch {
+            val previousYearId = currentYearId - 1
+            // 1. Prendi i gruppi dell'anno precedente
+            val previousYearGroups = repository.getGroupsForYear(previousYearId).first()
+            
+            // 2. Prendi i gruppi già presenti nell'anno corrente
+            val currentYearGroups = repository.getGroupsForYear(currentYearId).first()
+            val currentGroupNames = currentYearGroups.map { it.name.lowercase() }.toSet()
+            
+            var copiedCount = 0
+            
+            // 3. Filtra e copia quelli che mancano
+            previousYearGroups.forEach { oldGroup ->
+                if (oldGroup.name.lowercase() !in currentGroupNames) {
+                    // Crea il nuovo gruppo
+                    val newGroupId = repository.createGroupAndReturnId(oldGroup.name, currentYearId)
+                    
+                    // Copia i membri
+                    val members = repository.getWorkersInGroup(oldGroup.id).first()
+                    members.forEach { worker ->
+                        repository.addWorkerToGroup(worker.id, newGroupId)
+                    }
+                    copiedCount++
+                }
+            }
+            
+            // Forza refresh ricaricando l'anno selezionato
+            _selectedYearId.value = null
+            _selectedYearId.value = currentYearId
+            
+            onResult(copiedCount)
+        }
+    }
 }
 
 class WorkerGroupViewModelFactory(private val repository: WorkerGroupRepository) : ViewModelProvider.Factory {

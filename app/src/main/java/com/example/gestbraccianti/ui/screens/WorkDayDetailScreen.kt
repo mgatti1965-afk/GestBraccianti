@@ -429,7 +429,7 @@ fun AddGroupToDayDialog(
         // In "Aggiungi Gruppo" non suggeriamo mai nulla all'ingresso (morningEnd resta vuoto)
         // E non ci sono LaunchedEffect che ascoltano le modifiche manuali, quindi non succederà nulla dopo.
     }
-    var expanded by remember { mutableStateOf(groups.size > 1) }
+    var expanded by remember { mutableStateOf(selectedGroup == null && groups.size > 1) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun isTimeRangeValid(start: String, end: String): Boolean {
@@ -698,7 +698,7 @@ fun AddWorkerToDayDialog(
     
     // RIMOSSI I LAUNCHED EFFECT CHE CAUSAVANO IL DOMINO
 
-    var expanded by remember { mutableStateOf(editingLog == null && selectableWorkers.size > 1) }
+    var expanded by remember { mutableStateOf(editingLog == null && selectedWorker == null && selectableWorkers.size > 1) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun isTimeRangeValid(start: String, end: String): Boolean {
