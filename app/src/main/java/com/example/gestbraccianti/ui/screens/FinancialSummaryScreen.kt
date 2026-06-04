@@ -734,7 +734,7 @@ fun PeriodNavigation(
         1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY // Resta nell'anno
         2 -> {
             // Verifica se l'inizio della settimana precedente è ancora nello stesso anno
-            val tempCal = calendar.clone() as Calendar
+            val tempCal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
             tempCal.add(Calendar.WEEK_OF_YEAR, -1)
             tempCal.get(Calendar.YEAR) == currentYearInRef
         }
@@ -747,7 +747,7 @@ fun PeriodNavigation(
         1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER // Resta nell'anno
         2 -> {
             // Verifica se la fine della settimana successiva è ancora nello stesso anno
-            val tempCal = calendar.clone() as Calendar
+            val tempCal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
             tempCal.add(Calendar.WEEK_OF_YEAR, 1)
             tempCal.get(Calendar.YEAR) == currentYearInRef
         }

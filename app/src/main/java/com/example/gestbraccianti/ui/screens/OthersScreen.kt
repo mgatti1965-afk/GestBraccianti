@@ -232,7 +232,9 @@ fun OthersScreen(
                                     value = ownerSurname,
                                     onValueChange = {
                                         ownerSurname = it
-                                        prefs.edit { putString("owner_surname", it) }
+                                        scope.launch {
+                                            prefs.edit { putString("owner_surname", it) }
+                                        }
                                     },
                                     label = { Text("Cognome", style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
@@ -242,7 +244,9 @@ fun OthersScreen(
                                     value = ownerName,
                                     onValueChange = {
                                         ownerName = it
-                                        prefs.edit { putString("owner_name", it) }
+                                        scope.launch {
+                                            prefs.edit { putString("owner_name", it) }
+                                        }
                                     },
                                     label = { Text("Nome", style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
