@@ -31,4 +31,13 @@ interface WorkerDao {
 
     @Query("SELECT * FROM workers WHERE id = :id")
     suspend fun getWorkerById(id: Long): Worker?
+
+    @Query("""
+        SELECT w.*, wyc.hourlyRate 
+        FROM workers w
+        INNER JOIN worker_year_configs wyc ON w.id = wyc.workerId
+        WHERE wyc.harvestYearId = :yearId
+        ORDER BY w.surname, w.name ASC
+    """)
+    fun getWorkersWithRateForYear(yearId: Int): Flow<List<com.example.gestbraccianti.data.model.WorkerWithRate>>
 }

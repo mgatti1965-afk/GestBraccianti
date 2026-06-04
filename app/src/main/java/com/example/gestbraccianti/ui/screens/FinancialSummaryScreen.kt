@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,10 +27,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.utils.formatDecimalHours
+import com.example.gestbraccianti.ui.utils.generatePdfReport
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
 import java.util.*
 import java.text.SimpleDateFormat
+import androidx.core.content.FileProvider
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -183,6 +187,56 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text("Totali Settimanali") }
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                            Button(
+                                onClick = {
+                                    showReportDialog = false
+                                    reportStep = 0
+                                    val pdfFile = generatePdfReport(
+                                        context = context,
+                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
+                                        yearStats = stats,
+                                        filterTitle = filters[selectedFilter],
+                                        referenceDate = referenceDate,
+                                        reportByWeek = false
+                                    )
+                                    if (pdfFile != null) {
+                                        sharePdf(context, pdfFile)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                            ) { 
+                                Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Esporta PDF (Mensile)") 
+                            }
+
+                            Button(
+                                onClick = {
+                                    showReportDialog = false
+                                    reportStep = 0
+                                    val pdfFile = generatePdfReport(
+                                        context = context,
+                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
+                                        yearStats = stats,
+                                        filterTitle = filters[selectedFilter],
+                                        referenceDate = referenceDate,
+                                        reportByWeek = true
+                                    )
+                                    if (pdfFile != null) {
+                                        sharePdf(context, pdfFile)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                            ) { 
+                                Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Esporta PDF (Settimanale)") 
+                            }
                         }
                     }
                 },
@@ -606,6 +660,20 @@ fun shareReport(context: Context, text: String) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(sendIntent, "Invia riepilogo..."))
+}
+
+fun sharePdf(context: Context, file: File) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Invia PDF..."))
 }
 
 @Composable

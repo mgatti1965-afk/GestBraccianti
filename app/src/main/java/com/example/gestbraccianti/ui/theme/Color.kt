@@ -6,17 +6,17 @@ import androidx.compose.ui.graphics.Color
 // Deep Forest Green, Earthy Amber, Vineyard Purple
 
 // Light Theme
-val md_theme_light_primary = Color(0xFF2D6A4F) // Forest Green
+val md_theme_light_primary = Color(0xFF1B4332) // Forest Green più profondo (miglior contrasto)
 val md_theme_light_onPrimary = Color(0xFFFFFFFF)
 val md_theme_light_primaryContainer = Color(0xFFB7E4C7)
 val md_theme_light_onPrimaryContainer = Color(0xFF081C15)
 
-val md_theme_light_secondary = Color(0xFFD4A373) // Earthy Amber
+val md_theme_light_secondary = Color(0xFF8B5E34) // Earthy Amber più scuro per leggibilità
 val md_theme_light_onSecondary = Color(0xFFFFFFFF)
 val md_theme_light_secondaryContainer = Color(0xFFFAEDCD)
 val md_theme_light_onSecondaryContainer = Color(0xFF3D2C1C)
 
-val md_theme_light_tertiary = Color(0xFF6A040F) // Deep Wine
+val md_theme_light_tertiary = Color(0xFF6A040F) // Deep Wine (ottimo per la vendemmia)
 val md_theme_light_onTertiary = Color(0xFFFFFFFF)
 val md_theme_light_tertiaryContainer = Color(0xFFFFDADA)
 val md_theme_light_onTertiaryContainer = Color(0xFF400004)

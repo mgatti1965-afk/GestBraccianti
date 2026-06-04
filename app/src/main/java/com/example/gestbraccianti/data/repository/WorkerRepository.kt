@@ -2,11 +2,14 @@ package com.example.gestbraccianti.data.repository
 
 import com.example.gestbraccianti.data.dao.WorkerDao
 import com.example.gestbraccianti.data.entity.Worker
+import com.example.gestbraccianti.data.model.WorkerWithRate
 import kotlinx.coroutines.flow.Flow
 
 class WorkerRepository(private val workerDao: WorkerDao) {
     val activeWorkers: Flow<List<Worker>> = workerDao.getActiveWorkers()
     val allWorkers: Flow<List<Worker>> = workerDao.getAllWorkers()
+
+    fun getWorkersWithRateForYear(yearId: Int): Flow<List<WorkerWithRate>> = workerDao.getWorkersWithRateForYear(yearId)
 
     suspend fun insertWorker(worker: Worker): Long = workerDao.insertWorker(worker)
     suspend fun updateWorker(worker: Worker) = workerDao.updateWorker(worker)

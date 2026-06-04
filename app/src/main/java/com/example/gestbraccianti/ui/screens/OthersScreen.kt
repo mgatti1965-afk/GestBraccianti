@@ -187,7 +187,7 @@ fun OthersScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Varie", style = MaterialTheme.typography.headlineSmall)
+        Text("Varie", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
         val isOwner = ownerPhone.replace("+39", "").replace(" ", "") == "3286449326"
 
@@ -226,7 +226,7 @@ fun OthersScreen(
                                         ownerSurname = it
                                         prefs.edit { putString("owner_surname", it) }
                                     },
-                                    label = { Text("Cognome") },
+                                    label = { Text("Cognome", style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true
                                 )
@@ -236,7 +236,7 @@ fun OthersScreen(
                                         ownerName = it
                                         prefs.edit { putString("owner_name", it) }
                                     },
-                                    label = { Text("Nome") },
+                                    label = { Text("Nome", style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true
                                 )

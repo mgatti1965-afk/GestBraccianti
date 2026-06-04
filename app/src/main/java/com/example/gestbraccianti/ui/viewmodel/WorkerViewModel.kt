@@ -5,15 +5,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerYearConfig
+import com.example.gestbraccianti.data.model.WorkerWithRate
 import com.example.gestbraccianti.data.repository.WorkerRepository
 import com.example.gestbraccianti.data.repository.WorkerYearConfigRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkerViewModel(
@@ -23,6 +21,13 @@ class WorkerViewModel(
 
     private val _selectedYearId = MutableStateFlow<Int?>(null)
     
+    val workersWithRateForCurrentYear: StateFlow<List<WorkerWithRate>> = _selectedYearId
+        .filterNotNull()
+        .flatMapLatest { yearId ->
+            workerRepository.getWorkersWithRateForYear(yearId)
+        }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
     val workersForCurrentYear: StateFlow<List<Worker>> = _selectedYearId
         .flatMapLatest { yearId ->
             if (yearId != null) {

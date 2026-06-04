@@ -34,6 +34,7 @@ import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import androidx.compose.material.icons.filled.Warning
 import com.example.gestbraccianti.ui.utils.formatDecimalHours
 import java.util.*
 
@@ -431,27 +432,34 @@ fun AddGroupToDayDialog(
     var expanded by remember { mutableStateOf(groups.size > 1) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    fun validateTimes(): Boolean {
-        val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
-        try {
-            if (morningStart.isNotBlank() && morningEnd.isNotBlank()) {
-                val start = sdf.parse(morningStart)
-                val end = sdf.parse(morningEnd)
-                if (start != null && end != null && !end.after(start)) {
-                    errorMessage = "Fine mattina deve essere dopo l'inizio"
-                    return false
-                }
-            }
-            if (afternoonStart.isNotBlank() && afternoonEnd.isNotBlank()) {
-                val start = sdf.parse(afternoonStart)
-                val end = sdf.parse(afternoonEnd)
-                if (start != null && end != null && !end.after(start)) {
-                    errorMessage = "Fine pomeriggio deve essere dopo l'inizio"
-                    return false
-                }
-            }
+    fun isTimeRangeValid(start: String, end: String): Boolean {
+        if (start.isBlank() || end.isBlank()) return true
+        return try {
+            val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
+            val s = sdf.parse(start)
+            val e = sdf.parse(end)
+            s != null && e != null && e.after(s)
         } catch (_: Exception) {
-            errorMessage = "Formato orario non valido"
+            false
+        }
+    }
+
+    val isMorningValid = isTimeRangeValid(morningStart, morningEnd)
+    val isAfternoonValid = isTimeRangeValid(afternoonStart, afternoonEnd)
+    val isFormValid = selectedGroup != null && isMorningValid && isAfternoonValid && 
+                     (morningStart.isNotBlank() || afternoonStart.isNotBlank())
+
+    fun validateTimes(): Boolean {
+        if (!isMorningValid) {
+            errorMessage = "Fine mattina deve essere dopo l'inizio"
+            return false
+        }
+        if (!isAfternoonValid) {
+            errorMessage = "Fine pomeriggio deve essere dopo l'inizio"
+            return false
+        }
+        if (morningStart.isBlank() && afternoonStart.isBlank()) {
+            errorMessage = "Inserire almeno un orario di inizio"
             return false
         }
         errorMessage = null
@@ -521,7 +529,7 @@ fun AddGroupToDayDialog(
                 if (validateTimes()) {
                     selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd) }
                 }
-            }, enabled = selectedGroup != null) { Text("Salva") }
+            }, enabled = isFormValid) { Text("Salva") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )
@@ -693,6 +701,23 @@ fun AddWorkerToDayDialog(
     var expanded by remember { mutableStateOf(editingLog == null && selectableWorkers.size > 1) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    fun isTimeRangeValid(start: String, end: String): Boolean {
+        if (start.isBlank() || end.isBlank()) return true
+        return try {
+            val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
+            val s = sdf.parse(start)
+            val e = sdf.parse(end)
+            s != null && e != null && e.after(s)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    val isMorningValid = isTimeRangeValid(morningStart, morningEnd)
+    val isAfternoonValid = isTimeRangeValid(afternoonStart, afternoonEnd)
+    val isFormValid = selectedWorker != null && isMorningValid && isAfternoonValid && 
+                     (morningStart.isNotBlank() || afternoonStart.isNotBlank())
+
     fun validateTimes(): Boolean {
         val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
         try {
@@ -787,7 +812,7 @@ fun AddWorkerToDayDialog(
                 if (validateTimes()) {
                     selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd) }
                 }
-            }, enabled = selectedWorker != null) { Text("Salva") }
+            }, enabled = isFormValid) { Text("Salva") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )

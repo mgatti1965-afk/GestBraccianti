@@ -63,31 +63,22 @@ fun WorkerRegistryScreen(
 @Composable
 fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     val context = LocalContext.current
-    val workers by viewModel.workersForCurrentYear.collectAsState()
+    val workersWithRate by viewModel.workersWithRateForCurrentYear.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var selectedWorker by remember { mutableStateOf<Worker?>(null) }
     var currentRate by remember { mutableStateOf(0.0) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredWorkers = remember(workers, searchQuery) {
-        if (searchQuery.isBlank()) workers
-        else workers.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.surname.contains(searchQuery, ignoreCase = true) ||
-                    it.phoneNumber.contains(searchQuery)
+    val filteredWorkers = remember(workersWithRate, searchQuery) {
+        if (searchQuery.isBlank()) workersWithRate
+        else workersWithRate.filter {
+            it.worker.name.contains(searchQuery, ignoreCase = true) ||
+                    it.worker.surname.contains(searchQuery, ignoreCase = true) ||
+                    it.worker.phoneNumber.contains(searchQuery)
         }
     }
 
     if (showDialog) {
-        // Forza il ricaricamento del rate quando si apre il dialog per un lavoratore esistente
-        LaunchedEffect(selectedWorker) {
-            if (selectedWorker != null) {
-                currentRate = viewModel.getWorkerConfig(selectedWorker!!.id, yearId)?.hourlyRate ?: 0.0
-            } else {
-                currentRate = 0.0
-            }
-        }
-
         AddEditWorkerDialog(
             worker = selectedWorker,
             initialRate = currentRate,
@@ -105,7 +96,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (workers.isNotEmpty()) {
+            if (workersWithRate.isNotEmpty()) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -125,7 +116,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                 )
             }
 
-            if (workers.isEmpty()) {
+            if (workersWithRate.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Nessun bracciante registrato.")
@@ -153,11 +144,9 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredWorkers) { worker ->
-                        var rate by remember { mutableStateOf(0.0) }
-                        LaunchedEffect(worker.id) {
-                            rate = viewModel.getWorkerConfig(worker.id, yearId)?.hourlyRate ?: 0.0
-                        }
+                    items(filteredWorkers) { item ->
+                        val worker = item.worker
+                        val rate = item.hourlyRate
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -196,14 +185,14 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "${worker.surname} ${worker.name}".trim(),
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        fontWeight = FontWeight.ExtraBold
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", rate),
-                                        style = MaterialTheme.typography.headlineSmall,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                                 Icon(
@@ -222,7 +211,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
         ) { Icon(Icons.Default.Add, contentDescription = "Aggiungi Bracciante") }
 
-        if (workers.isNotEmpty()) {
+        if (workersWithRate.isNotEmpty()) {
             SmallFloatingActionButton(
                 onClick = {
                     viewModel.copyWorkersFromPreviousYear(yearId) { count ->
@@ -261,27 +250,56 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(groups) { group ->
                     val members by groupViewModel.getWorkersInGroup(group.id).collectAsState(initial = emptyList())
-                    Card(modifier = Modifier.fillMaxWidth().clickable { groupToEditMembers = group }) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { groupToEditMembers = group }
+                            .padding(horizontal = 4.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = group.name, 
-                                    style = MaterialTheme.typography.headlineSmall, 
+                                    style = MaterialTheme.typography.titleLarge, 
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.weight(1.2f)
+                                    modifier = Modifier.weight(1f)
                                 )
                                 IconButton(onClick = { groupViewModel.deleteGroup(group) }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Elimina", tint = MaterialTheme.colorScheme.error)
                                 }
                             }
-                            Text(text = "${members.size} braccianti", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                text = "${members.size} braccianti", 
+                                style = MaterialTheme.typography.titleMedium, 
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
                             if (members.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = members.sortedWith(compareBy({ it.surname }, { it.name }))
-                                        .joinToString { "${it.surname} ${it.name}".trim() },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
+                                    text = "Componenti:",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.outline
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                // Mostriamo i membri in modo più visibile
+                                members.sortedWith(compareBy({ it.surname }, { it.name })).chunked(2).forEach { rowMembers ->
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        rowMembers.forEach { member ->
+                                            Text(
+                                                text = "• ${member.surname} ${member.name}".trim(),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Medium,
+                                                modifier = Modifier.weight(1f),
+                                                maxLines = 1
+                                            )
+                                        }
+                                        if (rowMembers.size == 1) Spacer(Modifier.weight(1f))
+                                    }
+                                }
                             }
                         }
                     }
@@ -470,22 +488,26 @@ fun AddEditWorkerDialog(
                 TextField(
                     value = surname, 
                     onValueChange = { surname = it }, 
-                    label = { Text("Cognome (Obbligatorio)", style = MaterialTheme.typography.headlineSmall) },
-                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.fillMaxWidth()
+                    label = { Text("Cognome (Obbligatorio)", style = MaterialTheme.typography.labelLarge) },
+                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = surname.isBlank()
                 )
+                if (surname.isBlank()) {
+                    Text("Il cognome è necessario per salvare.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                }
                 TextField(
                     value = name, 
                     onValueChange = { name = it }, 
-                    label = { Text("Nome", style = MaterialTheme.typography.headlineSmall) },
-                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                    label = { Text("Nome", style = MaterialTheme.typography.labelLarge) },
+                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.fillMaxWidth()
                 )
                 TextField(
                     value = phoneNumber, 
                     onValueChange = { phoneNumber = it }, 
-                    label = { Text("Telefono", style = MaterialTheme.typography.headlineSmall) }, 
-                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                    label = { Text("Telefono", style = MaterialTheme.typography.labelLarge) }, 
+                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone)
                 )
@@ -496,8 +518,8 @@ fun AddEditWorkerDialog(
                             rate = input.replace(',', '.')
                         }
                     },
-                    label = { Text("Paga Oraria (€)", style = MaterialTheme.typography.headlineSmall) },
-                    textStyle = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary),
+                    label = { Text("Paga Oraria (€)", style = MaterialTheme.typography.labelLarge) },
+                    textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -506,12 +528,15 @@ fun AddEditWorkerDialog(
             }
         },
         confirmButton = {
-            Button(onClick = {
-                val r = rate.toDoubleOrNull() ?: 0.0
-                if (surname.isNotBlank()) {
-                    onConfirm(name, surname, phoneNumber, r)
-                }
-            }) { Text(if (worker == null) "Aggiungi" else "Salva") }
+            Button(
+                onClick = {
+                    val r = rate.toDoubleOrNull() ?: 0.0
+                    if (surname.isNotBlank()) {
+                        onConfirm(name, surname, phoneNumber, r)
+                    }
+                },
+                enabled = surname.isNotBlank()
+            ) { Text(if (worker == null) "Aggiungi" else "Salva") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )
