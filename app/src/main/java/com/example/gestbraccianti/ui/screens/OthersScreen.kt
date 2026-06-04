@@ -191,12 +191,17 @@ fun OthersScreen(
 
         val isOwner = remember(ownerPhone, ownerName, ownerSurname) {
             val phone = ownerPhone.replace("+39", "").replace(" ", "")
-            val surname = ownerSurname.trim().lowercase()
-            val name = ownerName.trim().lowercase()
+            val s = ownerSurname.trim().lowercase()
+            val n = ownerName.trim().lowercase()
+            val full = "$s $n".trim()
             
             phone == "3286449326" || 
-            (surname == "gatti" && name == "marco") || 
-            (surname == "marco" && name == "cell")
+            full == "gatti marco" || 
+            full == "marco gatti" || 
+            full == "marco cell" || 
+            full == "cell marco" ||
+            full.contains("marcogatti") ||
+            full.contains("marcocell")
         }
 
         TabRow(selectedTabIndex = selectedTab) {
@@ -232,9 +237,7 @@ fun OthersScreen(
                                     value = ownerSurname,
                                     onValueChange = {
                                         ownerSurname = it
-                                        scope.launch {
-                                            prefs.edit { putString("owner_surname", it) }
-                                        }
+                                        prefs.edit { putString("owner_surname", it) }
                                     },
                                     label = { Text("Cognome", style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
@@ -244,9 +247,7 @@ fun OthersScreen(
                                     value = ownerName,
                                     onValueChange = {
                                         ownerName = it
-                                        scope.launch {
-                                            prefs.edit { putString("owner_name", it) }
-                                        }
+                                        prefs.edit { putString("owner_name", it) }
                                     },
                                     label = { Text("Nome", style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
