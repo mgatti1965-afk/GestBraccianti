@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.ContactsContract
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -60,9 +61,13 @@ fun OthersScreen(
                 )
                 context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        val contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
-                        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME))
-                        val hasPhone = cursor.getInt(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0
+                        val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                        val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME)
+                        val hasPhoneIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)
+
+                        val contactId = cursor.getString(idIndex)
+                        val displayName = cursor.getString(nameIndex)
+                        val hasPhone = cursor.getInt(hasPhoneIndex) > 0
 
                         if (hasPhone) {
                             val phoneCursor = context.contentResolver.query(
@@ -89,15 +94,18 @@ fun OthersScreen(
                         try {
                             context.contentResolver.query(ContactsContract.Data.CONTENT_URI, nameProjection, where, args, null)?.use { nameCursor ->
                                 if (nameCursor.moveToFirst()) {
-                                    ownerName = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)) ?: ""
-                                    ownerSurname = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)) ?: ""
+                                    val givenNameIndex = nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)
+                                    val familyNameIndex = nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)
+                                    ownerName = nameCursor.getString(givenNameIndex) ?: ""
+                                    ownerSurname = nameCursor.getString(familyNameIndex) ?: ""
                                 } else {
                                     val parts = displayName.split(" ", limit = 2)
                                     ownerName = parts.getOrNull(0) ?: ""
                                     ownerSurname = parts.getOrNull(1) ?: ""
                                 }
                             }
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.e("OthersScreen", "Errore nel recupero nome strutturato", e)
                             val parts = displayName.split(" ", limit = 2)
                             ownerName = parts.getOrNull(0) ?: ""
                             ownerSurname = parts.getOrNull(1) ?: ""
@@ -153,7 +161,9 @@ fun OthersScreen(
                                         input.copyTo(output)
                                     }
                                 }
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) {
+                                Log.e("OthersScreen", "Errore salvataggio backup interno", e)
+                            }
                         }
                         Toast.makeText(context, "Dati esportati!", Toast.LENGTH_SHORT).show()
                         refreshBackupList()
@@ -370,7 +380,7 @@ fun DatabaseTab(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(backupFiles) { file ->
+                items(backupFiles, key = { it.absolutePath }) { file ->
                     BackupFileItem(
                         file = file,
                         onShare = { shareFile(context, file) },
@@ -498,7 +508,8 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
             }
         }
         true
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        Log.e("OthersScreen", "Errore esportazione CSV", e)
         false
     }
 }
@@ -528,7 +539,8 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
             }
         }
         true
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        Log.e("OthersScreen", "Errore importazione CSV", e)
         false
     }
 }

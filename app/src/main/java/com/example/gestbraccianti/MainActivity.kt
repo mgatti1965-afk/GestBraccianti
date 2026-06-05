@@ -91,7 +91,7 @@ fun MainApp(
     Scaffold(
         topBar = {
             if (currentYear != null) {
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     title = { Text("GestBraccianti ${currentYear?.id ?: ""}") },
                     actions = {
                         IconButton(onClick = { 
@@ -100,7 +100,7 @@ fun MainApp(
                                 popUpTo(0)
                             }
                         }) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cambia Annata")
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Esci dall'annata")
                         }
                     }
                 )

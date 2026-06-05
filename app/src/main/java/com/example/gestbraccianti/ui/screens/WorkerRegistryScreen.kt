@@ -153,7 +153,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredWorkers) { worker ->
+                    items(filteredWorkers, key = { it.id }) { worker ->
                         var rate by remember { mutableStateOf(0.0) }
                         LaunchedEffect(worker.id) {
                             rate = viewModel.getWorkerConfig(worker.id, yearId)?.hourlyRate ?: 0.0
@@ -259,7 +259,7 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(groups) { group ->
+                items(groups, key = { it.id }) { group ->
                     val members by groupViewModel.getWorkersInGroup(group.id).collectAsState(initial = emptyList())
                     Card(modifier = Modifier.fillMaxWidth().clickable { groupToEditMembers = group }) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -328,7 +328,7 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
             title = { Text("Componenti: ${group.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
             text = {
                 LazyColumn(modifier = Modifier.heightIn(max = 500.dp)) {
-                    items(allWorkers) { worker ->
+                    items(allWorkers, key = { it.id }) { worker ->
                         val isMember = members.any { it.id == worker.id }
                         Row(
                             verticalAlignment = Alignment.CenterVertically, 
@@ -383,9 +383,13 @@ fun AddEditWorkerDialog(
                 )
                 context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        val contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
-                        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME))
-                        val hasPhone = cursor.getInt(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0
+                        val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                        val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME)
+                        val hasPhoneIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)
+
+                        val contactId = cursor.getString(idIndex)
+                        val displayName = cursor.getString(nameIndex)
+                        val hasPhone = cursor.getInt(hasPhoneIndex) > 0
 
                         if (hasPhone) {
                             val phoneCursor = context.contentResolver.query(
@@ -413,15 +417,17 @@ fun AddEditWorkerDialog(
                         try {
                             context.contentResolver.query(ContactsContract.Data.CONTENT_URI, nameProjection, where, args, null)?.use { nameCursor ->
                                 if (nameCursor.moveToFirst()) {
-                                    name = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)) ?: ""
-                                    surname = nameCursor.getString(nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)) ?: ""
+                                    val givenNameIndex = nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)
+                                    val familyNameIndex = nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)
+                                    name = nameCursor.getString(givenNameIndex) ?: ""
+                                    surname = nameCursor.getString(familyNameIndex) ?: ""
                                 } else {
                                     val parts = displayName.split(" ", limit = 2)
                                     name = parts.getOrNull(0) ?: ""
                                     surname = parts.getOrNull(1) ?: ""
                                 }
                             }
-                        } catch (e: SecurityException) {
+                        } catch (e: Exception) {
                             val parts = displayName.split(" ", limit = 2)
                             name = parts.getOrNull(0) ?: ""
                             surname = parts.getOrNull(1) ?: ""
