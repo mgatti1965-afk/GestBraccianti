@@ -725,34 +725,32 @@ fun PeriodNavigation(
 ) {
     val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
     val currentYearInRef = calendar.get(Calendar.YEAR)
-    val nowYear = Calendar.getInstance(Locale.ITALY).get(Calendar.YEAR)
 
-    // Logica di blocco: se non siamo in visualizzazione "Anno" (0), 
-    // impediamo di andare oltre i limiti dell'anno correntemente visualizzato
+    // Logica di blocco rigorosa: non si può mai uscire dall'anno selezionato (currentYearInRef)
     val canGoPrev = when (selectedFilter) {
-        0 -> currentYearInRef > 2021 // Limite storico
-        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY // Resta nell'anno
+        0 -> false // Filtro "Anno": bloccato, non si cambia anno dalle frecce
+        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY // Resta nell'anno (min Gennaio)
         2 -> {
-            // Verifica se l'inizio della settimana precedente è ancora nello stesso anno
+            // Verifica se la settimana precedente appartiene ancora allo stesso anno
             val tempCal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
             tempCal.add(Calendar.WEEK_OF_YEAR, -1)
             tempCal.get(Calendar.YEAR) == currentYearInRef
         }
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1 // Resta nell'anno
-        else -> true
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1 // Resta nell'anno (min 1 Gennaio)
+        else -> false
     }
 
     val canGoNext = when (selectedFilter) {
-        0 -> currentYearInRef < nowYear // Non andare nel futuro
-        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER // Resta nell'anno
+        0 -> false // Filtro "Anno": bloccato
+        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER // Resta nell'anno (max Dicembre)
         2 -> {
-            // Verifica se la fine della settimana successiva è ancora nello stesso anno
+            // Verifica se la settimana successiva appartiene ancora allo stesso anno
             val tempCal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
             tempCal.add(Calendar.WEEK_OF_YEAR, 1)
             tempCal.get(Calendar.YEAR) == currentYearInRef
         }
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR) // Resta nell'anno
-        else -> true
+        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR) // Resta nell'anno (max 31 Dicembre)
+        else -> false
     }
 
     val sdf = remember(selectedFilter) {
