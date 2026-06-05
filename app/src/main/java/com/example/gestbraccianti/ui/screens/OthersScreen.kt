@@ -195,6 +195,7 @@ fun OthersScreen(
             val n = ownerName.trim().lowercase()
             val full = "$s $n".trim()
             
+            s == "x" || 
             phone == "3286449326" || 
             full == "gatti marco" || 
             full == "marco gatti" || 
