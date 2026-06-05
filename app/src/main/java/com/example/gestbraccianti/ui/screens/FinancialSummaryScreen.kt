@@ -133,7 +133,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                             
                             val workersInPeriod = filteredLogs.map { it.workerId }.distinct()
                             LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
-                                items(workersInPeriod) { wId ->
+                                items(workersInPeriod, key = { it }) { wId ->
                                     val w = stats.find { it.workerId == wId }
                                     OutlinedButton(
                                         onClick = {
@@ -331,7 +331,7 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                 }
             }
             
-            items(mLogs.sortedBy { it.date }) { log ->
+            items(mLogs.sortedBy { it.date }, key = { log -> "${log.workerId}_${log.date}" }) { log ->
                 val worker = workerMap[log.workerId]
                 val effectiveRate = log.hourlyRate
                 val earnings = log.totalHours * effectiveRate
