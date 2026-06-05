@@ -61,17 +61,19 @@ class WorkLogViewModel(
         val cal = Calendar.getInstance(Locale.ITALY).apply {
             timeInMillis = _currentReferenceDate.value
         }
+        val yearBefore = cal.get(Calendar.YEAR)
+
         when (filterType) {
-            0 -> { 
-                cal.add(Calendar.YEAR, delta)
-                val newYear = cal[Calendar.YEAR]
-                _selectedYearId.value = newYear
-            }
+            0 -> return // Filtro "Anno": blocco totale del cambio anno dal riepilogo
             1 -> cal.add(Calendar.MONTH, delta)
             2 -> cal.add(Calendar.WEEK_OF_YEAR, delta)
             3 -> cal.add(Calendar.DAY_OF_YEAR, delta)
         }
-        _currentReferenceDate.value = cal.timeInMillis
+
+        // Double check: se la modifica ci ha portato fuori dall'anno di riferimento, annulliamo
+        if (cal.get(Calendar.YEAR) == yearBefore) {
+            _currentReferenceDate.value = cal.timeInMillis
+        }
     }
 
     val yearlyStats: StateFlow<List<WorkerYearStats>> = _selectedYearId
