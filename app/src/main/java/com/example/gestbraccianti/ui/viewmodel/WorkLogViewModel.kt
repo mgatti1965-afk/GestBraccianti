@@ -25,6 +25,9 @@ class WorkLogViewModel(
 
     val currentReferenceDate: StateFlow<Long> = _currentReferenceDate
 
+    private val _uiEvent = MutableSharedFlow<String>()
+    val uiEvent = _uiEvent.asSharedFlow()
+
     fun setSelectedYear(yearId: Int) {
         _selectedYearId.value = yearId
         viewModelScope.launch {
@@ -107,10 +110,13 @@ class WorkLogViewModel(
     ) {
         viewModelScope.launch {
             val totalHours = calculateHours(morningStart, morningEnd) + calculateHours(afternoonStart, afternoonEnd)
-            val currentRate = if (id == 0L) {
-                configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
-            } else {
-                workLogRepository.getLogById(id)?.hourlyRate ?: configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
+            val currentRate = configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
+
+            if (id != 0L) {
+                val oldLog = workLogRepository.getLogById(id)
+                if (oldLog != null && oldLog.hourlyRate != currentRate && oldLog.hourlyRate != 0.0) {
+                    _uiEvent.emit("Tariffa aggiornata: da ${String.format(Locale.ITALY, "%.2f", oldLog.hourlyRate)}€ a ${String.format(Locale.ITALY, "%.2f", currentRate)}€")
+                }
             }
 
             val log = WorkLog(

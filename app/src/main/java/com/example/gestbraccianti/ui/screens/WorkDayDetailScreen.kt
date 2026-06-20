@@ -60,6 +60,12 @@ fun WorkDayDetailScreen(
     var editingLog by remember { mutableStateOf<WorkLog?>(null) }
     val context = LocalContext.current
 
+    LaunchedEffect(Unit) {
+        workLogViewModel.uiEvent.collect { message ->
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     val isCurrentYear = remember(date) {
         val calendar = Calendar.getInstance()
         val currentYear = calendar.get(Calendar.YEAR)

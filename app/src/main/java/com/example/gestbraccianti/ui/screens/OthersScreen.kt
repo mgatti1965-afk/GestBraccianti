@@ -223,9 +223,11 @@ fun OthersScreen(
             }
         }
 
-        when (selectedTab) {
+        val currentTab = if (selectedTab == 1 && !isOwner) 0 else selectedTab
+
+        when (currentTab) {
             0 -> {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.weight(1f)) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -282,11 +284,7 @@ fun OthersScreen(
                 }
             }
             1 -> {
-                if (isOwner) {
-                    TestTab(workerViewModel, yearId)
-                } else {
-                    selectedTab = 0
-                }
+                TestTab(workerViewModel, yearId, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -294,40 +292,26 @@ fun OthersScreen(
 
 @Composable
 fun TestTab(
-    workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel,
-    yearId: Int
+    workerViewModel: com.example.gestbraccianti.ui.viewmodel.WorkerViewModel?,
+    yearId: Int,
+    modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = modifier.fillMaxWidth().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+
         Text("Area Test", style = MaterialTheme.typography.titleMedium)
-
-        Card(
-            modifier = Modifier.size(200.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher),
-                    contentDescription = "Tua Icona Reale",
-                    modifier = Modifier.size(160.dp)
-                )
-            }
-        }
-        Text("Anteprima Icona Reale (Modificata da te)", style = MaterialTheme.typography.bodySmall)
-
-        HorizontalDivider()
 
         Button(
             onClick = {
                 scope.launch {
                     for (i in 1..10) {
-                        workerViewModel.addWorkerToYear(
+                        workerViewModel?.addWorkerToYear(
                             name = "Bracciante",
                             surname = "$i",
                             phoneNumber = "331000000$i",
@@ -346,10 +330,21 @@ fun TestTab(
         }
 
         Text(
-            "Usa questo tasto per generare rapidamente dati di prova.\nL'icona sopra è il design basato sulla tua attrezzatura.",
+            "Usa questo tasto per generare rapidamente dati di prova.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+fun TestTabPreview() {
+    MaterialTheme {
+        TestTab(
+            workerViewModel = null,
+            yearId = 1
         )
     }
 }
@@ -494,9 +489,9 @@ suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispa
                 }
                 val logs = db.workLogDao().getAllLogsStatic()
                 if (logs.isNotEmpty()) {
-                    writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE\n")
+                    writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE;TARIFFA\n")
                     logs.forEach { log ->
-                        writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)}\n")
+                        writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)};${log.hourlyRate}\n")
                     }
                 }
                 val plantations = db.plantationDao().getAllPlantationsStatic()
@@ -544,7 +539,22 @@ suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dis
                             "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
                             "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
                             "C" -> if (parts.size >= 4) db.workerYearConfigDao().insertConfig(WorkerYearConfig(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), hourlyRate = parts[3].toDouble()))
-                            "L" -> if (parts.size >= 9) db.workLogDao().insertLog(WorkLog(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), date = parts[3].toLong(), morningStart = parts[4].ifBlank { null }, morningEnd = parts[5].ifBlank { null }, afternoonStart = parts[6].ifBlank { null }, afternoonEnd = parts[7].ifBlank { null }, totalHours = parseTimeToDouble(parts[8])))
+                            "L" -> if (parts.size >= 9) {
+                                val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
+                                db.workLogDao().insertLog(
+                                    WorkLog(
+                                        workerId = parts[1].toLong(),
+                                        harvestYearId = parts[2].toInt(),
+                                        date = parts[3].toLong(),
+                                        morningStart = parts[4].ifBlank { null },
+                                        morningEnd = parts[5].ifBlank { null },
+                                        afternoonStart = parts[6].ifBlank { null },
+                                        afternoonEnd = parts[7].ifBlank { null },
+                                        totalHours = parseTimeToDouble(parts[8]),
+                                        hourlyRate = rate
+                                    )
+                                )
+                            }
                             "P" -> if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
                             "G" -> if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
                             "X" -> if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))

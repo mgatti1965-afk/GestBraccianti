@@ -561,7 +561,7 @@ fun AddEditWorkerDialog(
                     value = rate,
                     onValueChange = { input ->
                         if (input.isEmpty() || input.matches(Regex("""^\d*[.,]?\d{0,2}$"""))) {
-                            rate = input.replace(',', '.')
+                            rate = input.replace('.', ',')
                         }
                     },
                     label = { Text("Paga Oraria (€)", style = MaterialTheme.typography.labelLarge) },
@@ -576,7 +576,7 @@ fun AddEditWorkerDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val r = rate.toDoubleOrNull() ?: 0.0
+                    val r = rate.replace(',', '.').toDoubleOrNull() ?: 0.0
                     if (surname.isNotBlank()) {
                         onConfirm(name, surname, phoneNumber, r)
                     }
