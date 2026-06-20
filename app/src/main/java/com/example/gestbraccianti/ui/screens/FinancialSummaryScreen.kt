@@ -26,10 +26,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
+import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.utils.formatDecimalHours
 import com.example.gestbraccianti.ui.utils.generatePdfReport
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.*
 import java.text.SimpleDateFormat
 import androidx.core.content.FileProvider
@@ -37,17 +40,21 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
+fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGroupViewModel) {
     val stats by viewModel.yearlyStats.collectAsState()
     val filteredLogs by viewModel.filteredLogs.collectAsState()
     val referenceDate by viewModel.currentReferenceDate.collectAsState()
+    val groups by groupViewModel.groupsForYear.collectAsState()
     var selectedFilter by remember { mutableIntStateOf(0) }
     val filters = listOf("Anno", "Mese", "Settimana", "Giorno")
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     var showReportDialog by remember { mutableStateOf(false) }
     var reportTargetAll by remember { mutableStateOf(true) }
     var selectedWorkerForReport by remember { mutableStateOf<Long?>(null) }
+    var selectedGroupId by remember { mutableStateOf<Long?>(null) }
+    var groupWorkerIds by remember { mutableStateOf<List<Long>>(emptyList()) }
     var reportStep by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(selectedFilter, referenceDate) {
@@ -123,22 +130,50 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                             Button(
                                 onClick = { 
                                     reportTargetAll = true
+                                    selectedWorkerForReport = null
+                                    selectedGroupId = null
                                     reportStep = 1 
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text("Tutti i Braccianti") }
                             
+                            if (groups.isNotEmpty()) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                                Text("Gruppo Braccianti:", style = MaterialTheme.typography.labelMedium)
+                                LazyColumn(modifier = Modifier.heightIn(max = 150.dp)) {
+                                    items(groups) { group ->
+                                        OutlinedButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    val workers = groupViewModel.getWorkersInGroup(group.id).first()
+                                                    groupWorkerIds = workers.map { it.id }
+                                                    reportTargetAll = false
+                                                    selectedWorkerForReport = null
+                                                    selectedGroupId = group.id
+                                                    reportStep = 1
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
+                                        ) {
+                                            Text(group.name)
+                                        }
+                                    }
+                                }
+                            }
+
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                            Text("Singolo Bracciante:", style = MaterialTheme.typography.labelMedium)
+                            Text("Singolo Braccianti:", style = MaterialTheme.typography.labelMedium)
                             
                             val workersInPeriod = filteredLogs.map { it.workerId }.distinct()
-                            LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
+                            LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
                                 items(workersInPeriod, key = { it }) { wId ->
                                     val w = stats.find { it.workerId == wId }
                                     OutlinedButton(
                                         onClick = {
                                             reportTargetAll = false
                                             selectedWorkerForReport = wId
+                                            selectedGroupId = null
                                             reportStep = 1
                                         },
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
@@ -149,18 +184,28 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                             }
                         }
                     } else {
+                        val reportLabel = when {
+                            reportTargetAll -> "Report completo"
+                            selectedGroupId != null -> "Report Gruppo: ${groups.find { it.id == selectedGroupId }?.name}"
+                            else -> "Report per: ${stats.find { it.workerId == selectedWorkerForReport }?.surname ?: ""}"
+                        }
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = if (reportTargetAll) "Report completo" else "Report per: ${stats.find { it.workerId == selectedWorkerForReport }?.surname ?: ""}",
+                                text = reportLabel,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Button(
                                 onClick = {
                                     showReportDialog = false
                                     reportStep = 0
+                                    val finalLogs = when {
+                                        reportTargetAll -> filteredLogs
+                                        selectedGroupId != null -> filteredLogs.filter { it.workerId in groupWorkerIds }
+                                        else -> filteredLogs.filter { it.workerId == selectedWorkerForReport }
+                                    }
                                     val reportText = generateUnifiedReport(
                                         context = context,
-                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
+                                        logs = finalLogs,
                                         yearStats = stats,
                                         filterTitle = filters[selectedFilter],
                                         referenceDate = referenceDate
@@ -178,9 +223,14 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                                 onClick = {
                                     showReportDialog = false
                                     reportStep = 0
+                                    val finalLogs = when {
+                                        reportTargetAll -> filteredLogs
+                                        selectedGroupId != null -> filteredLogs.filter { it.workerId in groupWorkerIds }
+                                        else -> filteredLogs.filter { it.workerId == selectedWorkerForReport }
+                                    }
                                     val pdfFile = generatePdfReport(
                                         context = context,
-                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
+                                        logs = finalLogs,
                                         yearStats = stats,
                                         filterTitle = filters[selectedFilter],
                                         referenceDate = referenceDate

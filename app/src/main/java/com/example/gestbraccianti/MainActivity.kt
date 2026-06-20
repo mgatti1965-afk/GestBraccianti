@@ -152,7 +152,7 @@ fun MainApp(
                 WorkerRegistryScreen(workerViewModel, workerGroupViewModel, currentYear?.id ?: 0)
             }
             composable(Screen.FinancialSummary.route) { 
-                FinancialSummaryScreen(workLogViewModel) 
+                FinancialSummaryScreen(workLogViewModel, workerGroupViewModel)
             }
             composable(Screen.Others.route) {
                 OthersScreen(workerViewModel, currentYear?.id ?: 0)
