@@ -2,7 +2,6 @@ package com.example.gestbraccianti.ui.utils
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
@@ -18,8 +17,7 @@ fun generatePdfReport(
     logs: List<WorkLog>,
     yearStats: List<WorkerYearStats>,
     filterTitle: String,
-    referenceDate: Long,
-    reportByWeek: Boolean
+    referenceDate: Long
 ): File? {
     val pdfDocument = PdfDocument()
     val paint = Paint()
@@ -92,89 +90,107 @@ fun generatePdfReport(
     var totalOverallHours = 0.0
     var totalOverallEarnings = 0.0
 
-    if (!reportByWeek) {
-        val groupedByMonth = logs.groupBy { log ->
-            calendar.timeInMillis = log.date
-            calendar.get(Calendar.MONTH)
-        }.toSortedMap()
-
-        groupedByMonth.forEach { (monthIdx, monthLogs) ->
-            calendar.set(Calendar.MONTH, monthIdx)
-            val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).uppercase()
-            
-            checkNewPage()
-            canvas.drawText(monthName, margin, y, headerPaint)
-            y += 20f
-            
-            var totalMonthHours = 0.0
-            var totalMonthEarnings = 0.0
-            
-            monthLogs.sortedBy { it.date }.forEach { log ->
+    when (filterTitle) {
+        "Giorno" -> {
+            logs.sortedBy { it.workerId }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
                 val earnStr = String.format(Locale.ITALY, "%.2f €", log.totalHours * log.hourlyRate)
-                val line = "• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr"
+                val line = "• $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr"
                 
                 checkNewPage()
                 canvas.drawText(line, margin + 10f, y, bodyPaint)
                 y += 18f
                 
-                totalMonthHours += log.totalHours
-                totalMonthEarnings += (log.totalHours * log.hourlyRate)
+                totalOverallHours += log.totalHours
+                totalOverallEarnings += (log.totalHours * log.hourlyRate)
             }
-            
-            val totMonthEarnStr = String.format(Locale.ITALY, "%.2f €", totalMonthEarnings)
-            checkNewPage()
-            canvas.drawText("Totale mese: ${formatDecimalHours(totalMonthHours)}h | $totMonthEarnStr", margin + 10f, y, boldPaint)
-            y += 30f
-            
-            totalOverallHours += totalMonthHours
-            totalOverallEarnings += totalMonthEarnings
         }
-    } else {
-        val groupedByWeek = logs.groupBy { log ->
-            calendar.timeInMillis = log.date
-            calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR)
-        }.toSortedMap()
+        "Settimana" -> {
+            val groupedByWeek = logs.groupBy { log ->
+                calendar.timeInMillis = log.date
+                calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR)
+            }.toSortedMap()
 
-        groupedByWeek.forEach { (weekKey, weekLogs) ->
-            val weekNum = weekKey % 100
-            val weekYear = weekKey / 100
-            calendar.set(Calendar.YEAR, weekYear)
-            calendar.set(Calendar.WEEK_OF_YEAR, weekNum)
-            calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-            val startWeek = Date(calendar.timeInMillis)
-            calendar.add(Calendar.DAY_OF_YEAR, 6)
-            val endWeek = Date(calendar.timeInMillis)
-            
-            val weekHeader = "SETTIMANA $weekNum (${daySdf.format(startWeek)} - ${daySdf.format(endWeek)})"
-            
-            checkNewPage()
-            canvas.drawText(weekHeader, margin, y, headerPaint)
-            y += 20f
-            
-            var totalWeekHours = 0.0
-            var totalWeekEarnings = 0.0
-            weekLogs.sortedBy { it.date }.forEach { log ->
-                val worker = workerMap[log.workerId]
-                val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val earnStr = String.format(Locale.ITALY, "%.2f €", log.totalHours * log.hourlyRate)
-                val line = "• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr"
+            groupedByWeek.forEach { (weekKey, weekLogs) ->
+                val weekNum = weekKey % 100
+                val weekYear = weekKey / 100
+                calendar.set(Calendar.YEAR, weekYear)
+                calendar.set(Calendar.WEEK_OF_YEAR, weekNum)
+                calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+                val startWeek = Date(calendar.timeInMillis)
+                calendar.add(Calendar.DAY_OF_YEAR, 6)
+                val endWeek = Date(calendar.timeInMillis)
+                
+                val weekHeader = "SETTIMANA $weekNum (${daySdf.format(startWeek)} - ${daySdf.format(endWeek)})"
                 
                 checkNewPage()
-                canvas.drawText(line, margin + 10f, y, bodyPaint)
-                y += 18f
+                canvas.drawText(weekHeader, margin, y, headerPaint)
+                y += 20f
                 
-                totalWeekHours += log.totalHours
-                totalWeekEarnings += (log.totalHours * log.hourlyRate)
+                var totalWeekHours = 0.0
+                var totalWeekEarnings = 0.0
+                weekLogs.sortedBy { it.date }.forEach { log ->
+                    val worker = workerMap[log.workerId]
+                    val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
+                    val earnStr = String.format(Locale.ITALY, "%.2f €", log.totalHours * log.hourlyRate)
+                    val line = "• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr"
+                    
+                    checkNewPage()
+                    canvas.drawText(line, margin + 10f, y, bodyPaint)
+                    y += 18f
+                    
+                    totalWeekHours += log.totalHours
+                    totalWeekEarnings += (log.totalHours * log.hourlyRate)
+                }
+                val totWeekEarnStr = String.format(Locale.ITALY, "%.2f €", totalWeekEarnings)
+                checkNewPage()
+                canvas.drawText("Totale settimana: ${formatDecimalHours(totalWeekHours)}h | $totWeekEarnStr", margin + 10f, y, boldPaint)
+                y += 30f
+                
+                totalOverallHours += totalWeekHours
+                totalOverallEarnings += totalWeekEarnings
             }
-            val totWeekEarnStr = String.format(Locale.ITALY, "%.2f €", totalWeekEarnings)
-            checkNewPage()
-            canvas.drawText("Totale settimana: ${formatDecimalHours(totalWeekHours)}h | $totWeekEarnStr", margin + 10f, y, boldPaint)
-            y += 30f
-            
-            totalOverallHours += totalWeekHours
-            totalOverallEarnings += totalWeekEarnings
+        }
+        else -> { // Anno o Mese
+            val groupedByMonth = logs.groupBy { log ->
+                calendar.timeInMillis = log.date
+                calendar.get(Calendar.MONTH)
+            }.toSortedMap()
+
+            groupedByMonth.forEach { (monthIdx, monthLogs) ->
+                calendar.set(Calendar.MONTH, monthIdx)
+                val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).uppercase()
+                
+                checkNewPage()
+                canvas.drawText(monthName, margin, y, headerPaint)
+                y += 20f
+                
+                var totalMonthHours = 0.0
+                var totalMonthEarnings = 0.0
+                
+                monthLogs.sortedBy { it.date }.forEach { log ->
+                    val worker = workerMap[log.workerId]
+                    val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
+                    val earnStr = String.format(Locale.ITALY, "%.2f €", log.totalHours * log.hourlyRate)
+                    val line = "• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr"
+                    
+                    checkNewPage()
+                    canvas.drawText(line, margin + 10f, y, bodyPaint)
+                    y += 18f
+                    
+                    totalMonthHours += log.totalHours
+                    totalMonthEarnings += (log.totalHours * log.hourlyRate)
+                }
+                
+                val totMonthEarnStr = String.format(Locale.ITALY, "%.2f €", totalMonthEarnings)
+                checkNewPage()
+                canvas.drawText("Totale mese: ${formatDecimalHours(totalMonthHours)}h | $totMonthEarnStr", margin + 10f, y, boldPaint)
+                y += 30f
+                
+                totalOverallHours += totalMonthHours
+                totalOverallEarnings += totalMonthEarnings
+            }
         }
     }
 
@@ -183,7 +199,12 @@ fun generatePdfReport(
     checkNewPage()
     canvas.drawLine(margin, y, pageWidth - margin, y, paint)
     y += 25f
-    canvas.drawText("TOTALE COMPLESSIVO", margin, y, headerPaint)
+    val footerLabel = when(filterTitle) {
+        "Giorno" -> "TOTALE GIORNALIERO"
+        "Settimana" -> "TOTALE COMPLESSIVO"
+        else -> "TOTALE COMPLESSIVO"
+    }
+    canvas.drawText(footerLabel, margin, y, headerPaint)
     y += 20f
     canvas.drawText("Ore totali: ${formatDecimalHours(totalOverallHours)} h", margin, y, bodyPaint)
     y += 18f

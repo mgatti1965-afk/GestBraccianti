@@ -112,7 +112,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                 },
                 title = { 
                     Text(
-                        text = if (reportStep == 0) "Selezione Bracciante" else "Tipo di Totale",
+                        text = if (reportStep == 0) "Selezione Bracciante" else "Opzioni Report",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     ) 
@@ -163,44 +163,27 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                                         logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
                                         yearStats = stats,
                                         filterTitle = filters[selectedFilter],
-                                        referenceDate = referenceDate,
-                                        reportByWeek = false
+                                        referenceDate = referenceDate
                                     )
                                     shareReport(context, reportText)
                                 },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text("Totali Mensili") }
+                            ) { 
+                                Icon(Icons.Default.Share, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Invia Report (Testo)") 
+                            }
                             
                             Button(
                                 onClick = {
                                     showReportDialog = false
                                     reportStep = 0
-                                    val reportText = generateUnifiedReport(
-                                        context = context,
-                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
-                                        yearStats = stats,
-                                        filterTitle = filters[selectedFilter],
-                                        referenceDate = referenceDate,
-                                        reportByWeek = true
-                                    )
-                                    shareReport(context, reportText)
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) { Text("Totali Settimanali") }
-
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                            Button(
-                                onClick = {
-                                    showReportDialog = false
-                                    reportStep = 0
                                     val pdfFile = generatePdfReport(
                                         context = context,
                                         logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
                                         yearStats = stats,
                                         filterTitle = filters[selectedFilter],
-                                        referenceDate = referenceDate,
-                                        reportByWeek = false
+                                        referenceDate = referenceDate
                                     )
                                     if (pdfFile != null) {
                                         sharePdf(context, pdfFile)
@@ -211,31 +194,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel) {
                             ) { 
                                 Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Esporta PDF (Mensile)") 
-                            }
-
-                            Button(
-                                onClick = {
-                                    showReportDialog = false
-                                    reportStep = 0
-                                    val pdfFile = generatePdfReport(
-                                        context = context,
-                                        logs = if (reportTargetAll) filteredLogs else filteredLogs.filter { it.workerId == selectedWorkerForReport },
-                                        yearStats = stats,
-                                        filterTitle = filters[selectedFilter],
-                                        referenceDate = referenceDate,
-                                        reportByWeek = true
-                                    )
-                                    if (pdfFile != null) {
-                                        sharePdf(context, pdfFile)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                            ) { 
-                                Icon(Icons.Default.PictureAsPdf, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Esporta PDF (Settimanale)") 
+                                Text("Esporta PDF")
                             }
                         }
                     }
@@ -530,8 +489,7 @@ fun generateUnifiedReport(
     logs: List<WorkLog>,
     yearStats: List<WorkerYearStats>,
     filterTitle: String,
-    referenceDate: Long,
-    reportByWeek: Boolean
+    referenceDate: Long
 ): String {
     val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
     val ownerName = prefs.getString("owner_name", "") ?: ""
@@ -557,84 +515,102 @@ fun generateUnifiedReport(
     val calendar = Calendar.getInstance(Locale.ITALY)
     val daySdf = SimpleDateFormat("dd/MM", Locale.ITALY)
     
-    if (!reportByWeek) {
-        val groupedByMonth = logs.groupBy { log ->
-            calendar.timeInMillis = log.date
-            calendar.get(Calendar.MONTH)
-        }.toSortedMap()
-
-        var totalOverallHours = 0.0
-        var totalOverallEarnings = 0.0
-
-        groupedByMonth.forEach { (monthIdx, monthLogs) ->
-            calendar.set(Calendar.MONTH, monthIdx)
-            val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).uppercase()
-            sb.append("*$monthName*\n")
-            
-            var totalMonthHours = 0.0
-            var totalMonthEarnings = 0.0
-            
-            monthLogs.sortedBy { it.date }.forEach { log ->
+    when (filterTitle) {
+        "Giorno" -> {
+            var totalDayHours = 0.0
+            var totalDayEarnings = 0.0
+            logs.sortedBy { it.workerId }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
                 val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
-                
-                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
-                
-                totalMonthHours += log.totalHours
-                totalMonthEarnings += (log.totalHours * log.hourlyRate)
+                sb.append("• $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
+                totalDayHours += log.totalHours
+                totalDayEarnings += (log.totalHours * log.hourlyRate)
             }
-            val totMonthEarnStr = String.format(Locale.ITALY, "%.2f", totalMonthEarnings)
-            sb.append("Totale mese: ${formatDecimalHours(totalMonthHours)}h | $totMonthEarnStr€\n\n")
-            totalOverallHours += totalMonthHours
-            totalOverallEarnings += totalMonthEarnings
+            val totDayEarnStr = String.format(Locale.ITALY, "%.2f", totalDayEarnings)
+            sb.append("\n*TOTALE GIORNALIERO*\n")
+            sb.append("Ore: ${formatDecimalHours(totalDayHours)}h | Importo: $totDayEarnStr€\n")
         }
+        "Settimana" -> {
+            val groupedByWeek = logs.groupBy { log ->
+                calendar.timeInMillis = log.date
+                calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR)
+            }.toSortedMap()
 
-        val totalEarnStr = String.format(Locale.ITALY, "%.2f", totalOverallEarnings)
-        sb.append("----------------------------------\n")
-        sb.append("*TOTALE COMPLESSIVO*\n")
-        sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
-        sb.append("Importo totale: $totalEarnStr €\n")
-    } else {
-        val groupedByWeek = logs.groupBy { log ->
-            calendar.timeInMillis = log.date
-            calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR)
-        }.toSortedMap()
+            var totalOverallHours = 0.0
+            var totalOverallEarnings = 0.0
 
-        var totalOverallHours = 0.0
-        var totalOverallEarnings = 0.0
-
-        groupedByWeek.forEach { (weekKey, weekLogs) ->
-            val weekYear = weekKey / 100
-            val weekNum = weekKey % 100
-            calendar.set(Calendar.YEAR, weekYear)
-            calendar.set(Calendar.WEEK_OF_YEAR, weekNum)
-            calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-            val startWeek = Date(calendar.timeInMillis)
-            calendar.add(Calendar.DAY_OF_YEAR, 6)
-            val endWeek = Date(calendar.timeInMillis)
-            
-            sb.append("*SETTIMANA $weekNum (${daySdf.format(startWeek)} - ${daySdf.format(endWeek)})*\n")
-            var totalWeekHours = 0.0
-            var totalWeekEarnings = 0.0
-            weekLogs.sortedBy { it.date }.forEach { log ->
-                val worker = workerMap[log.workerId]
-                val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
-                sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
-                totalWeekHours += log.totalHours
-                totalWeekEarnings += (log.totalHours * log.hourlyRate)
+            groupedByWeek.forEach { (weekKey, weekLogs) ->
+                val weekYear = weekKey / 100
+                val weekNum = weekKey % 100
+                calendar.set(Calendar.YEAR, weekYear)
+                calendar.set(Calendar.WEEK_OF_YEAR, weekNum)
+                calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+                val startWeek = Date(calendar.timeInMillis)
+                calendar.add(Calendar.DAY_OF_YEAR, 6)
+                val endWeek = Date(calendar.timeInMillis)
+                
+                sb.append("*SETTIMANA $weekNum (${daySdf.format(startWeek)} - ${daySdf.format(endWeek)})*\n")
+                var totalWeekHours = 0.0
+                var totalWeekEarnings = 0.0
+                weekLogs.sortedBy { it.date }.forEach { log ->
+                    val worker = workerMap[log.workerId]
+                    val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
+                    val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
+                    sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
+                    totalWeekHours += log.totalHours
+                    totalWeekEarnings += (log.totalHours * log.hourlyRate)
+                }
+                val totWeekEarnStr = String.format(Locale.ITALY, "%.2f", totalWeekEarnings)
+                sb.append("Totale settimana: ${formatDecimalHours(totalWeekHours)}h | $totWeekEarnStr€\n\n")
+                totalOverallHours += totalWeekHours
+                totalOverallEarnings += totalWeekEarnings
             }
-            val totWeekEarnStr = String.format(Locale.ITALY, "%.2f", totalWeekEarnings)
-            sb.append("Totale settimana: ${formatDecimalHours(totalWeekHours)}h | $totWeekEarnStr€\n\n")
-            totalOverallHours += totalWeekHours
-            totalOverallEarnings += totalWeekEarnings
+            val totalEarnStr = String.format(Locale.ITALY, "%.2f", totalOverallEarnings)
+            sb.append("----------------------------------\n")
+            sb.append("*TOTALE COMPLESSIVO*\n")
+            sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
+            sb.append("Importo totale: $totalEarnStr €\n")
         }
-        val totalEarnStr = String.format(Locale.ITALY, "%.2f", totalOverallEarnings)
-        sb.append("----------------------------------\n")
-        sb.append("*TOTALE COMPLESSIVO*\n")
-        sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
-        sb.append("Importo totale: $totalEarnStr €\n")
+        else -> { // Mese o Anno
+            val groupedByMonth = logs.groupBy { log ->
+                calendar.timeInMillis = log.date
+                calendar.get(Calendar.MONTH)
+            }.toSortedMap()
+
+            var totalOverallHours = 0.0
+            var totalOverallEarnings = 0.0
+
+            groupedByMonth.forEach { (monthIdx, monthLogs) ->
+                calendar.set(Calendar.MONTH, monthIdx)
+                val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).uppercase()
+                sb.append("*$monthName*\n")
+                
+                var totalMonthHours = 0.0
+                var totalMonthEarnings = 0.0
+                
+                monthLogs.sortedBy { it.date }.forEach { log ->
+                    val worker = workerMap[log.workerId]
+                    val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
+                    val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
+                    
+                    sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
+                    
+                    totalMonthHours += log.totalHours
+                    totalMonthEarnings += (log.totalHours * log.hourlyRate)
+                }
+                val totMonthEarnStr = String.format(Locale.ITALY, "%.2f", totalMonthEarnings)
+                sb.append("Totale mese: ${formatDecimalHours(totalMonthHours)}h | $totMonthEarnStr€\n\n")
+                totalOverallHours += totalMonthHours
+                totalOverallEarnings += totalMonthEarnings
+            }
+
+            val totalEarnStr = String.format(Locale.ITALY, "%.2f", totalOverallEarnings)
+            sb.append("----------------------------------\n")
+            sb.append("*TOTALE COMPLESSIVO*\n")
+            sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
+            sb.append("Importo totale: $totalEarnStr €\n")
+        }
     }
     return sb.toString()
 }
