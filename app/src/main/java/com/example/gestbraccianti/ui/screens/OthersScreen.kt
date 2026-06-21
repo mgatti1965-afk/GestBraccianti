@@ -174,21 +174,75 @@ fun OthersScreen(
         }
     )
 
+    var importUri by remember { mutableStateOf<Uri?>(null) }
+    var showImportConfirmation by remember { mutableStateOf(false) }
+    var importDateStr by remember { mutableStateOf("") }
+
+    fun prepareImport(uri: Uri, fileName: String) {
+        val regex = Regex("(\\d{8})_\\d{4}")
+        val match = regex.find(fileName)
+        
+        if (fileName.startsWith("gest_braccianti_") || fileName.startsWith("backup_")) {
+            if (match != null) {
+                val datePart = match.groupValues[1]
+                try {
+                    val originalFormat = SimpleDateFormat("yyyyMMdd", Locale.ITALY)
+                    val targetFormat = SimpleDateFormat("dd/MM/yyyy", Locale.ITALY)
+                    val date = originalFormat.parse(datePart)
+                    importDateStr = if (date != null) targetFormat.format(date) else "data sconosciuta"
+                } catch (e: Exception) {
+                    importDateStr = "data non valida"
+                }
+            } else {
+                importDateStr = "data non rilevata"
+            }
+            importUri = uri
+            showImportConfirmation = true
+        } else {
+            Toast.makeText(context, "File non riconosciuto come export valido.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     val csvImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             uri?.let {
-                scope.launch {
-                    val success = importFromCsv(context, it)
-                    if (success) {
-                        Toast.makeText(context, "Dati importati!", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(context, "Errore durante l'importazione del file.", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                val fileName = getFileName(context, it) ?: ""
+                prepareImport(it, fileName)
             }
         }
     )
+
+    if (showImportConfirmation && importUri != null) {
+        AlertDialog(
+            onDismissRequest = { showImportConfirmation = false },
+            title = { Text("Conferma Importazione") },
+            text = { Text("Attenzione: caricamento dati del $importDateStr.\n\nQuesta operazione cancellerà tutti i dati attuali e li sostituirà con quelli del file scelto. Confermi?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val success = importFromCsv(context, importUri!!)
+                            if (success) {
+                                Toast.makeText(context, "Dati importati!", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Errore durante l'importazione.", Toast.LENGTH_SHORT).show()
+                            }
+                            showImportConfirmation = false
+                            importUri = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Conferma") }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showImportConfirmation = false 
+                    importUri = null
+                }) { Text("Annulla") }
+            }
+        )
+    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -278,6 +332,7 @@ fun OthersScreen(
                             csvExportLauncher.launch("gest_braccianti_$timestamp.csv")
                         },
                         onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
+                        onRestore = { file -> prepareImport(Uri.fromFile(file), file.name) },
                         backupFiles = backupFiles,
                         onRefresh = { refreshBackupList() }
                     )
@@ -353,6 +408,7 @@ fun TestTabPreview() {
 fun DatabaseTab(
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onRestore: (File) -> Unit,
     backupFiles: List<File>,
     onRefresh: () -> Unit
 ) {
@@ -398,16 +454,7 @@ fun DatabaseTab(
                             file.delete()
                             onRefresh()
                         },
-                        onRestore = {
-                            scope.launch {
-                                val success = importFromCsv(context, Uri.fromFile(file))
-                                if (success) {
-                                    Toast.makeText(context, "Dati ripristinati con successo!", Toast.LENGTH_LONG).show()
-                                } else {
-                                    Toast.makeText(context, "Errore durante il ripristino.", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
+                        onRestore = { onRestore(file) }
                     )
                 }
             }
@@ -459,6 +506,28 @@ fun shareFile(context: Context, file: File) {
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(android.content.Intent.createChooser(intent, "Invia Backup"))
+}
+
+fun getFileName(context: Context, uri: Uri): String? {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (index != -1) {
+                    result = cursor.getString(index)
+                }
+            }
+        }
+    }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/') ?: -1
+        if (cut != -1) {
+            result = result?.substring(cut + 1)
+        }
+    }
+    return result
 }
 
 suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {

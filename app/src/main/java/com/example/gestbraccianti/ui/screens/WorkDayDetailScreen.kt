@@ -125,7 +125,7 @@ fun WorkDayDetailScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(logsForDay) { log ->
@@ -165,29 +165,31 @@ fun WorkDayDetailScreen(
                 }
             }
 
-            Column(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.End
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                SmallFloatingActionButton(
+                ExtendedFloatingActionButton(
                     onClick = { showAddGroupDialog = true },
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                ) {
-                    Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Group, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Aggiungi Gruppo")
-                    }
-                }
-                FloatingActionButton(
+                    modifier = Modifier.weight(1f),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    icon = { Icon(Icons.Default.GroupAdd, contentDescription = null) },
+                    text = { Text("Gruppi", fontWeight = FontWeight.Bold) }
+                )
+                ExtendedFloatingActionButton(
                     onClick = {
                         editingLog = null
                         showAddWorkerDialog = true
-                    }
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Aggiungi Bracciante")
-                }
+                    },
+                    modifier = Modifier.weight(1f),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    icon = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
+                    text = { Text("Bracciante", fontWeight = FontWeight.Bold) }
+                )
             }
         }
     }
@@ -275,10 +277,30 @@ fun SmsImportDialog(
     val context = LocalContext.current
     var smsList by remember { mutableStateOf<List<SmsData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var showConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(date, workers) {
         smsList = readSmsForDay(context, date, workers)
         isLoading = false
+    }
+
+    if (showConfirmation) {
+        val dateStr = SimpleDateFormat("dd/MM/yyyy", Locale.ITALY).format(Date(date))
+        AlertDialog(
+            onDismissRequest = { showConfirmation = false },
+            title = { Text("Conferma Importazione") },
+            text = { Text("Attenzione: caricamento dati al $dateStr. Confermi l'importazione degli SMS?") },
+            confirmButton = {
+                Button(onClick = {
+                    applySmsImport(smsList, existingLogs, workLogViewModel, yearId, date)
+                    showConfirmation = false
+                    onDismiss()
+                }) { Text("Conferma") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmation = false }) { Text("Annulla") }
+            }
+        )
     }
 
     AlertDialog(
@@ -318,55 +340,66 @@ fun SmsImportDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onDismiss) { Text("Annulla") }
                 Button(
-                    onClick = {
-                        val groupedSms = smsList.groupBy { it.workerId }
-                        groupedSms.forEach { (workerId, messages) ->
-                            val starts = messages.filter { it.type == "I" }.sortedBy { it.timestamp }
-                            val ends = messages.filter { it.type == "F" }.sortedBy { it.timestamp }
-                            val firstIn = starts.firstOrNull()?.time
-                            val lastOut = ends.lastOrNull()?.time
-                            var mStart = "08:00"
-                            var mEnd = ""
-                            var aStart = ""
-                            var aEnd = ""
-                            if (firstIn != null && lastOut != null) {
-                                val outHour = lastOut.split(":")[0].toInt()
-                                mStart = firstIn
-                                if (outHour <= 13) { mEnd = lastOut } else {
-                                    mEnd = "12:00"
-                                    aStart = "13:00"
-                                    aEnd = lastOut
-                                    if (starts.size >= 2 && ends.size >= 2) {
-                                        mEnd = ends.first().time
-                                        aStart = starts.last().time
-                                    }
-                                }
-                            } else if (firstIn != null) {
-                                mStart = firstIn
-                            } else if (lastOut != null) {
-                                val outHour = lastOut.split(":")[0].toInt()
-                                if (outHour <= 13) mEnd = lastOut else aEnd = lastOut
-                            }
-                            val existing = existingLogs.find { it.workerId == workerId }
-                            workLogViewModel.saveLog(
-                                id = existing?.id ?: 0L,
-                                workerId = workerId,
-                                yearId = yearId,
-                                date = date,
-                                morningStart = mStart,
-                                morningEnd = mEnd.ifBlank { existing?.morningEnd ?: "" },
-                                afternoonStart = aStart.ifBlank { existing?.afternoonStart ?: "" },
-                                afternoonEnd = aEnd.ifBlank { existing?.afternoonEnd ?: "" }
-                            )
-                        }
-                        onDismiss()
-                    },
+                    onClick = { showConfirmation = true },
                     enabled = smsList.isNotEmpty()
                 ) { Text("Applica") }
             }
         }
     )
 }
+
+
+private fun applySmsImport(
+    smsList: List<SmsData>,
+    existingLogs: List<WorkLog>,
+    workLogViewModel: WorkLogViewModel,
+    yearId: Int,
+    date: Long
+) {
+    val groupedSms = smsList.groupBy { it.workerId }
+    groupedSms.forEach { (workerId, messages) ->
+        val starts = messages.filter { it.type == "I" }.sortedBy { it.timestamp }
+        val ends = messages.filter { it.type == "F" }.sortedBy { it.timestamp }
+        val firstIn = starts.firstOrNull()?.time
+        val lastOut = ends.lastOrNull()?.time
+        var mStart = "08:00"
+        var mEnd = ""
+        var aStart = ""
+        var aEnd = ""
+        if (firstIn != null && lastOut != null) {
+            val outHour = lastOut.split(":")[0].toInt()
+            mStart = firstIn
+            if (outHour <= 13) {
+                mEnd = lastOut
+            } else {
+                mEnd = "12:00"
+                aStart = "13:00"
+                aEnd = lastOut
+                if (starts.size >= 2 && ends.size >= 2) {
+                    mEnd = ends.first().time
+                    aStart = starts.last().time
+                }
+            }
+        } else if (firstIn != null) {
+            mStart = firstIn
+        } else if (lastOut != null) {
+            val outHour = lastOut.split(":")[0].toInt()
+            if (outHour <= 13) mEnd = lastOut else aEnd = lastOut
+        }
+        val existing = existingLogs.find { it.workerId == workerId }
+        workLogViewModel.saveLog(
+            id = existing?.id ?: 0L,
+            workerId = workerId,
+            yearId = yearId,
+            date = date,
+            morningStart = mStart,
+            morningEnd = mEnd.ifBlank { existing?.morningEnd ?: "" },
+            afternoonStart = aStart.ifBlank { existing?.afternoonStart ?: "" },
+            afternoonEnd = aEnd.ifBlank { existing?.afternoonEnd ?: "" }
+        )
+    }
+}
+
 
 fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): List<SmsData> {
     val result = mutableListOf<SmsData>()

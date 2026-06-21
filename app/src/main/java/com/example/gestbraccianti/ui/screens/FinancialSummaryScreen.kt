@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,9 @@ import java.text.SimpleDateFormat
 import androidx.core.content.FileProvider
 import java.io.File
 
+enum class GroupingType { BY_WORKER, BY_GROUP }
+enum class ViewMode { DETAIL, TOTALS }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGroupViewModel) {
@@ -47,6 +51,20 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
     val groups by groupViewModel.groupsForYear.collectAsState()
     var selectedFilter by remember { mutableIntStateOf(0) }
     val filters = listOf("Anno", "Mese", "Settimana", "Giorno")
+    
+    var groupingType by remember { mutableStateOf(GroupingType.BY_WORKER) }
+    var viewMode by remember { mutableStateOf(ViewMode.DETAIL) }
+    var groupToWorkers by remember { mutableStateOf<Map<Long, List<Long>>>(emptyMap()) }
+
+    LaunchedEffect(groups) {
+        val map = mutableMapOf<Long, List<Long>>()
+        groups.forEach { group ->
+            val workers = groupViewModel.getWorkersInGroup(group.id).first()
+            map[group.id] = workers.map { it.id }
+        }
+        groupToWorkers = map
+    }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
@@ -281,6 +299,46 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 onNext = { viewModel.moveReferenceDate(selectedFilter, 1) }
             )
 
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = groupingType == GroupingType.BY_WORKER,
+                    onClick = { groupingType = GroupingType.BY_WORKER },
+                    label = { Text("👤 Bracc.") },
+                    leadingIcon = if (groupingType == GroupingType.BY_WORKER) {
+                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+                FilterChip(
+                    selected = groupingType == GroupingType.BY_GROUP,
+                    onClick = { 
+                        groupingType = GroupingType.BY_GROUP
+                        viewMode = ViewMode.TOTALS
+                    },
+                    label = { Text("👥 Gruppi") },
+                    leadingIcon = if (groupingType == GroupingType.BY_GROUP) {
+                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+                
+                Spacer(modifier = Modifier.weight(1f))
+
+                FilterChip(
+                    selected = viewMode == ViewMode.DETAIL,
+                    onClick = { viewMode = ViewMode.DETAIL },
+                    enabled = groupingType == GroupingType.BY_WORKER,
+                    label = { Text("📝") },
+                )
+                FilterChip(
+                    selected = viewMode == ViewMode.TOTALS,
+                    onClick = { viewMode = ViewMode.TOTALS },
+                    label = { Text("📊") },
+                )
+            }
+
             Box(modifier = Modifier.weight(1f)) {
                 if (filteredLogs.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -294,7 +352,11 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 } else {
                     GroupedFinancialView(
                         logs = filteredLogs,
-                        yearStats = stats
+                        yearStats = stats,
+                        groupingType = groupingType,
+                        viewMode = viewMode,
+                        groups = groups,
+                        groupToWorkers = groupToWorkers
                     )
                 }
             }
@@ -303,7 +365,14 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
 }
 
 @Composable
-fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) {
+fun GroupedFinancialView(
+    logs: List<WorkLog>,
+    yearStats: List<WorkerYearStats>,
+    groupingType: GroupingType,
+    viewMode: ViewMode,
+    groups: List<com.example.gestbraccianti.data.entity.WorkerGroup>,
+    groupToWorkers: Map<Long, List<Long>>
+) {
     val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
     val calendar = remember { Calendar.getInstance(Locale.ITALY) }
     val daySdf = remember { SimpleDateFormat("dd/MM", Locale.ITALY) }
@@ -340,62 +409,104 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                 }
             }
             
-            items(mLogs.sortedBy { it.date }, key = { log -> "${log.workerId}_${log.date}" }) { log ->
-                val worker = workerMap[log.workerId]
-                val effectiveRate = log.hourlyRate
-                val earnings = log.totalHours * effectiveRate
-                
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = CardDefaults.outlinedCardBorder(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            val workerTotals = if (viewMode == ViewMode.TOTALS && groupingType == GroupingType.BY_WORKER) {
+                mLogs.groupBy { it.workerId }.map { (wId, wLogs) ->
+                    val hours = wLogs.sumOf { it.totalHours }
+                    val earnings = wLogs.sumOf { it.totalHours * it.hourlyRate }
+                    Triple(wId, hours, earnings)
+                }.sortedByDescending { it.third }
+            } else emptyList()
+
+            val groupTotals = if (groupingType == GroupingType.BY_GROUP) {
+                val result = mutableListOf<Triple<Long?, Double, Double>>()
+                groups.forEach { group ->
+                    val workersInGroup = groupToWorkers[group.id] ?: emptyList()
+                    val gLogs = mLogs.filter { it.workerId in workersInGroup }
+                    if (gLogs.isNotEmpty()) {
+                        val hours = gLogs.sumOf { it.totalHours }
+                        val earnings = gLogs.sumOf { it.totalHours * it.hourlyRate }
+                        result.add(Triple(group.id, hours, earnings))
+                    }
+                }
+                val allGroupWorkers = groupToWorkers.values.flatten().toSet()
+                val noGroupLogs = mLogs.filter { it.workerId !in allGroupWorkers }
+                if (noGroupLogs.isNotEmpty()) {
+                    val hours = noGroupLogs.sumOf { it.totalHours }
+                    val earnings = noGroupLogs.sumOf { it.totalHours * it.hourlyRate }
+                    result.add(Triple(null, hours, earnings))
+                }
+                result.sortedByDescending { it.third }
+            } else emptyList()
+
+            if (groupingType == GroupingType.BY_GROUP) {
+                items(groupTotals, key = { "g_${monthIdx}_${it.first ?: -1}" }) { (gId, hours, earnings) ->
+                    val groupName = groups.find { it.id == gId }?.name ?: "Senza Gruppo"
+                    SummaryCard(title = groupName, subtitle = "Totale Gruppo", hours = hours, earnings = earnings)
+                }
+            } else if (viewMode == ViewMode.TOTALS) {
+                items(workerTotals, key = { "w_${monthIdx}_${it.first}" }) { (wId, hours, earnings) ->
+                    val worker = workerMap[wId]
+                    val workerName = "${worker?.surname ?: ""} ${worker?.name ?: "Bracc. $wId"}"
+                    SummaryCard(title = workerName, subtitle = "Totale Bracciante", hours = hours, earnings = earnings)
+                }
+            } else {
+                items(mLogs.sortedBy { it.date }, key = { log -> "${log.workerId}_${log.date}" }) { log ->
+                    val worker = workerMap[log.workerId]
+                    val effectiveRate = log.hourlyRate
+                    val earnings = log.totalHours * effectiveRate
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = CardDefaults.outlinedCardBorder(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.small
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = daySdf.format(Date(log.date)),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${worker?.surname ?: ""} ${worker?.name ?: "Bracciante ${log.workerId}"}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (effectiveRate > 0) {
-                                val rateStr = String.format(Locale.ITALY, "%.2f", effectiveRate)
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = MaterialTheme.shapes.small
+                            ) {
                                 Text(
-                                    text = "@ $rateStr €/h",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline
+                                    text = daySdf.format(Date(log.date)),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "${formatDecimalHours(log.totalHours)} h",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            val earnStr = String.format(Locale.ITALY, "%.2f €", earnings)
-                            Text(
-                                text = earnStr,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "${worker?.surname ?: ""} ${worker?.name ?: "Bracciante ${log.workerId}"}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (effectiveRate > 0) {
+                                    val rateStr = String.format(Locale.ITALY, "%.2f", effectiveRate)
+                                    Text(
+                                        text = "@ $rateStr €/h",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "${formatDecimalHours(log.totalHours)} h",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                val earnStr = String.format(Locale.ITALY, "%.2f €", earnings)
+                                Text(
+                                    text = earnStr,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -529,6 +640,48 @@ fun GroupedFinancialView(logs: List<WorkLog>, yearStats: List<WorkerYearStats>) 
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SummaryCard(title: String, subtitle: String, hours: Double, earnings: Double) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${formatDecimalHours(hours)} h",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                val earnStr = String.format(Locale.ITALY, "%.2f €", earnings)
+                Text(
+                    text = earnStr,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
