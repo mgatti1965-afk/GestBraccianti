@@ -5,19 +5,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -77,6 +75,7 @@ fun MainApp(
 ) {
     val navController = rememberNavController()
     val currentYear by harvestViewModel.currentYear.collectAsState()
+    var showGlobalHelp by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentYear) {
         currentYear?.let {
@@ -94,6 +93,9 @@ fun MainApp(
                 CenterAlignedTopAppBar(
                     title = { Text("GestBraccianti ${currentYear?.id ?: ""}") },
                     actions = {
+                        IconButton(onClick = { showGlobalHelp = true }) {
+                            Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Guida")
+                        }
                         IconButton(onClick = { 
                             harvestViewModel.deselectYear()
                             navController.navigate(Screen.YearSelection.route) {
@@ -157,6 +159,49 @@ fun MainApp(
             composable(Screen.Others.route) {
                 OthersScreen(workerViewModel, currentYear?.id ?: 0)
             }
+        }
+    }
+
+    if (showGlobalHelp) {
+        GlobalHelpDialog(onDismiss = { showGlobalHelp = false })
+    }
+}
+
+@Composable
+fun GlobalHelpDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("Manuale Rapido")
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HelpRow(Icons.Default.History, "ORE", "Registra presenze e orari nel calendario.")
+                HelpRow(Icons.Default.Calculate, "RIEPILOGO", "Controlla i totali e genera PDF/WhatsApp.")
+                HelpRow(Icons.Default.Group, "BRACCIANTI", "Gestisci l'anagrafica, le tariffe e i gruppi.")
+                HelpRow(Icons.Default.Settings, "VARIE", "Imposta i tuoi dati e gestisci i Backup CSV.")
+                HorizontalDivider()
+                Text("In 'ORE', tocca un giorno per aggiungere braccianti e regolare i loro orari con i tasti rapidi + e -.", style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ho capito") }
+        }
+    )
+}
+
+@Composable
+fun HelpRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, desc: String) {
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Text(desc, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

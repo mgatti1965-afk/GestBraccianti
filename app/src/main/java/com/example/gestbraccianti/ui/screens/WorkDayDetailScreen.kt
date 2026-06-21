@@ -7,12 +7,21 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +42,8 @@ import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.compose.ui.input.pointer.pointerInput
 import java.text.SimpleDateFormat
 import androidx.compose.material.icons.filled.Warning
 import com.example.gestbraccianti.ui.utils.formatDecimalHours
@@ -57,6 +68,7 @@ fun WorkDayDetailScreen(
     var showAddWorkerDialog by remember { mutableStateOf(false) }
     var showAddGroupDialog by remember { mutableStateOf(false) }
     var showSmsDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
     var editingLog by remember { mutableStateOf<WorkLog?>(null) }
     val context = LocalContext.current
 
@@ -102,6 +114,10 @@ fun WorkDayDetailScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(16.dp).weight(1f)
                 )
+
+                IconButton(onClick = { showHelpDialog = true }) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto")
+                }
 
                 if (isCurrentYear) {
                     IconButton(onClick = {
@@ -252,6 +268,45 @@ fun WorkDayDetailScreen(
             workLogViewModel = workLogViewModel,
             onDismiss = { showSmsDialog = false }
         )
+    }
+
+    if (showHelpDialog) {
+        QuickHelpDialog(onDismiss = { showHelpDialog = false })
+    }
+}
+
+@Composable
+fun QuickHelpDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("Guida Rapida Orari")
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HelpItem(Icons.Default.Add, "Tasti + e - : Variazione di 15 minuti.")
+                HelpItem(Icons.Default.TouchApp, "Pressione Lunga : Scorrimento veloce dei minuti.")
+                HelpItem(Icons.Default.Edit, "Tocca l'Orario : Apre la tastiera per inserimento manuale.")
+                HelpItem(Icons.Default.AutoFixHigh, "Testo Grigio : Orario suggerito. Toccalo per confermarlo velocemente.")
+                HelpItem(Icons.Default.DeleteForever, "Testo 'CANCELLA' : Rimuove l'orario (es. se non lavora il pomeriggio).")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ho capito") }
+        }
+    )
+}
+
+@Composable
+fun HelpItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.width(12.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -509,7 +564,10 @@ fun AddGroupToDayDialog(
         onDismissRequest = onDismiss,
         title = { Text("Aggiungi Gruppo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                     TextField(
                         value = selectedGroup?.name ?: "Seleziona Gruppo",
@@ -589,8 +647,8 @@ fun TimePickerSection(
     defaultEnd: String = "12:00"
 ) {
     Column {
-        Text(text = label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(4.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Inizio", style = MaterialTheme.typography.labelMedium)
@@ -629,45 +687,68 @@ fun TactileTimePicker(
     val fontWeight = if (isSuggested) FontWeight.Normal else FontWeight.ExtraBold
     
     var showManualEdit by remember { mutableStateOf(false) }
+
     fun adjust(deltaMinutes: Int) {
         val current = value.ifBlank { defaultValue }
         try {
             val parts = current.split(":")
             val h = parts[0].toInt()
             val m = parts[1].toInt()
-            val cal = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, m); add(Calendar.MINUTE, deltaMinutes) }
+            val cal = Calendar.getInstance().apply { 
+                set(Calendar.HOUR_OF_DAY, h)
+                set(Calendar.MINUTE, m)
+                add(Calendar.MINUTE, deltaMinutes) 
+            }
             onValueChange(String.format(Locale.ITALY, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)))
         } catch (_: Exception) {
             onValueChange(defaultValue)
         }
     }
+
     if (showManualEdit) {
         var tempTime by remember { mutableStateOf(value.ifBlank { defaultValue }) }
         AlertDialog(
             onDismissRequest = { showManualEdit = false },
             title = { Text("Inserimento Manuale") },
             text = {
-                TextField(value = tempTime, onValueChange = { tempTime = it }, placeholder = { Text("HH:mm") }, textStyle = MaterialTheme.typography.displaySmall.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Bold), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
+                TextField(
+                    value = tempTime, 
+                    onValueChange = { tempTime = it }, 
+                    placeholder = { Text("HH:mm") }, 
+                    textStyle = MaterialTheme.typography.displaySmall.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Bold), 
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number), 
+                    modifier = Modifier.fillMaxWidth(), 
+                    singleLine = true
+                )
             },
             confirmButton = {
                 Button(onClick = {
-                    if (tempTime.matches(Regex("^([01]\\d|2[0-3]):([0-5]\\d)$"))) { onValueChange(tempTime); showManualEdit = false }
+                    if (tempTime.matches(Regex("^([01]\\d|2[0-3]):([0-5]\\d)$"))) { 
+                        onValueChange(tempTime)
+                        showManualEdit = false 
+                    }
                 }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { showManualEdit = false }) { Text("Annulla") } }
         )
     }
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = { adjust(15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape) ) {
-            Icon(Icons.Default.Add, contentDescription = "Più", tint = MaterialTheme.colorScheme.onPrimaryContainer)
-        }
+        RepeatingIconButton(
+            onClick = { adjust(15) },
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            icon = Icons.Default.Add,
+            contentDescription = "Più"
+        )
+
         Text(
             text = displayValue,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = fontWeight,
             color = textColor,
             modifier = Modifier
-                .padding(vertical = 4.dp)
+                .padding(vertical = 2.dp)
                 .clickable { 
                     if (isSuggested) {
                         onConfirmSuggested()
@@ -678,14 +759,78 @@ fun TactileTimePicker(
                     }
                 }
         )
-        IconButton(onClick = { adjust(-15) }, modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape) ) {
-            Icon(Icons.Default.Remove, contentDescription = "Meno")
-        }
+
+        RepeatingIconButton(
+            onClick = { adjust(-15) },
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            icon = Icons.Default.Remove,
+            contentDescription = "Meno"
+        )
+
         if (value.isNotBlank()) {
-            Text("Canc.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.clickable { onValueChange("") })
-        } else { Spacer(modifier = Modifier.height(14.dp)) }
+            Text(
+                "CANCELLA", 
+                style = MaterialTheme.typography.labelSmall, 
+                color = MaterialTheme.colorScheme.error, 
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp).clickable { onValueChange("") }
+            )
+        } else { 
+            Spacer(modifier = Modifier.height(14.dp)) 
+        }
     }
 }
+
+@Composable
+fun RepeatingIconButton(
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String
+) {
+    val scope = rememberCoroutineScope()
+    val currentOnClick by rememberUpdatedState(onClick)
+    var isPressed by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .size(width = 90.dp, height = 36.dp) // Altezza ridotta
+            .background(
+                if (isPressed) containerColor.copy(alpha = 0.7f) else containerColor,
+                RoundedCornerShape(8.dp)
+            )
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitFirstDown(requireUnconsumed = false)
+                        isPressed = true
+                        val job = scope.launch {
+                            currentOnClick()
+                            delay(450)
+                            while (true) {
+                                currentOnClick()
+                                delay(120)
+                            }
+                        }
+                        waitForUpOrCancellation()
+                        job.cancel()
+                        isPressed = false
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon, 
+            contentDescription = contentDescription,
+            modifier = Modifier.size(24.dp),
+            tint = contentColor
+        )
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -788,7 +933,10 @@ fun AddWorkerToDayDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (editingLog == null) "Aggiungi Bracciante" else "Modifica Orari", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 if (editingLog == null) {
                     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                         TextField(
@@ -807,15 +955,15 @@ fun AddWorkerToDayDialog(
                                         selectedWorker = worker
                                         expanded = false 
                                     }, 
-                                    contentPadding = PaddingValues(16.dp)
+                                    contentPadding = PaddingValues(12.dp)
                                 )
                             }
                         }
                     }
                 } else {
-                    Text("Bracciante: ${selectedWorker?.surname} ${selectedWorker?.name}".trim(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                    Text("Bracciante: ${selectedWorker?.surname} ${selectedWorker?.name}".trim(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
-                HorizontalDivider()
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 TimePickerSection(
                     label = "Mattina",
                     start = morningStart,
@@ -827,7 +975,7 @@ fun AddWorkerToDayDialog(
                     defaultStart = "08:00",
                     defaultEnd = "12:00"
                 )
-                HorizontalDivider()
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 TimePickerSection(
                     label = "Pomeriggio",
                     start = afternoonStart,

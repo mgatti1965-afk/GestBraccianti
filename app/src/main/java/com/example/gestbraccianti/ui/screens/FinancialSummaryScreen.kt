@@ -356,7 +356,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         groupingType = groupingType,
                         viewMode = viewMode,
                         groups = groups,
-                        groupToWorkers = groupToWorkers
+                        groupToWorkers = groupToWorkers,
+                        selectedFilter = selectedFilter
                     )
                 }
             }
@@ -371,7 +372,8 @@ fun GroupedFinancialView(
     groupingType: GroupingType,
     viewMode: ViewMode,
     groups: List<com.example.gestbraccianti.data.entity.WorkerGroup>,
-    groupToWorkers: Map<Long, List<Long>>
+    groupToWorkers: Map<Long, List<Long>>,
+    selectedFilter: Int
 ) {
     val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
     val calendar = remember { Calendar.getInstance(Locale.ITALY) }
@@ -529,8 +531,13 @@ fun GroupedFinancialView(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val totalLabel = when (selectedFilter) {
+                            2 -> "Totale Settimanale"
+                            3 -> "Totale Giornaliero"
+                            else -> "Totale Mensile"
+                        }
                         Text(
-                            "Totale Mensile",
+                            totalLabel,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.secondary,
                             fontWeight = FontWeight.Bold
