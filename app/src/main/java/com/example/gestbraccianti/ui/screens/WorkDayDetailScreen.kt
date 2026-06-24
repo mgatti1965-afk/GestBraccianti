@@ -342,7 +342,7 @@ fun QuickHelpDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-fun HelpItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+private fun HelpItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
         Spacer(Modifier.width(12.dp))
@@ -572,8 +572,8 @@ fun AddGroupToDayDialog(
         val daysCount = ((endDate - currentDate) / (24 * 60 * 60 * 1000)).toInt() + 1
         AlertDialog(
             onDismissRequest = { showRangeConfirmDialog = false },
-            title = { Text("Conferma Espansione") },
-            text = { Text("Stai per inserire orari per $daysCount giorni di lavoro.\n\nAttenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
+            title = { Text("Inserimento orari per $daysCount giorni lavorativi.", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+            text = { Text("Attenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
             confirmButton = {
                 Button(onClick = {
                     showRangeConfirmDialog = false
@@ -965,8 +965,8 @@ fun AddWorkerToDayDialog(
         val daysCount = ((endDate - currentDate) / (24 * 60 * 60 * 1000)).toInt() + 1
         AlertDialog(
             onDismissRequest = { showRangeConfirmDialog = false },
-            title = { Text("Conferma Espansione") },
-            text = { Text("Stai per inserire orari per $daysCount giorni di lavoro.\n\nAttenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
+            title = { Text("Inserimento orari per $daysCount giorni lavorativi.", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+            text = { Text("Attenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
             confirmButton = {
                 Button(onClick = {
                     showRangeConfirmDialog = false

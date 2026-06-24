@@ -48,13 +48,18 @@ Cliccando su un giorno si accede alla gestione dei lavoratori per quella data:
 ---
 
 ## 3. Riepilogo Finanziario
-In questa sezione è possibile visualizzare l'andamento economico e lavorativo.
+In questa sezione è possibile visualizzare l'andamento economico e lavorativo con diversi livelli di dettaglio.
 
 *   **Filtri Temporali:** Visualizzazione dati per Anno, Mese, Settimana o Giorno.
 *   **Calcoli e Etichette Dinamiche:** Le diciture dei totali si adattano al contesto (es. "Totale Mensile", "Totale Settimanale") per una lettura immediata. Mostra le ore totali e l'importo totale dovuto (basato sulle tariffe orarie impostate).
+*   **Modalità di Visualizzazione:**
+    *   **Vista Braccianti (👤):** Raggruppa i dati per ogni singolo lavoratore.
+    *   **Vista Gruppi (👥):** Raggruppa i dati per le squadre definite, permettendo di vedere il costo totale di un gruppo specifico.
+    *   **Vista Dettagliata (📝):** Mostra ogni singola registrazione giornaliera (data, nome, ore, compenso).
+    *   **Vista Totali (📊):** Mostra un riepilogo sintetico con i totali di ore e compensi per lavoratore o gruppo nel periodo scelto.
 *   **Generazione Report:**
     *   **Condivisione WhatsApp/Testo:** Genera un riepilogo testuale pronto da inviare.
-    *   **Esportazione PDF:** Genera un documento PDF professionale con il logo e i dettagli dei pagamenti, filtrabile per singolo bracciante o per tutti.
+    *   **Esportazione PDF:** Genera un documento PDF professionale con il logo e i dettagli dei pagamenti, filtrabile per singolo bracciante, per gruppo o per tutti.
 
 ---
 

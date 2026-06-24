@@ -39,8 +39,59 @@ import java.text.SimpleDateFormat
 import androidx.core.content.FileProvider
 import java.io.File
 
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 enum class GroupingType { BY_WORKER, BY_GROUP }
 enum class ViewMode { DETAIL, TOTALS }
+
+@Composable
+fun QuickHelpSummaryDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("Guida Riepilogo")
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Filtri Raggruppamento", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                HelpItem(Icons.Default.Person, "Bracc. : Mostra i dati e i totali per ogni singolo bracciante.")
+                HelpItem(Icons.Default.Group, "Gruppi : Raggruppa i lavoratori per squadra, mostrando i costi collettivi.")
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                Text("Modalità di Vista", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                HelpItem(Icons.AutoMirrored.Filled.ListAlt, "Dettagli (📝) : Elenco cronologico di tutte le ore registrate nel periodo.")
+                HelpItem(Icons.Default.BarChart, "Totali (📊) : Vista sintetica con solo i totali finali per persona o gruppo.")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ho capito") }
+        }
+    )
+}
+
+@Composable
+private fun HelpItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.width(12.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +125,11 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
     var selectedGroupId by remember { mutableStateOf<Long?>(null) }
     var groupWorkerIds by remember { mutableStateOf<List<Long>>(emptyList()) }
     var reportStep by remember { mutableIntStateOf(0) }
+    var showHelpDialog by remember { mutableStateOf(false) }
+
+    if (showHelpDialog) {
+        QuickHelpSummaryDialog(onDismiss = { showHelpDialog = false })
+    }
 
     LaunchedEffect(selectedFilter, referenceDate) {
         val calendar = Calendar.getInstance(Locale.ITALY)
@@ -292,12 +348,21 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 }
             }
 
-            PeriodNavigation(
-                selectedFilter = selectedFilter,
-                referenceDate = referenceDate,
-                onPrev = { viewModel.moveReferenceDate(selectedFilter, -1) },
-                onNext = { viewModel.moveReferenceDate(selectedFilter, 1) }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PeriodNavigation(
+                    selectedFilter = selectedFilter,
+                    referenceDate = referenceDate,
+                    onPrev = { viewModel.moveReferenceDate(selectedFilter, -1) },
+                    onNext = { viewModel.moveReferenceDate(selectedFilter, 1) },
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showHelpDialog = true }) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -907,7 +972,8 @@ fun PeriodNavigation(
     selectedFilter: Int,
     referenceDate: Long,
     onPrev: () -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
     val currentYearInRef = calendar.get(Calendar.YEAR)
@@ -950,7 +1016,7 @@ fun PeriodNavigation(
     }
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
