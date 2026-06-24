@@ -34,7 +34,14 @@ Mostra una griglia dei giorni del mese. I giorni con ore registrate sono evidenz
 ### Dettaglio Giornata
 Cliccando su un giorno si accede alla gestione dei lavoratori per quella data:
 *   **Aggiunta rapida:** È possibile aggiungere singoli braccianti o interi gruppi predefiniti.
-*   **Gestione Orari:** Per ogni lavoratore si possono inserire gli orari di ingresso e uscita (Mattina e Pomeriggio). L'app calcola automaticamente il totale delle ore.
+*   **Gestione Orari Ottimizzata:**
+    *   **Selettori Rapidi:** I controlli per l'inserimento dell'orario supportano l'auto-ripetizione (pressione prolungata) per uno scorrimento veloce dei numeri.
+    *   **Calcolo Automatico:** L'app calcola in tempo reale il totale delle ore e l'importo dovuto.
+*   **Espandi Periodo (Inserimento Massivo):**
+    *   Permette di duplicare gli orari inseriti su un intervallo di giorni consecutivi.
+    *   **Selettore Data Abbreviato:** Visualizzazione chiara (es. "Lun 25/12") per una selezione rapida del termine del periodo.
+    *   **Sicurezza:** Un dialogo di conferma indica il numero totale di giorni interessati e previene sovrascritture accidentali.
+    *   **Flusso di Lavoro:** Al salvataggio di un periodo, l'app torna automaticamente alla visualizzazione principale per aggiornare i riepiloghi.
 *   **Allineamento Tariffe:** Se la tariffa di un bracciante viene modificata nel registro, l'app aggiornerà automaticamente il totale di una giornata passata non appena questa viene riconfermata (salvata nuovamente), mostrando un avviso del ricalcolo effettuato.
 *   **Lettura SMS (Opzionale):** Funzione avanzata per importare orari ricevuti tramite messaggi.
 
@@ -44,7 +51,7 @@ Cliccando su un giorno si accede alla gestione dei lavoratori per quella data:
 In questa sezione è possibile visualizzare l'andamento economico e lavorativo.
 
 *   **Filtri Temporali:** Visualizzazione dati per Anno, Mese, Settimana o Giorno.
-*   **Calcoli Automatici:** Mostra le ore totali e l'importo totale dovuto (basato sulle tariffe orarie impostate).
+*   **Calcoli e Etichette Dinamiche:** Le diciture dei totali si adattano al contesto (es. "Totale Mensile", "Totale Settimanale") per una lettura immediata. Mostra le ore totali e l'importo totale dovuto (basato sulle tariffe orarie impostate).
 *   **Generazione Report:**
     *   **Condivisione WhatsApp/Testo:** Genera un riepilogo testuale pronto da inviare.
     *   **Esportazione PDF:** Genera un documento PDF professionale con il logo e i dettagli dei pagamenti, filtrabile per singolo bracciante o per tutti.

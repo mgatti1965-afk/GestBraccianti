@@ -215,18 +215,33 @@ fun WorkDayDetailScreen(
             availableWorkers = workers,
             existingLogs = logsForDay,
             editingLog = editingLog,
+            currentDate = date,
             onDismiss = { showAddWorkerDialog = false },
-            onConfirm = { workerId, mStart, mEnd, pStart, pEnd ->
-                workLogViewModel.saveLog(
-                    id = editingLog?.id ?: 0L,
-                    workerId = workerId,
-                    yearId = yearId,
-                    date = date,
-                    morningStart = mStart,
-                    morningEnd = mEnd,
-                    afternoonStart = pStart,
-                    afternoonEnd = pEnd
-                )
+            onConfirm = { workerId, mStart, mEnd, pStart, pEnd, rangeEnd ->
+                if (rangeEnd != null) {
+                    workLogViewModel.saveLogRange(
+                        workerId = workerId,
+                        yearId = yearId,
+                        startDate = date,
+                        endDate = rangeEnd,
+                        morningStart = mStart,
+                        morningEnd = mEnd,
+                        afternoonStart = pStart,
+                        afternoonEnd = pEnd
+                    )
+                    onBack()
+                } else {
+                    workLogViewModel.saveLog(
+                        id = editingLog?.id ?: 0L,
+                        workerId = workerId,
+                        yearId = yearId,
+                        date = date,
+                        morningStart = mStart,
+                        morningEnd = mEnd,
+                        afternoonStart = pStart,
+                        afternoonEnd = pEnd
+                    )
+                }
                 showAddWorkerDialog = false
             }
         )
@@ -236,23 +251,38 @@ fun WorkDayDetailScreen(
         AddGroupToDayDialog(
             groups = groups,
             existingLogs = logsForDay,
+            currentDate = date,
             onDismiss = { showAddGroupDialog = false },
-            onConfirm = { group, mStart, mEnd, pStart, pEnd ->
+            onConfirm = { group, mStart, mEnd, pStart, pEnd, rangeEnd ->
                 scope.launch {
                     val members = groupViewModel.getWorkersInGroup(group.id).first()
                     members.forEach { worker ->
-                        val existing = logsForDay.find { it.workerId == worker.id }
-                        workLogViewModel.saveLog(
-                            id = existing?.id ?: 0L,
-                            workerId = worker.id,
-                            yearId = yearId,
-                            date = date,
-                            morningStart = mStart,
-                            morningEnd = mEnd,
-                            afternoonStart = pStart,
-                            afternoonEnd = pEnd
-                        )
+                        if (rangeEnd != null) {
+                            workLogViewModel.saveLogRange(
+                                workerId = worker.id,
+                                yearId = yearId,
+                                startDate = date,
+                                endDate = rangeEnd,
+                                morningStart = mStart,
+                                morningEnd = mEnd,
+                                afternoonStart = pStart,
+                                afternoonEnd = pEnd
+                            )
+                        } else {
+                            val existing = logsForDay.find { it.workerId == worker.id }
+                            workLogViewModel.saveLog(
+                                id = existing?.id ?: 0L,
+                                workerId = worker.id,
+                                yearId = yearId,
+                                date = date,
+                                morningStart = mStart,
+                                morningEnd = mEnd,
+                                afternoonStart = pStart,
+                                afternoonEnd = pEnd
+                            )
+                        }
                     }
+                    if (rangeEnd != null) onBack()
                 }
                 showAddGroupDialog = false
             }
@@ -283,16 +313,26 @@ fun QuickHelpDialog(onDismiss: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text("Guida Rapida Orari")
+                Text("Guida Utilizzo")
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                HelpItem(Icons.Default.Add, "Tasti + e - : Variazione di 15 minuti.")
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Inserimento Orari", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                HelpItem(Icons.Default.Add, "Tasti +/- : Variazione di 15 minuti.")
                 HelpItem(Icons.Default.TouchApp, "Pressione Lunga : Scorrimento veloce dei minuti.")
-                HelpItem(Icons.Default.Edit, "Tocca l'Orario : Apre la tastiera per inserimento manuale.")
-                HelpItem(Icons.Default.AutoFixHigh, "Testo Grigio : Orario suggerito. Toccalo per confermarlo velocemente.")
-                HelpItem(Icons.Default.DeleteForever, "Testo 'CANCELLA' : Rimuove l'orario (es. se non lavora il pomeriggio).")
+                HelpItem(Icons.Default.Edit, "Tocca l'Orario : Inserimento manuale con tastiera.")
+                HelpItem(Icons.Default.DeleteForever, "CANCELLA : Rimuove l'orario (es. se non lavora il pomeriggio).")
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                Text("Funzioni Avanzate", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+                HelpItem(Icons.Default.DateRange, "Espandi Periodo : Duplica gli orari su più giorni consecutivi (es. tutta la settimana).")
+                HelpItem(Icons.Default.CheckCircle, "Conferma Massiva : Un riepilogo indica quanti giorni verranno creati o sovrascritti.")
+                HelpItem(Icons.Default.Sync, "Tariffe : Se modifichi una tariffa nel registro, le giornate passate si aggiorneranno salvandole di nuovo.")
             }
         },
         confirmButton = {
@@ -502,8 +542,9 @@ private fun processSmsEntry(address: String?, body: String?, smsDate: Long, work
 fun AddGroupToDayDialog(
     groups: List<WorkerGroup>,
     existingLogs: List<WorkLog>,
+    currentDate: Long,
     onDismiss: () -> Unit,
-    onConfirm: (WorkerGroup, String, String, String, String) -> Unit
+    onConfirm: (WorkerGroup, String, String, String, String, Long?) -> Unit
 ) {
     var selectedGroup by remember { mutableStateOf<WorkerGroup?>(if (groups.size == 1) groups.first() else null) }
     
@@ -513,10 +554,37 @@ fun AddGroupToDayDialog(
     var afternoonStart by remember { mutableStateOf("") }
     var afternoonEnd by remember { mutableStateOf("") }
 
+    var expandPeriod by remember { mutableStateOf(false) }
+    var endDate by remember { mutableStateOf(currentDate) }
+    var showRangeConfirmDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
+
+    if (showHelpDialog) {
+        QuickHelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
     // Riferimenti per i suggerimenti (servono per il colore)
     var suggestedMorningEnd by remember { mutableStateOf("") }
     var suggestedAfternoonStart by remember { mutableStateOf("") }
     var suggestedAfternoonEnd by remember { mutableStateOf("") }
+
+    if (showRangeConfirmDialog) {
+        val daysCount = ((endDate - currentDate) / (24 * 60 * 60 * 1000)).toInt() + 1
+        AlertDialog(
+            onDismissRequest = { showRangeConfirmDialog = false },
+            title = { Text("Conferma Espansione") },
+            text = { Text("Stai per inserire orari per $daysCount giorni di lavoro.\n\nAttenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
+            confirmButton = {
+                Button(onClick = {
+                    showRangeConfirmDialog = false
+                    selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
+                }) { Text("Conferma") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRangeConfirmDialog = false }) { Text("Annulla") }
+            }
+        )
+    }
 
     // Logica basata sulla PRESENZA - Solo all'ingresso (per i gruppi è sempre "nuovo")
     LaunchedEffect(Unit) {
@@ -562,7 +630,19 @@ fun AddGroupToDayDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Aggiungi Gruppo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+        title = { 
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Aggiungi Gruppo", 
+                    style = MaterialTheme.typography.headlineSmall, 
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showHelpDialog = true }) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -619,12 +699,26 @@ fun AddGroupToDayDialog(
                 if (errorMessage != null) {
                     Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                ExpandPeriodSection(
+                    isExpanded = expandPeriod,
+                    onExpandedChange = { expandPeriod = it },
+                    currentDate = currentDate,
+                    endDate = endDate,
+                    onEndDateChange = { endDate = it }
+                )
             }
         },
         confirmButton = {
             Button(onClick = {
                 if (validateTimes()) {
-                    selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd) }
+                    if (expandPeriod) {
+                        showRangeConfirmDialog = true
+                    } else {
+                        selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
+                    }
                 }
             }, enabled = isFormValid) { Text("Salva") }
         },
@@ -838,8 +932,9 @@ fun AddWorkerToDayDialog(
     availableWorkers: List<Worker>,
     existingLogs: List<WorkLog>,
     editingLog: WorkLog?,
+    currentDate: Long,
     onDismiss: () -> Unit,
-    onConfirm: (Long, String, String, String, String) -> Unit
+    onConfirm: (Long, String, String, String, String, Long?) -> Unit
 ) {
     val selectableWorkers = remember(availableWorkers, existingLogs) {
         availableWorkers.filter { w -> existingLogs.none { it.workerId == w.id } }.sortedWith(compareBy({ it.surname }, { it.name }))
@@ -852,10 +947,37 @@ fun AddWorkerToDayDialog(
     var afternoonStart by remember(editingLog) { mutableStateOf(editingLog?.afternoonStart ?: "") }
     var afternoonEnd by remember(editingLog) { mutableStateOf(editingLog?.afternoonEnd ?: "") }
 
+    var expandPeriod by remember { mutableStateOf(false) }
+    var endDate by remember { mutableStateOf(currentDate) }
+    var showRangeConfirmDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
+
+    if (showHelpDialog) {
+        QuickHelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
     // Riferimenti per i suggerimenti (servono per il colore)
     var suggestedMorningEnd by remember { mutableStateOf("") }
     var suggestedAfternoonStart by remember { mutableStateOf("") }
     var suggestedAfternoonEnd by remember { mutableStateOf("") }
+
+    if (showRangeConfirmDialog) {
+        val daysCount = ((endDate - currentDate) / (24 * 60 * 60 * 1000)).toInt() + 1
+        AlertDialog(
+            onDismissRequest = { showRangeConfirmDialog = false },
+            title = { Text("Conferma Espansione") },
+            text = { Text("Stai per inserire orari per $daysCount giorni di lavoro.\n\nAttenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
+            confirmButton = {
+                Button(onClick = {
+                    showRangeConfirmDialog = false
+                    selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
+                }) { Text("Conferma") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRangeConfirmDialog = false }) { Text("Annulla") }
+            }
+        )
+    }
 
     // Logica basata sulla PRESENZA - SOLO INGRESSO DI DIALOG
     LaunchedEffect(Unit) {
@@ -931,7 +1053,19 @@ fun AddWorkerToDayDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (editingLog == null) "Aggiungi Bracciante" else "Modifica Orari", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+        title = { 
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = if (editingLog == null) "Aggiungi Bracciante" else "Modifica Orari", 
+                    style = MaterialTheme.typography.headlineSmall, 
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showHelpDialog = true }) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -992,15 +1126,122 @@ fun AddWorkerToDayDialog(
                 if (errorMessage != null) {
                     Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                ExpandPeriodSection(
+                    isExpanded = expandPeriod,
+                    onExpandedChange = { expandPeriod = it },
+                    currentDate = currentDate,
+                    endDate = endDate,
+                    onEndDateChange = { endDate = it }
+                )
             }
         },
         confirmButton = {
             Button(onClick = {
                 if (validateTimes()) {
-                    selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd) }
+                    if (expandPeriod) {
+                        showRangeConfirmDialog = true
+                    } else {
+                        selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
+                    }
                 }
             }, enabled = isFormValid) { Text("Salva") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )
+}
+
+@Composable
+fun ExpandPeriodSection(
+    isExpanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    currentDate: Long,
+    endDate: Long,
+    onEndDateChange: (Long) -> Unit
+) {
+    val sdf = SimpleDateFormat("EEE dd/MM/yyyy", Locale.ITALY)
+    
+    val daysCount = remember(currentDate, endDate) {
+        val diff = endDate - currentDate
+        (diff / (24 * 60 * 60 * 1000)).toInt() + 1
+    }
+    
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().clickable { onExpandedChange(!isExpanded) }
+        ) {
+            Checkbox(checked = isExpanded, onCheckedChange = onExpandedChange)
+            Text("Espandi a più giorni", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+        }
+        
+        if (isExpanded) {
+            Column(modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)) {
+                Text("Data fine periodo:", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RepeatingIconButton(
+                        onClick = {
+                            val cal = Calendar.getInstance().apply { 
+                                timeInMillis = endDate
+                                add(Calendar.DAY_OF_YEAR, -1)
+                            }
+                            if (cal.timeInMillis >= currentDate) onEndDateChange(cal.timeInMillis)
+                        },
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        icon = Icons.Default.Remove,
+                        contentDescription = "Meno un giorno"
+                    )
+                    
+                    Text(
+                        text = sdf.format(Date(endDate)).replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.widthIn(min = 120.dp),
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    RepeatingIconButton(
+                        onClick = {
+                            val cal = Calendar.getInstance().apply { 
+                                timeInMillis = endDate
+                                add(Calendar.DAY_OF_YEAR, 1)
+                            }
+                            onEndDateChange(cal.timeInMillis)
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        icon = Icons.Default.Add,
+                        contentDescription = "Più un giorno"
+                    )
+                }
+                
+                Text(
+                    text = "Totale: $daysCount giorni",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "Gli orari esistenti nel periodo verranno sovrascritti.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
 }

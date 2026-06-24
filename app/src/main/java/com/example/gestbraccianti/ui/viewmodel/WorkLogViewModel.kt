@@ -139,6 +139,56 @@ class WorkLogViewModel(
         }
     }
 
+    fun saveLogRange(
+        workerId: Long,
+        yearId: Int,
+        startDate: Long,
+        endDate: Long,
+        morningStart: String?,
+        morningEnd: String?,
+        afternoonStart: String?,
+        afternoonEnd: String?
+    ) {
+        viewModelScope.launch {
+            val totalHours = calculateHours(morningStart, morningEnd) + calculateHours(afternoonStart, afternoonEnd)
+            val currentRate = configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
+            
+            // Carichiamo i log una volta sola per efficienza
+            val logsInYear = workLogRepository.getLogsForYear(yearId).first()
+            
+            val calendar = Calendar.getInstance(Locale.ITALY)
+            calendar.timeInMillis = startDate
+            
+            while (calendar.timeInMillis <= endDate) {
+                val currentDate = calendar.timeInMillis
+                val existingLog = logsInYear.find {
+                    it.workerId == workerId && it.date == currentDate 
+                }
+                
+                val log = WorkLog(
+                    id = existingLog?.id ?: 0L,
+                    workerId = workerId,
+                    harvestYearId = yearId,
+                    date = currentDate,
+                    morningStart = morningStart,
+                    morningEnd = morningEnd,
+                    afternoonStart = afternoonStart,
+                    afternoonEnd = afternoonEnd,
+                    totalHours = totalHours,
+                    hourlyRate = currentRate
+                )
+                
+                if (log.id == 0L) {
+                    workLogRepository.insertLog(log)
+                } else {
+                    workLogRepository.updateLog(log)
+                }
+                
+                calendar.add(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
+    }
+
     private fun calculateHours(start: String?, end: String?): Double {
         if (start.isNullOrBlank() || end.isNullOrBlank()) return 0.0
         return try {
