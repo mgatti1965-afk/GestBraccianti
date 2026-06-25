@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -126,9 +127,18 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
     var groupWorkerIds by remember { mutableStateOf<List<Long>>(emptyList()) }
     var reportStep by remember { mutableIntStateOf(0) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var selectedLogForDetail by remember { mutableStateOf<WorkLog?>(null) }
 
     if (showHelpDialog) {
         QuickHelpSummaryDialog(onDismiss = { showHelpDialog = false })
+    }
+
+    if (selectedLogForDetail != null) {
+        WorkLogDetailDialog(
+            log = selectedLogForDetail!!,
+            workerName = stats.find { it.workerId == selectedLogForDetail!!.workerId }?.let { "${it.surname} ${it.name}" } ?: "Bracciante",
+            onDismiss = { selectedLogForDetail = null }
+        )
     }
 
     LaunchedEffect(selectedFilter, referenceDate) {
@@ -422,7 +432,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         viewMode = viewMode,
                         groups = groups,
                         groupToWorkers = groupToWorkers,
-                        selectedFilter = selectedFilter
+                        selectedFilter = selectedFilter,
+                        onLogClick = { selectedLogForDetail = it }
                     )
                 }
             }
@@ -438,7 +449,8 @@ fun GroupedFinancialView(
     viewMode: ViewMode,
     groups: List<com.example.gestbraccianti.data.entity.WorkerGroup>,
     groupToWorkers: Map<Long, List<Long>>,
-    selectedFilter: Int
+    selectedFilter: Int,
+    onLogClick: (WorkLog) -> Unit
 ) {
     val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
     val calendar = remember { Calendar.getInstance(Locale.ITALY) }
@@ -523,7 +535,7 @@ fun GroupedFinancialView(
                     val earnings = log.totalHours * effectiveRate
                     
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().clickable { onLogClick(log) },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         border = CardDefaults.outlinedCardBorder(),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -789,6 +801,22 @@ fun generateUnifiedReport(
     val workerMap = yearStats.associateBy { it.workerId }
     val calendar = Calendar.getInstance(Locale.ITALY)
     val daySdf = SimpleDateFormat("dd/MM", Locale.ITALY)
+
+    fun formatInterval(start: String?, end: String?): String {
+        return if (!start.isNullOrBlank() && !end.isNullOrBlank()) "$start-$end" else ""
+    }
+
+    fun formatLogLine(dateStr: String, workerName: String, log: WorkLog): String {
+        val morning = formatInterval(log.morningStart, log.morningEnd)
+        val afternoon = formatInterval(log.afternoonStart, log.afternoonEnd)
+        val times = listOfNotNull(morning.takeIf { it.isNotEmpty() }, afternoon.takeIf { it.isNotEmpty() }).joinToString(" ")
+        
+        val hoursStr = formatDecimalHours(log.totalHours)
+        val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
+        
+        // Formato professionale incolonnato con separatori
+        return "📅 $dateStr | $workerName\n   🕒 $times | ⌛ ${hoursStr}h | 💶 $earnStr€\n"
+    }
     
     when (filterTitle) {
         "Giorno" -> {
@@ -797,8 +825,7 @@ fun generateUnifiedReport(
             logs.sortedBy { it.workerId }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
-                sb.append("• $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
+                sb.append(formatLogLine(daySdf.format(Date(log.date)), workerName, log))
                 totalDayHours += log.totalHours
                 totalDayEarnings += (log.totalHours * log.hourlyRate)
             }
@@ -831,8 +858,7 @@ fun generateUnifiedReport(
                 weekLogs.sortedBy { it.date }.forEach { log ->
                     val worker = workerMap[log.workerId]
                     val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                    val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
-                    sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
+                    sb.append(formatLogLine(daySdf.format(Date(log.date)), workerName, log))
                     totalWeekHours += log.totalHours
                     totalWeekEarnings += (log.totalHours * log.hourlyRate)
                 }
@@ -867,10 +893,7 @@ fun generateUnifiedReport(
                 monthLogs.sortedBy { it.date }.forEach { log ->
                     val worker = workerMap[log.workerId]
                     val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                    val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
-                    
-                    sb.append("• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr€\n")
-                    
+                    sb.append(formatLogLine(daySdf.format(Date(log.date)), workerName, log))
                     totalMonthHours += log.totalHours
                     totalMonthEarnings += (log.totalHours * log.hourlyRate)
                 }
@@ -965,6 +988,72 @@ fun DynamicCalendarIcon(date: Long) {
             )
         }
     }
+}
+
+@Composable
+fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit) {
+    val daySdf = remember { SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(text = workerName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    text = daySdf.format(Date(log.date)).replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DetailRow(label = "Mattina", value = formatInterval(log.morningStart, log.morningEnd))
+                        DetailRow(label = "Pomeriggio", value = formatInterval(log.afternoonStart, log.afternoonEnd))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                        DetailRow(label = "Totale Ore", value = "${formatDecimalHours(log.totalHours)} h", isBold = true)
+                        DetailRow(label = "Tariffa", value = String.format(Locale.ITALY, "%.2f €/h", log.hourlyRate))
+                        DetailRow(
+                            label = "Importo", 
+                            value = String.format(Locale.ITALY, "%.2f €", log.totalHours * log.hourlyRate),
+                            isBold = true,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Text(
+                    "Vista in sola lettura. Per modificare, usa la sezione di inserimento giornaliero.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Chiudi") }
+        }
+    )
+}
+
+@Composable
+private fun DetailRow(label: String, value: String, isBold: Boolean = false, color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = value.ifBlank { "-" },
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
+            color = color
+        )
+    }
+}
+
+private fun formatInterval(start: String?, end: String?): String {
+    return if (!start.isNullOrBlank() && !end.isNullOrBlank()) "$start - $end" else ""
 }
 
 @Composable
