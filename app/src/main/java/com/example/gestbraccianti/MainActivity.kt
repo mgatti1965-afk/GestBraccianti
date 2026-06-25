@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -86,6 +88,8 @@ fun MainApp(
     }
 
     val startDestination = if (currentYear == null) Screen.YearSelection.route else Screen.Home.route
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         topBar = {
@@ -163,12 +167,12 @@ fun MainApp(
     }
 
     if (showGlobalHelp) {
-        GlobalHelpDialog(onDismiss = { showGlobalHelp = false })
+        GlobalHelpDialog(route = currentRoute, onDismiss = { showGlobalHelp = false })
     }
 }
 
 @Composable
-fun GlobalHelpDialog(onDismiss: () -> Unit) {
+fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -179,13 +183,53 @@ fun GlobalHelpDialog(onDismiss: () -> Unit) {
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                HelpRow(Icons.Default.History, "ORE", "Registra presenze e orari nel calendario.")
-                HelpRow(Icons.Default.Calculate, "RIEPILOGO", "Controlla i totali e genera PDF/WhatsApp.")
-                HelpRow(Icons.Default.Group, "BRACCIANTI", "Gestisci l'anagrafica, le tariffe e i gruppi.")
-                HelpRow(Icons.Default.Settings, "VARIE", "Imposta i tuoi dati e gestisci i Backup CSV.")
-                HorizontalDivider()
-                Text("In 'ORE', tocca un giorno per aggiungere braccianti e regolare i loro orari con i tasti rapidi + e -.", style = MaterialTheme.typography.bodySmall)
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                when {
+                    route == Screen.YearSelection.route -> {
+                        Text("Selezione Annata", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.Add, "Nuova Annata", "Crea una cartella per i dati di un nuovo anno (es. 2024).")
+                        HelpRow(Icons.Default.FolderOpen, "Apri", "Seleziona un'annata esistente per iniziare a lavorare.")
+                        HelpRow(Icons.Default.Delete, "Elimina", "Rimuove l'annata e tutti i suoi dati (azione irreversibile).")
+                    }
+                    route == Screen.Home.route || route == Screen.DailyLogging.route -> {
+                        Text("Calendario Presenze", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.Today, "Giorno", "Tocca un giorno per inserire o modificare i braccianti.")
+                        HelpRow(Icons.Default.EventNote, "Icone", "I pallini colorati indicano la presenza di registrazioni.")
+                        HelpRow(Icons.Default.ChevronLeft, "Navigazione", "Usa le frecce per cambiare mese.")
+                    }
+                    route?.startsWith("work_day_detail") == true -> {
+                        Text("Dettaglio Giornata", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.PersonAdd, "Aggiungi", "Inserisci un singolo bracciante o un'intera squadra.")
+                        HelpRow(Icons.Default.Add, "Tasti +/-", "Variazione rapida di 15 min (pressione lunga per scorrimento).")
+                        HelpRow(Icons.Default.Edit, "Manuale", "Tocca l'orario per inserirlo con la tastiera.")
+                        HelpRow(Icons.Default.DateRange, "Espandi", "Copia gli orari su più giorni consecutivi.")
+                    }
+                    route == Screen.WorkerRegistry.route -> {
+                        Text("Anagrafica Braccianti", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.PersonAdd, "Nuovo", "Registra un bracciante con la sua tariffa oraria.")
+                        HelpRow(Icons.Default.GroupAdd, "Squadre", "Crea gruppi per aggiungere più persone contemporaneamente.")
+                        HelpRow(Icons.Default.Edit, "Modifica", "Tocca un bracciante per cambiare dati o tariffa.")
+                    }
+                    route == Screen.FinancialSummary.route -> {
+                        Text("Riepilogo e Pagamenti", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.Group, "Vista Squadre", "Passa dai singoli braccianti ai totali per gruppo.")
+                        HelpRow(Icons.Default.ListAlt, "Dettagli", "Mostra l'elenco analitico di tutte le giornate lavorate.")
+                        HelpRow(Icons.Default.Share, "Condividi", "Invia il riepilogo via WhatsApp o genera un PDF.")
+                    }
+                    route == Screen.Others.route -> {
+                        Text("Impostazioni e Backup", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.Badge, "Dati Titolare", "Imposta i tuoi dati che appariranno nei PDF.")
+                        HelpRow(Icons.Default.Backup, "Backup CSV", "Esporta i dati in Excel per sicurezza o archiviazione.")
+                        HelpRow(Icons.Default.Storage, "Ripristino", "Importa i dati da un file CSV precedentemente salvato.")
+                    }
+                    else -> {
+                        Text("Benvenuto", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        Text("Usa il menù in basso per navigare tra le sezioni. In ogni schermata troverai questa guida specifica.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         },
         confirmButton = {

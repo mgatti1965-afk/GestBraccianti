@@ -1,27 +1,17 @@
 package com.example.gestbraccianti.ui.screens
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,8 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
@@ -67,8 +55,6 @@ fun WorkDayDetailScreen(
     
     var showAddWorkerDialog by remember { mutableStateOf(false) }
     var showAddGroupDialog by remember { mutableStateOf(false) }
-    var showSmsDialog by remember { mutableStateOf(false) }
-    var showHelpDialog by remember { mutableStateOf(false) }
     var editingLog by remember { mutableStateOf<WorkLog?>(null) }
     val context = LocalContext.current
 
@@ -77,22 +63,6 @@ fun WorkDayDetailScreen(
             android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
         }
     }
-
-    val isCurrentYear = remember(date) {
-        val calendar = Calendar.getInstance()
-        val currentYear = calendar.get(Calendar.YEAR)
-        calendar.timeInMillis = date
-        calendar.get(Calendar.YEAR) == currentYear
-    }
-
-    val smsPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                showSmsDialog = true
-            }
-        }
-    )
 
     val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ITALY)
 
@@ -114,22 +84,6 @@ fun WorkDayDetailScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(16.dp).weight(1f)
                 )
-
-                IconButton(onClick = { showHelpDialog = true }) {
-                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto")
-                }
-
-                if (isCurrentYear) {
-                    IconButton(onClick = {
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
-                            showSmsDialog = true
-                        } else {
-                            smsPermissionLauncher.launch(Manifest.permission.READ_SMS)
-                        }
-                    }) {
-                        Icon(Icons.Default.Sms, contentDescription = "Importa da SMS")
-                    }
-                }
             }
         }
 
@@ -288,254 +242,8 @@ fun WorkDayDetailScreen(
             }
         )
     }
-
-    if (showSmsDialog) {
-        SmsImportDialog(
-            date = date,
-            yearId = yearId,
-            workers = workers,
-            existingLogs = logsForDay,
-            workLogViewModel = workLogViewModel,
-            onDismiss = { showSmsDialog = false }
-        )
-    }
-
-    if (showHelpDialog) {
-        QuickHelpDialog(onDismiss = { showHelpDialog = false })
-    }
 }
 
-@Composable
-fun QuickHelpDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(8.dp))
-                Text("Guida Utilizzo")
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Inserimento Orari", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
-                HelpItem(Icons.Default.Add, "Tasti +/- : Variazione di 15 minuti.")
-                HelpItem(Icons.Default.TouchApp, "Pressione Lunga : Scorrimento veloce dei minuti.")
-                HelpItem(Icons.Default.Edit, "Tocca l'Orario : Inserimento manuale con tastiera.")
-                HelpItem(Icons.Default.DeleteForever, "CANCELLA : Rimuove l'orario (es. se non lavora il pomeriggio).")
-                
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                
-                Text("Funzioni Avanzate", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
-                HelpItem(Icons.Default.DateRange, "Espandi Periodo : Duplica gli orari su più giorni consecutivi (es. tutta la settimana).")
-                HelpItem(Icons.Default.CheckCircle, "Conferma Massiva : Un riepilogo indica quanti giorni verranno creati o sovrascritti.")
-                HelpItem(Icons.Default.Sync, "Tariffe : Se modifichi una tariffa nel registro, le giornate passate si aggiorneranno salvandole di nuovo.")
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ho capito") }
-        }
-    )
-}
-
-@Composable
-private fun HelpItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
-        Spacer(Modifier.width(12.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-data class SmsData(
-    val workerId: Long,
-    val senderName: String,
-    val senderSurname: String,
-    val time: String,
-    val timestamp: Long,
-    val text: String,
-    val type: String
-)
-
-@Composable
-fun SmsImportDialog(
-    date: Long,
-    yearId: Int,
-    workers: List<Worker>,
-    existingLogs: List<WorkLog>,
-    workLogViewModel: WorkLogViewModel,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    var smsList by remember { mutableStateOf<List<SmsData>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var showConfirmation by remember { mutableStateOf(false) }
-
-    LaunchedEffect(date, workers) {
-        smsList = readSmsForDay(context, date, workers)
-        isLoading = false
-    }
-
-    if (showConfirmation) {
-        val dateStr = SimpleDateFormat("dd/MM/yyyy", Locale.ITALY).format(Date(date))
-        AlertDialog(
-            onDismissRequest = { showConfirmation = false },
-            title = { Text("Conferma Importazione") },
-            text = { Text("Attenzione: caricamento dati al $dateStr. Confermi l'importazione degli SMS?") },
-            confirmButton = {
-                Button(onClick = {
-                    applySmsImport(smsList, existingLogs, workLogViewModel, yearId, date)
-                    showConfirmation = false
-                    onDismiss()
-                }) { Text("Conferma") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmation = false }) { Text("Annulla") }
-            }
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("SMS Ricevuti (I/F)") },
-        text = {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (smsList.isEmpty()) {
-                Text("Nessun SMS trovato per questa giornata.")
-            } else {
-                LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                    items(smsList) { sms ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (sms.type == "I") Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                            )
-                        ) {
-                            Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("${sms.senderSurname} ${sms.senderName}", fontWeight = FontWeight.Bold)
-                                    Text("Ore: ${sms.time} - Testo: ${sms.text}", style = MaterialTheme.typography.bodySmall)
-                                }
-                                Badge(containerColor = if (sms.type == "I") Color(0xFF2E7D32) else Color(0xFFC62828)) {
-                                    Text(if (sms.type == "I") "INIZIO" else "FINE", color = Color.White)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onDismiss) { Text("Annulla") }
-                Button(
-                    onClick = { showConfirmation = true },
-                    enabled = smsList.isNotEmpty()
-                ) { Text("Applica") }
-            }
-        }
-    )
-}
-
-
-private fun applySmsImport(
-    smsList: List<SmsData>,
-    existingLogs: List<WorkLog>,
-    workLogViewModel: WorkLogViewModel,
-    yearId: Int,
-    date: Long
-) {
-    val groupedSms = smsList.groupBy { it.workerId }
-    groupedSms.forEach { (workerId, messages) ->
-        val starts = messages.filter { it.type == "I" }.sortedBy { it.timestamp }
-        val ends = messages.filter { it.type == "F" }.sortedBy { it.timestamp }
-        val firstIn = starts.firstOrNull()?.time
-        val lastOut = ends.lastOrNull()?.time
-        var mStart = "08:00"
-        var mEnd = ""
-        var aStart = ""
-        var aEnd = ""
-        if (firstIn != null && lastOut != null) {
-            val outHour = lastOut.split(":")[0].toInt()
-            mStart = firstIn
-            if (outHour <= 13) {
-                mEnd = lastOut
-            } else {
-                mEnd = "12:00"
-                aStart = "13:00"
-                aEnd = lastOut
-                if (starts.size >= 2 && ends.size >= 2) {
-                    mEnd = ends.first().time
-                    aStart = starts.last().time
-                }
-            }
-        } else if (firstIn != null) {
-            mStart = firstIn
-        } else if (lastOut != null) {
-            val outHour = lastOut.split(":")[0].toInt()
-            if (outHour <= 13) mEnd = lastOut else aEnd = lastOut
-        }
-        val existing = existingLogs.find { it.workerId == workerId }
-        workLogViewModel.saveLog(
-            id = existing?.id ?: 0L,
-            workerId = workerId,
-            yearId = yearId,
-            date = date,
-            morningStart = mStart,
-            morningEnd = mEnd.ifBlank { existing?.morningEnd ?: "" },
-            afternoonStart = aStart.ifBlank { existing?.afternoonStart ?: "" },
-            afternoonEnd = aEnd.ifBlank { existing?.afternoonEnd ?: "" }
-        )
-    }
-}
-
-
-fun readSmsForDay(context: Context, date: Long, workers: List<Worker>): List<SmsData> {
-    val result = mutableListOf<SmsData>()
-    val cal = Calendar.getInstance().apply { 
-        timeInMillis = date
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    val startOfDay = cal.timeInMillis
-    val endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1
-    val timeSdf = SimpleDateFormat("HH:mm", Locale.ITALY)
-    val uri = "content://sms/inbox".toUri()
-    val projection = arrayOf("address", "body", "date")
-    val selection = "date >= ? AND date <= ?"
-    val selectionArgs = arrayOf(startOfDay.toString(), endOfDay.toString())
-    context.contentResolver.query(uri, projection, selection, selectionArgs, "date ASC")?.use { cursor ->
-        val addressIdx = cursor.getColumnIndex("address")
-        val bodyIdx = cursor.getColumnIndex("body")
-        val dateIdx = cursor.getColumnIndex("date")
-        while (cursor.moveToNext()) {
-            val address = cursor.getString(addressIdx)
-            val body = cursor.getString(bodyIdx)
-            val smsDate = cursor.getLong(dateIdx)
-            processSmsEntry(address, body, smsDate, workers, timeSdf, result)
-        }
-    }
-    return result.sortedBy { it.timestamp }
-}
-
-private fun processSmsEntry(address: String?, body: String?, smsDate: Long, workers: List<Worker>, timeSdf: SimpleDateFormat, result: MutableList<SmsData>) {
-    if (body.isNullOrBlank()) return
-    val type = body.trim().firstOrNull()?.uppercaseChar()?.toString()
-    if (type != "I" && type != "F") return
-    val cleanAddress = address?.filter { it.isDigit() }?.takeLast(10) ?: ""
-    val worker = workers.find { it.phoneNumber.filter { char -> char.isDigit() }.takeLast(10) == cleanAddress }
-    if (worker != null) {
-        result.add(SmsData(workerId = worker.id, senderName = worker.name, senderSurname = worker.surname, time = timeSdf.format(Date(smsDate)), timestamp = smsDate, text = body, type = type))
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -557,11 +265,6 @@ fun AddGroupToDayDialog(
     var expandPeriod by remember { mutableStateOf(false) }
     var endDate by remember { mutableStateOf(currentDate) }
     var showRangeConfirmDialog by remember { mutableStateOf(false) }
-    var showHelpDialog by remember { mutableStateOf(false) }
-
-    if (showHelpDialog) {
-        QuickHelpDialog(onDismiss = { showHelpDialog = false })
-    }
 
     // Riferimenti per i suggerimenti (servono per il colore)
     var suggestedMorningEnd by remember { mutableStateOf("") }
@@ -638,9 +341,6 @@ fun AddGroupToDayDialog(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = { showHelpDialog = true }) {
-                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
-                }
             }
         },
         text = {
@@ -950,11 +650,6 @@ fun AddWorkerToDayDialog(
     var expandPeriod by remember { mutableStateOf(false) }
     var endDate by remember { mutableStateOf(currentDate) }
     var showRangeConfirmDialog by remember { mutableStateOf(false) }
-    var showHelpDialog by remember { mutableStateOf(false) }
-
-    if (showHelpDialog) {
-        QuickHelpDialog(onDismiss = { showHelpDialog = false })
-    }
 
     // Riferimenti per i suggerimenti (servono per il colore)
     var suggestedMorningEnd by remember { mutableStateOf("") }
@@ -1061,9 +756,6 @@ fun AddWorkerToDayDialog(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = { showHelpDialog = true }) {
-                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
-                }
             }
         },
         text = {

@@ -211,26 +211,6 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
         ) { Icon(Icons.Default.Add, contentDescription = "Aggiungi Bracciante") }
 
-        if (workersWithRate.isNotEmpty()) {
-            SmallFloatingActionButton(
-                onClick = {
-                    viewModel.copyWorkersFromPreviousYear(yearId) { count ->
-                        if (count > 0) {
-                            Toast.makeText(context, "Copiati $count nuovi braccianti!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Nessun nuovo bracciante da copiare.", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 80.dp, end = 16.dp),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copia da anno precedente")
-            }
-        }
     }
 }
 

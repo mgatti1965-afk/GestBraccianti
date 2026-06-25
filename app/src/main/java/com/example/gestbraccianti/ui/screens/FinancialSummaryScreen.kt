@@ -52,47 +52,13 @@ import androidx.compose.foundation.verticalScroll
 enum class GroupingType { BY_WORKER, BY_GROUP }
 enum class ViewMode { DETAIL, TOTALS }
 
-@Composable
-fun QuickHelpSummaryDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(8.dp))
-                Text("Guida Riepilogo")
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Filtri Raggruppamento", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
-                HelpItem(Icons.Default.Person, "Bracc. : Mostra i dati e i totali per ogni singolo bracciante.")
-                HelpItem(Icons.Default.Group, "Gruppi : Raggruppa i lavoratori per squadra, mostrando i costi collettivi.")
-                
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                
-                Text("Modalità di Vista", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
-                HelpItem(Icons.AutoMirrored.Filled.ListAlt, "Dettagli (📝) : Elenco cronologico di tutte le ore registrate nel periodo.")
-                HelpItem(Icons.Default.BarChart, "Totali (📊) : Vista sintetica con solo i totali finali per persona o gruppo.")
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ho capito") }
-        }
-    )
-}
+data class AggregatedSummary(
+    val title: String,
+    val period: String,
+    val totalHours: Double,
+    val totalEarnings: Double
+)
 
-@Composable
-private fun HelpItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
-        Spacer(Modifier.width(12.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium)
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,18 +92,21 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
     var selectedGroupId by remember { mutableStateOf<Long?>(null) }
     var groupWorkerIds by remember { mutableStateOf<List<Long>>(emptyList()) }
     var reportStep by remember { mutableIntStateOf(0) }
-    var showHelpDialog by remember { mutableStateOf(false) }
     var selectedLogForDetail by remember { mutableStateOf<WorkLog?>(null) }
-
-    if (showHelpDialog) {
-        QuickHelpSummaryDialog(onDismiss = { showHelpDialog = false })
-    }
+    var selectedTotalForDetail by remember { mutableStateOf<AggregatedSummary?>(null) }
 
     if (selectedLogForDetail != null) {
         WorkLogDetailDialog(
             log = selectedLogForDetail!!,
             workerName = stats.find { it.workerId == selectedLogForDetail!!.workerId }?.let { "${it.surname} ${it.name}" } ?: "Bracciante",
             onDismiss = { selectedLogForDetail = null }
+        )
+    }
+
+    if (selectedTotalForDetail != null) {
+        AggregatedSummaryDialog(
+            summary = selectedTotalForDetail!!,
+            onDismiss = { selectedTotalForDetail = null }
         )
     }
 
@@ -369,9 +338,6 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                     onNext = { viewModel.moveReferenceDate(selectedFilter, 1) },
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = { showHelpDialog = true }) {
-                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
-                }
             }
 
             Row(
@@ -433,7 +399,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         groups = groups,
                         groupToWorkers = groupToWorkers,
                         selectedFilter = selectedFilter,
-                        onLogClick = { selectedLogForDetail = it }
+                        onLogClick = { selectedLogForDetail = it },
+                        onTotalClick = { selectedTotalForDetail = it }
                     )
                 }
             }
@@ -450,7 +417,8 @@ fun GroupedFinancialView(
     groups: List<com.example.gestbraccianti.data.entity.WorkerGroup>,
     groupToWorkers: Map<Long, List<Long>>,
     selectedFilter: Int,
-    onLogClick: (WorkLog) -> Unit
+    onLogClick: (WorkLog) -> Unit,
+    onTotalClick: (AggregatedSummary) -> Unit
 ) {
     val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
     val calendar = remember { Calendar.getInstance(Locale.ITALY) }
@@ -469,10 +437,14 @@ fun GroupedFinancialView(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         monthlyLogs.forEach { (monthIdx, mLogs) ->
+            val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(
+                Calendar.getInstance(Locale.ITALY).apply { 
+                    mLogs.firstOrNull()?.let { timeInMillis = it.date }
+                    set(Calendar.MONTH, monthIdx) 
+                }.time
+            ).replaceFirstChar { it.uppercase() }
+
             item {
-                calendar.set(Calendar.MONTH, monthIdx)
-                val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).replaceFirstChar { it.uppercase() }
-                
                 Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)) {
                     Text(
                         text = monthName,
@@ -520,13 +492,25 @@ fun GroupedFinancialView(
             if (groupingType == GroupingType.BY_GROUP) {
                 items(groupTotals, key = { "g_${monthIdx}_${it.first ?: -1}" }) { (gId, hours, earnings) ->
                     val groupName = groups.find { it.id == gId }?.name ?: "Senza Gruppo"
-                    SummaryCard(title = groupName, subtitle = "Totale Gruppo", hours = hours, earnings = earnings)
+                    SummaryCard(
+                        title = groupName,
+                        subtitle = "Totale Gruppo",
+                        hours = hours,
+                        earnings = earnings,
+                        onClick = { onTotalClick(AggregatedSummary(groupName, monthName, hours, earnings)) }
+                    )
                 }
             } else if (viewMode == ViewMode.TOTALS) {
                 items(workerTotals, key = { "w_${monthIdx}_${it.first}" }) { (wId, hours, earnings) ->
                     val worker = workerMap[wId]
                     val workerName = "${worker?.surname ?: ""} ${worker?.name ?: "Bracc. $wId"}"
-                    SummaryCard(title = workerName, subtitle = "Totale Bracciante", hours = hours, earnings = earnings)
+                    SummaryCard(
+                        title = workerName,
+                        subtitle = "Totale Bracciante",
+                        hours = hours,
+                        earnings = earnings,
+                        onClick = { onTotalClick(AggregatedSummary(workerName, monthName, hours, earnings)) }
+                    )
                 }
             } else {
                 items(mLogs.sortedBy { it.date }, key = { log -> "${log.workerId}_${log.date}" }) { log ->
@@ -730,9 +714,9 @@ fun GroupedFinancialView(
 }
 
 @Composable
-fun SummaryCard(title: String, subtitle: String, hours: Double, earnings: Double) {
+fun SummaryCard(title: String, subtitle: String, hours: Double, earnings: Double, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -988,6 +972,49 @@ fun DynamicCalendarIcon(date: Long) {
             )
         }
     }
+}
+
+@Composable
+fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(text = summary.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    text = summary.period,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DetailRow(label = "Totale Ore", value = "${formatDecimalHours(summary.totalHours)} h", isBold = true)
+                        DetailRow(
+                            label = "Importo Totale", 
+                            value = String.format(Locale.ITALY, "%.2f €", summary.totalEarnings),
+                            isBold = true,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Text(
+                    "Riepilogo dei compensi per il periodo selezionato.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Chiudi") }
+        }
+    )
 }
 
 @Composable
