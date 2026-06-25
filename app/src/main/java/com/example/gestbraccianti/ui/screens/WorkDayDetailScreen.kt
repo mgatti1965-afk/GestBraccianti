@@ -45,7 +45,8 @@ fun WorkDayDetailScreen(
     workLogViewModel: WorkLogViewModel,
     workerViewModel: WorkerViewModel,
     groupViewModel: WorkerGroupViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onShowHelp: (String) -> Unit
 ) {
     val allLogs by workLogViewModel.allLogs.collectAsState()
     val logsForDay = remember(allLogs, date) { allLogs.filter { it.date == date } }
@@ -197,7 +198,8 @@ fun WorkDayDetailScreen(
                     )
                 }
                 showAddWorkerDialog = false
-            }
+            },
+            onShowHelp = onShowHelp
         )
     }
 
@@ -239,7 +241,8 @@ fun WorkDayDetailScreen(
                     if (rangeEnd != null) onBack()
                 }
                 showAddGroupDialog = false
-            }
+            },
+            onShowHelp = onShowHelp
         )
     }
 }
@@ -252,7 +255,8 @@ fun AddGroupToDayDialog(
     existingLogs: List<WorkLog>,
     currentDate: Long,
     onDismiss: () -> Unit,
-    onConfirm: (WorkerGroup, String, String, String, String, Long?) -> Unit
+    onConfirm: (WorkerGroup, String, String, String, String, Long?) -> Unit,
+    onShowHelp: (String) -> Unit
 ) {
     var selectedGroup by remember { mutableStateOf<WorkerGroup?>(if (groups.size == 1) groups.first() else null) }
     
@@ -341,6 +345,9 @@ fun AddGroupToDayDialog(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = { onShowHelp("modifica_orari") }) {
+                    Icon(Icons.Default.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
+                }
             }
         },
         text = {
@@ -634,7 +641,8 @@ fun AddWorkerToDayDialog(
     editingLog: WorkLog?,
     currentDate: Long,
     onDismiss: () -> Unit,
-    onConfirm: (Long, String, String, String, String, Long?) -> Unit
+    onConfirm: (Long, String, String, String, String, Long?) -> Unit,
+    onShowHelp: (String) -> Unit
 ) {
     val selectableWorkers = remember(availableWorkers, existingLogs) {
         availableWorkers.filter { w -> existingLogs.none { it.workerId == w.id } }.sortedWith(compareBy({ it.surname }, { it.name }))
@@ -756,6 +764,9 @@ fun AddWorkerToDayDialog(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = { onShowHelp("modifica_orari") }) {
+                    Icon(Icons.Default.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
+                }
             }
         },
         text = {

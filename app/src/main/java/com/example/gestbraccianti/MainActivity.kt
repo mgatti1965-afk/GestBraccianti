@@ -90,6 +90,7 @@ fun MainApp(
     val startDestination = if (currentYear == null) Screen.YearSelection.route else Screen.Home.route
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    var helpRoute by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -151,7 +152,11 @@ fun MainApp(
                     workLogViewModel = workLogViewModel,
                     workerViewModel = workerViewModel,
                     groupViewModel = workerGroupViewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onShowHelp = { route ->
+                        helpRoute = route
+                        showGlobalHelp = true
+                    }
                 )
             }
             composable(Screen.WorkerRegistry.route) { 
@@ -167,7 +172,10 @@ fun MainApp(
     }
 
     if (showGlobalHelp) {
-        GlobalHelpDialog(route = currentRoute, onDismiss = { showGlobalHelp = false })
+        GlobalHelpDialog(route = helpRoute ?: currentRoute, onDismiss = { 
+            showGlobalHelp = false 
+            helpRoute = null
+        })
     }
 }
 
@@ -187,43 +195,54 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val isModificaOrari = route == "modifica_orari"
+
+                if (!isModificaOrari) {
+                    Text("MANUALE RAPIDO", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    HelpRow(Icons.AutoMirrored.Filled.Logout, "Annata", "Usa la freccia a destra nella barra in alto per tornare alla selezione dell'anno o crearne uno nuovo.")
+                    HelpRow(Icons.Default.History, "ORE", "Registra presenze e orari nel calendario.")
+                    HelpRow(Icons.Default.Calculate, "RIEPILOGO", "Controlla i totali e genera PDF/WhatsApp.")
+                    HelpRow(Icons.Default.Group, "BRACCIANTI", "Gestisci l'anagrafica, le tariffe e i gruppi.")
+                    HelpRow(Icons.Default.MoreHoriz, "VARIE", "Imposta i tuoi dati e gestisci i Backup CSV.")
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                }
+
                 when {
-                    route == Screen.YearSelection.route -> {
-                        Text("Selezione Annata", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                        HelpRow(Icons.Default.Add, "Nuova Annata", "Crea una cartella per i dati di un nuovo anno (es. 2024).")
-                        HelpRow(Icons.Default.FolderOpen, "Apri", "Seleziona un'annata esistente per iniziare a lavorare.")
-                        HelpRow(Icons.Default.Delete, "Elimina", "Rimuove l'annata e tutti i suoi dati (azione irreversibile).")
-                    }
                     route == Screen.Home.route || route == Screen.DailyLogging.route -> {
-                        Text("Calendario Presenze", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                        HelpRow(Icons.Default.Today, "Giorno", "Tocca un giorno per inserire o modificare i braccianti.")
-                        HelpRow(Icons.Default.EventNote, "Icone", "I pallini colorati indicano la presenza di registrazioni.")
-                        HelpRow(Icons.Default.ChevronLeft, "Navigazione", "Usa le frecce per cambiare mese.")
+                        Text("1. ORE", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.CalendarToday, "Calendario", "I giorni colorati indicano ore già registrate. Tocca un giorno per inserire o modificare i dati.")
+                        HelpRow(Icons.Default.SyncAlt, "Navigazione", "Usa le frecce in alto per scorrere i mesi dell'annata selezionata.")
+                        HelpRow(Icons.Default.List, "Elenco", "Sotto il calendario vedi il riepilogo rapido delle giornate lavorate nel mese. Tocca per vedere il dettaglio della giornata.")
                     }
                     route?.startsWith("work_day_detail") == true -> {
-                        Text("Dettaglio Giornata", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                        HelpRow(Icons.Default.PersonAdd, "Aggiungi", "Inserisci un singolo bracciante o un'intera squadra.")
-                        HelpRow(Icons.Default.Add, "Tasti +/-", "Variazione rapida di 15 min (pressione lunga per scorrimento).")
-                        HelpRow(Icons.Default.Edit, "Manuale", "Tocca l'orario per inserirlo con la tastiera.")
-                        HelpRow(Icons.Default.DateRange, "Espandi", "Copia gli orari su più giorni consecutivi.")
-                    }
-                    route == Screen.WorkerRegistry.route -> {
-                        Text("Anagrafica Braccianti", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                        HelpRow(Icons.Default.PersonAdd, "Nuovo", "Registra un bracciante con la sua tariffa oraria.")
-                        HelpRow(Icons.Default.GroupAdd, "Squadre", "Crea gruppi per aggiungere più persone contemporaneamente.")
-                        HelpRow(Icons.Default.Edit, "Modifica", "Tocca un bracciante per cambiare dati o tariffa.")
+                        Text("2. DETTAGLIO GIORNATA", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.PersonAdd, "Bracciante / Gruppi", "Usa i tasti in basso per aggiungere lavoratori/gruppi alla giornata.")
+                        HelpRow(Icons.Default.Edit, "Modifica", "Tocca un bracciante nell'elenco per variare i suoi orari.")
+                        HelpRow(Icons.Default.Delete, "Elimina", "Usa l'icona del cestino per rimuovere un lavoratore inserito per errore.")
                     }
                     route == Screen.FinancialSummary.route -> {
-                        Text("Riepilogo e Pagamenti", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                        HelpRow(Icons.Default.Group, "Vista Squadre", "Passa dai singoli braccianti ai totali per gruppo.")
-                        HelpRow(Icons.Default.ListAlt, "Dettagli", "Mostra l'elenco analitico di tutte le giornate lavorate.")
-                        HelpRow(Icons.Default.Share, "Condividi", "Invia il riepilogo via WhatsApp o genera un PDF.")
+                        Text("3. RIEPILOGO", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.FilterList, "Filtri", "Filtra per periodo, singolo bracciante o gruppo per isolare i dati che ti servono.")
+                        HelpRow(Icons.Default.Group, "Bracc./Gruppi", "Visualizza i costi e le ore per ogni lavoratore o gruppo.")
+                        HelpRow(Icons.Default.ListAlt, "Vista (📝/📊)", "Passa dal dettaglio ai totali per lavoratore/gruppo.")
+                        HelpRow(Icons.Default.Share, "Esporta", "Genera il PDF professionale o invia il riepilogo testuale su WhatsApp.")
+                    }
+                    route == Screen.WorkerRegistry.route -> {
+                        Text("4. BRACCIANTI", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.Badge, "Anagrafica", "Gestisci nomi e paga oraria.")
+                        HelpRow(Icons.Default.Groups, "Gruppi", "Crea gruppi di lavoratori (es. 'Squadra A') per aggiungere gli orari di tutti i componenti nelle giornate di lavoro.")
+                        HelpRow(Icons.Default.Search, "Ricerca", "Usa la lente d'ingrandimento per trovare velocemente un bracciante nell'elenco.")
                     }
                     route == Screen.Others.route -> {
-                        Text("Impostazioni e Backup", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                        HelpRow(Icons.Default.Badge, "Dati Titolare", "Imposta i tuoi dati che appariranno nei PDF.")
-                        HelpRow(Icons.Default.Backup, "Backup CSV", "Esporta i dati in Excel per sicurezza o archiviazione.")
-                        HelpRow(Icons.Default.Storage, "Ripristino", "Importa i dati da un file CSV precedentemente salvato.")
+                        Text("5. VARIE", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.Business, "Dati Azienda", "Configura l'intestazione (Nome, P.IVA, etc.) che apparirà nei tuoi documenti PDF.")
+                        HelpRow(Icons.Default.Backup, "Backup", "Esporta i dati in formato CSV per sicurezza o per aprirli in Excel/Google Sheets.")
+                    }
+                    isModificaOrari -> {
+                        Text("6. MODIFICA ORARI", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        HelpRow(Icons.Default.Add, "Tasti +/-", "Modifica l'orario a scatti di 15 minuti. Tieni premuto per uno scorrimento veloce.")
+                        HelpRow(Icons.Default.Edit, "Manuale", "Tocca l'orario (testo) per inserire le ore precise con la tastiera.")
+                        HelpRow(Icons.Default.DateRange, "Espandi", "Check che consente di accedere ad un selettore dove è possibile impostare una data futura. Alla conferma gli orari verranno replicati fino alla data scelta.")
                     }
                     else -> {
                         Text("Benvenuto", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
