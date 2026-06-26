@@ -34,7 +34,7 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.input.pointer.pointerInput
 import java.text.SimpleDateFormat
 import androidx.compose.material.icons.filled.Warning
-import com.example.gestbraccianti.ui.utils.formatDecimalHours
+import com.example.gestbraccianti.ui.utils.formatHours
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,7 +122,7 @@ fun WorkDayDetailScreen(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        text = "Totale: ${formatDecimalHours(log.totalHours)} h",
+                                        text = "Totale: ${formatHours(log.totalHours)} h",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )

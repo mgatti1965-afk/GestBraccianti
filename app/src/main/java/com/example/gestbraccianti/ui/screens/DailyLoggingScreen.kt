@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
+import com.example.gestbraccianti.ui.utils.formatHours
+import com.example.gestbraccianti.ui.utils.formatDecimal
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -174,7 +176,7 @@ fun DailyLoggingScreen(
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                     Text(
-                                        text = "$totalWorkers bracc. • ${String.format(Locale.ITALY, "%.1f", totalHours)} ore",
+                                        text = "$totalWorkers bracc. • ${formatHours(totalHours)} ore",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -291,7 +293,7 @@ fun DayCell(
                 )
                 if (hasWorked) {
                     Text(
-                        text = "${String.format(Locale.ITALY, "%.0f", totalHours)}h",
+                        text = "${formatHours(totalHours!!)}h",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )

@@ -7,6 +7,9 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
+import com.example.gestbraccianti.ui.utils.formatCurrency
+import com.example.gestbraccianti.ui.utils.formatDecimal
+import com.example.gestbraccianti.ui.utils.formatHours
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -125,7 +128,7 @@ fun generatePdfReport(
                     checkNewPage()
                     canvas.drawText("• ${group.name}", margin + 10f, y, boldPaint)
                     y += 18f
-                    canvas.drawText("  Totale: ${formatDecimalHours(hours)}h | ${String.format(Locale.ITALY, "%.2f €", earnings)}", margin + 10f, y, bodyPaint)
+                    canvas.drawText("  Totale: ${formatHours(hours)}h | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint)
                     y += 22f
                 }
             }
@@ -137,7 +140,7 @@ fun generatePdfReport(
                 checkNewPage()
                 canvas.drawText("• Senza Gruppo", margin + 10f, y, boldPaint)
                 y += 18f
-                canvas.drawText("  Totale: ${formatDecimalHours(hours)}h | ${String.format(Locale.ITALY, "%.2f €", earnings)}", margin + 10f, y, bodyPaint)
+                canvas.drawText("  Totale: ${formatHours(hours)}h | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint)
                 y += 22f
             }
         } else if (viewMode == com.example.gestbraccianti.ui.screens.ViewMode.TOTALS) {
@@ -151,7 +154,7 @@ fun generatePdfReport(
                 checkNewPage()
                 canvas.drawText("• $workerName", margin + 10f, y, boldPaint)
                 y += 18f
-                canvas.drawText("  Totale: ${formatDecimalHours(hours)}h | ${String.format(Locale.ITALY, "%.2f €", earnings)}", margin + 10f, y, bodyPaint)
+                canvas.drawText("  Totale: ${formatHours(hours)}h | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint)
                 y += 22f
             }
         } else {
@@ -159,8 +162,8 @@ fun generatePdfReport(
             mLogs.sortedBy { it.date }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                val earnStr = String.format(Locale.ITALY, "%.2f €", log.totalHours * log.hourlyRate)
-                val line = "• ${daySdf.format(Date(log.date))} $workerName: ${formatDecimalHours(log.totalHours)}h | $earnStr"
+                val earnStr = formatCurrency(log.totalHours * log.hourlyRate)
+                val line = "• ${daySdf.format(Date(log.date))} $workerName: ${formatHours(log.totalHours)}h | $earnStr"
                 
                 checkNewPage()
                 canvas.drawText(line, margin + 10f, y, bodyPaint)
@@ -170,11 +173,11 @@ fun generatePdfReport(
 
         val totalMonthHours = mLogs.sumOf { it.totalHours }
         val totalMonthEarnings = mLogs.sumOf { it.totalHours * it.hourlyRate }
-        val totMonthEarnStr = String.format(Locale.ITALY, "%.2f €", totalMonthEarnings)
+        val totMonthEarnStr = formatCurrency(totalMonthEarnings)
         
         checkNewPage()
         y += 5f
-        canvas.drawText("TOTALE PERIODO: ${formatDecimalHours(totalMonthHours)}h | $totMonthEarnStr", margin + 10f, y, boldPaint)
+        canvas.drawText("TOTALE PERIODO: ${formatHours(totalMonthHours)}h | $totMonthEarnStr", margin + 10f, y, boldPaint)
         y += 35f
         
         totalOverallHours += totalMonthHours
@@ -188,9 +191,9 @@ fun generatePdfReport(
     y += 25f
     canvas.drawText("RIEPILOGO COMPLESSIVO", margin, y, headerPaint)
     y += 20f
-    canvas.drawText("Ore totali: ${formatDecimalHours(totalOverallHours)} h", margin, y, bodyPaint)
+    canvas.drawText("Ore totali: ${formatHours(totalOverallHours)} h", margin, y, bodyPaint)
     y += 18f
-    val totalEarnStr = String.format(Locale.ITALY, "%.2f €", totalOverallEarnings)
+    val totalEarnStr = formatCurrency(totalOverallEarnings)
     canvas.drawText("Importo totale: $totalEarnStr", margin, y, boldPaint)
 
     pdfDocument.finishPage(myPage)

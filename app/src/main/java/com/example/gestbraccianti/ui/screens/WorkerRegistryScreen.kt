@@ -189,7 +189,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = String.format(Locale.ITALY, "Tariffa: %.2f €/h", rate),
+                                        text = "Tariffa: ${com.example.gestbraccianti.ui.utils.formatCurrency(rate)}/h",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Medium
@@ -407,7 +407,7 @@ fun AddEditWorkerDialog(
     var name by remember(worker) { mutableStateOf(worker?.name ?: "") }
     var surname by remember(worker) { mutableStateOf(worker?.surname ?: "") }
     var phoneNumber by remember(worker) { mutableStateOf(worker?.phoneNumber ?: "") }
-    var rate by remember(initialRate) { mutableStateOf(if (initialRate > 0) String.format(Locale.ITALY, "%.2f", initialRate) else "") }
+    var rate by remember(initialRate) { mutableStateOf(if (initialRate > 0) com.example.gestbraccianti.ui.utils.formatDecimal(initialRate) else "") }
     val context = LocalContext.current
 
     val contactPickerLauncher = rememberLauncherForActivityResult(

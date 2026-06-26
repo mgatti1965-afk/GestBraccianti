@@ -23,14 +23,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
-import com.example.gestbraccianti.ui.utils.formatDecimalHours
+import com.example.gestbraccianti.ui.utils.formatHours
 import com.example.gestbraccianti.ui.utils.generatePdfReport
+import com.example.gestbraccianti.ui.utils.formatCurrency
+import com.example.gestbraccianti.ui.utils.formatDecimal
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
 import kotlinx.coroutines.flow.first
@@ -59,7 +62,6 @@ data class AggregatedSummary(
     val totalEarnings: Double
 )
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGroupViewModel) {
@@ -84,9 +86,9 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
     }
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     
     var showReportDialog by remember { mutableStateOf(false) }
+    var selectedWorkerIdForReport by remember { mutableStateOf<Long?>(null) }
     var selectedLogForDetail by remember { mutableStateOf<WorkLog?>(null) }
     var selectedTotalForDetail by remember { mutableStateOf<AggregatedSummary?>(null) }
 
@@ -150,11 +152,14 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
         floatingActionButton = {
             if (filteredLogs.isNotEmpty()) {
                 FloatingActionButton(
-                    onClick = { showReportDialog = true },
+                    onClick = { 
+                        selectedWorkerIdForReport = null
+                        showReportDialog = true 
+                    },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Icon(Icons.Default.Share, contentDescription = "Condividi Riepilogo")
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = "Esporta PDF")
                 }
             }
         }
@@ -164,104 +169,115 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 onDismissRequest = { showReportDialog = false },
                 title = { 
                     Text(
-                        text = if (groupingType == GroupingType.BY_GROUP) "Esporta Riepilogo Gruppi" else "Opzioni Report",
+                        text = "Genera Report PDF",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     ) 
                 },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // Sezione Export per quello che si vede a video
-                        Text(
-                            text = if (groupingType == GroupingType.BY_GROUP) "Esporta dati come visualizzati a video:" 
-                                   else "Esporta tutti i braccianti (come a video):",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = {
-                                    showReportDialog = false
-                                    val reportText = generateUnifiedReport(
-                                        context = context,
-                                        logs = filteredLogs,
-                                        yearStats = stats,
-                                        filterTitle = filters[selectedFilter],
-                                        referenceDate = referenceDate,
-                                        groupingType = groupingType,
-                                        viewMode = viewMode,
-                                        groups = groups,
-                                        groupToWorkers = groupToWorkers
-                                    )
-                                    shareReport(context, reportText)
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) { 
-                                Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Testo") 
-                            }
+                        if (groupingType == GroupingType.BY_GROUP) {
+                            Text(
+                                text = "Verrà generato il PDF per i gruppi come visualizzati a video.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        } else {
+                            Text(
+                                text = "Seleziona i braccianti da includere:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                             
-                            Button(
-                                onClick = {
-                                    showReportDialog = false
-                                    val pdfFile = generatePdfReport(
-                                        context = context,
-                                        logs = filteredLogs,
-                                        yearStats = stats,
-                                        filterTitle = filters[selectedFilter],
-                                        referenceDate = referenceDate,
-                                        groupingType = groupingType,
-                                        viewMode = viewMode,
-                                        groups = groups,
-                                        groupToWorkers = groupToWorkers
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedWorkerIdForReport = null }
+                                        .background(
+                                            if (selectedWorkerIdForReport == null) MaterialTheme.colorScheme.primaryContainer 
+                                            else MaterialTheme.colorScheme.surface,
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .border(
+                                            1.dp, 
+                                            if (selectedWorkerIdForReport == null) MaterialTheme.colorScheme.primary 
+                                            else MaterialTheme.colorScheme.outline,
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(12.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = selectedWorkerIdForReport == null,
+                                        onClick = { selectedWorkerIdForReport = null }
                                     )
-                                    if (pdfFile != null) sharePdf(context, pdfFile)
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                            ) { 
-                                Icon(Icons.Default.PictureAsPdf, null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("PDF")
-                            }
-                        }
+                                    Text("Tutti i braccianti", style = MaterialTheme.typography.bodyLarge)
+                                }
 
-                        // Se siamo in modalità braccianti, permettiamo la scelta del singolo
-                        if (groupingType == GroupingType.BY_WORKER) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                            Text("Oppure seleziona un singolo bracciante:", style = MaterialTheme.typography.labelMedium)
-                            
-                            val workersInPeriod = filteredLogs.map { it.workerId }.distinct()
-                            LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                                items(workersInPeriod, key = { it }) { wId ->
-                                    val w = stats.find { it.workerId == wId }
-                                    OutlinedButton(
-                                        onClick = {
-                                            showReportDialog = false
-                                            val workerLogs = filteredLogs.filter { it.workerId == wId }
-                                            val reportText = generateUnifiedReport(
-                                                context = context,
-                                                logs = workerLogs,
-                                                yearStats = stats,
-                                                filterTitle = filters[selectedFilter],
-                                                referenceDate = referenceDate,
-                                                groupingType = GroupingType.BY_WORKER,
-                                                viewMode = viewMode
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                
+                                val workersInPeriod = filteredLogs.map { it.workerId }.distinct()
+                                LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                                    items(workersInPeriod, key = { it }) { wId ->
+                                        val w = stats.find { it.workerId == wId }
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 2.dp)
+                                                .clickable { selectedWorkerIdForReport = wId }
+                                                .background(
+                                                    if (selectedWorkerIdForReport == wId) MaterialTheme.colorScheme.primaryContainer 
+                                                    else MaterialTheme.colorScheme.surface,
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .border(
+                                                    1.dp,
+                                                    if (selectedWorkerIdForReport == wId) MaterialTheme.colorScheme.primary 
+                                                    else MaterialTheme.colorScheme.outline,
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .padding(8.dp)
+                                        ) {
+                                            RadioButton(
+                                                selected = selectedWorkerIdForReport == wId,
+                                                onClick = { selectedWorkerIdForReport = wId }
                                             )
-                                            shareReport(context, reportText)
-                                        },
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                                    ) {
-                                        Text("${w?.surname ?: ""} ${w?.name ?: "Bracc. $wId"}")
+                                            Text("${w?.surname ?: ""} ${w?.name ?: "Bracc. $wId"}")
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 },
-                confirmButton = {},
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showReportDialog = false
+                            val logsToExport = if (selectedWorkerIdForReport == null) {
+                                filteredLogs
+                            } else {
+                                filteredLogs.filter { it.workerId == selectedWorkerIdForReport }
+                            }
+                            
+                            val pdfFile = generatePdfReport(
+                                context = context,
+                                logs = logsToExport,
+                                yearStats = stats,
+                                filterTitle = filters[selectedFilter],
+                                referenceDate = referenceDate,
+                                groupingType = if (selectedWorkerIdForReport != null) GroupingType.BY_WORKER else groupingType,
+                                viewMode = viewMode,
+                                groups = groups,
+                                groupToWorkers = groupToWorkers
+                            )
+                            if (pdfFile != null) sharePdf(context, pdfFile)
+                        }
+                    ) {
+                        Text("Genera PDF")
+                    }
+                },
                 dismissButton = {
                     TextButton(onClick = { showReportDialog = false }) { Text("Annulla") }
                 }
@@ -503,7 +519,7 @@ fun GroupedFinancialView(
                                     fontWeight = FontWeight.Bold
                                 )
                                 if (effectiveRate > 0) {
-                                    val rateStr = String.format(Locale.ITALY, "%.2f", effectiveRate)
+                                    val rateStr = formatDecimal(effectiveRate)
                                     Text(
                                         text = "@ $rateStr €/h",
                                         style = MaterialTheme.typography.labelSmall,
@@ -513,13 +529,12 @@ fun GroupedFinancialView(
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "${formatDecimalHours(log.totalHours)} h",
+                                    text = "${formatHours(log.totalHours)} h",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                val earnStr = String.format(Locale.ITALY, "%.2f €", earnings)
                                 Text(
-                                    text = earnStr,
+                                    text = formatCurrency(earnings),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -560,15 +575,14 @@ fun GroupedFinancialView(
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                formatDecimalHours(mHours),
+                                formatHours(mHours),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(" h", style = MaterialTheme.typography.labelSmall)
                             Spacer(modifier = Modifier.width(16.dp))
-                            val mEarnStr = String.format(Locale.ITALY, "%.2f €", mEarnings)
                             Text(
-                                text = mEarnStr,
+                                text = formatCurrency(mEarnings),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary
@@ -624,7 +638,7 @@ fun GroupedFinancialView(
                                 )
                             }
                             Text(
-                                text = "${formatDecimalHours(yHours)} h",
+                                text = "${formatHours(yHours)} h",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -652,9 +666,8 @@ fun GroupedFinancialView(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                             }
-                            val yEarnStr = String.format(Locale.ITALY, "%.2f €", yEarnings)
                             Text(
-                                text = yEarnStr,
+                                text = formatCurrency(yEarnings),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -694,13 +707,12 @@ fun SummaryCard(title: String, subtitle: String, hours: Double, earnings: Double
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${formatDecimalHours(hours)} h",
+                    text = "${formatHours(hours)} h",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                val earnStr = String.format(Locale.ITALY, "%.2f €", earnings)
                 Text(
-                    text = earnStr,
+                    text = formatCurrency(earnings),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -708,148 +720,6 @@ fun SummaryCard(title: String, subtitle: String, hours: Double, earnings: Double
             }
         }
     }
-}
-
-fun generateUnifiedReport(
-    context: Context,
-    logs: List<WorkLog>,
-    yearStats: List<WorkerYearStats>,
-    filterTitle: String,
-    referenceDate: Long,
-    groupingType: GroupingType = GroupingType.BY_WORKER,
-    viewMode: ViewMode = ViewMode.DETAIL,
-    groups: List<com.example.gestbraccianti.data.entity.WorkerGroup> = emptyList(),
-    groupToWorkers: Map<Long, List<Long>> = emptyMap()
-): String {
-    val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
-    val ownerName = prefs.getString("owner_name", "") ?: ""
-    val ownerSurname = prefs.getString("owner_surname", "") ?: ""
-    
-    val sdf = when (filterTitle) {
-        "Mese" -> SimpleDateFormat("MMMM yyyy", Locale.ITALY)
-        "Settimana" -> SimpleDateFormat("'Settimana' w, yyyy", Locale.ITALY)
-        "Giorno" -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY)
-        else -> SimpleDateFormat("yyyy", Locale.ITALY)
-    }
-    val period = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() }
-
-    val sb = StringBuilder()
-    sb.append("*RIEPILOGO PRESENZE E COMPENSI*\n")
-    if (ownerSurname.isNotBlank() || ownerName.isNotBlank()) {
-        sb.append("Azienda: $ownerSurname $ownerName\n")
-    }
-    sb.append("Periodo: $period\n")
-    val modeText = if (groupingType == GroupingType.BY_GROUP) "Raggruppamento: Gruppi" else "Raggruppamento: Braccianti"
-    val viewText = if (viewMode == ViewMode.TOTALS) "Vista: Solo Totali" else "Vista: Dettaglio"
-    sb.append("$modeText | $viewText\n")
-    sb.append("----------------------------------\n\n")
-
-    val workerMap = yearStats.associateBy { it.workerId }
-    val calendar = Calendar.getInstance(Locale.ITALY)
-    val daySdf = SimpleDateFormat("dd/MM", Locale.ITALY)
-
-    fun formatInterval(start: String?, end: String?): String {
-        return if (!start.isNullOrBlank() && !end.isNullOrBlank()) "$start-$end" else ""
-    }
-
-    fun formatLogLine(dateStr: String, workerName: String, log: WorkLog): String {
-        val morning = formatInterval(log.morningStart, log.morningEnd)
-        val afternoon = formatInterval(log.afternoonStart, log.afternoonEnd)
-        val times = listOfNotNull(morning.takeIf { it.isNotEmpty() }, afternoon.takeIf { it.isNotEmpty() }).joinToString(" ")
-        
-        val hoursStr = formatDecimalHours(log.totalHours)
-        val earnStr = String.format(Locale.ITALY, "%.2f", log.totalHours * log.hourlyRate)
-        
-        return "📅 $dateStr | $workerName\n   🕒 $times | ⌛ ${hoursStr}h | 💶 $earnStr€\n"
-    }
-    
-    // Group logs by month for consistency with UI
-    val monthlyLogs = logs.groupBy { log ->
-        calendar.timeInMillis = log.date
-        calendar.get(Calendar.MONTH)
-    }.toSortedMap()
-
-    var totalOverallHours = 0.0
-    var totalOverallEarnings = 0.0
-
-    monthlyLogs.forEach { (monthIdx, mLogs) ->
-        calendar.set(Calendar.MONTH, monthIdx)
-        val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).uppercase()
-        sb.append("*$monthName*\n")
-
-        if (groupingType == GroupingType.BY_GROUP) {
-            groups.forEach { group ->
-                val workersInGroup = groupToWorkers[group.id] ?: emptyList()
-                val gLogs = mLogs.filter { it.workerId in workersInGroup }
-                if (gLogs.isNotEmpty()) {
-                    val hours = gLogs.sumOf { it.totalHours }
-                    val earnings = gLogs.sumOf { it.totalHours * it.hourlyRate }
-                    sb.append("• ${group.name}\n")
-                    sb.append("  Totale: ${formatDecimalHours(hours)}h | ${String.format(Locale.ITALY, "%.2f €", earnings)}\n")
-                }
-            }
-            val allGroupWorkers = groupToWorkers.values.flatten().toSet()
-            val noGroupLogs = mLogs.filter { it.workerId !in allGroupWorkers }
-            if (noGroupLogs.isNotEmpty()) {
-                val hours = noGroupLogs.sumOf { it.totalHours }
-                val earnings = noGroupLogs.sumOf { it.totalHours * it.hourlyRate }
-                sb.append("• Senza Gruppo\n")
-                sb.append("  Totale: ${formatDecimalHours(hours)}h | ${String.format(Locale.ITALY, "%.2f €", earnings)}\n")
-            }
-        } else if (viewMode == ViewMode.TOTALS) {
-            mLogs.groupBy { it.workerId }.forEach { (wId, wLogs) ->
-                val worker = workerMap[wId]
-                val workerName = "${worker?.surname ?: ""} ${worker?.name ?: "Bracc. $wId"}"
-                val hours = wLogs.sumOf { it.totalHours }
-                val earnings = wLogs.sumOf { it.totalHours * it.hourlyRate }
-                sb.append("• $workerName\n")
-                sb.append("  Totale: ${formatDecimalHours(hours)}h | ${String.format(Locale.ITALY, "%.2f €", earnings)}\n")
-            }
-        } else {
-            mLogs.sortedBy { it.date }.forEach { log ->
-                val worker = workerMap[log.workerId]
-                val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
-                sb.append(formatLogLine(daySdf.format(Date(log.date)), workerName, log))
-            }
-        }
-
-        val totalMonthHours = mLogs.sumOf { it.totalHours }
-        val totalMonthEarnings = mLogs.sumOf { it.totalHours * it.hourlyRate }
-        sb.append("TOTALE PERIODO: ${formatDecimalHours(totalMonthHours)}h | ${String.format(Locale.ITALY, "%.2f €", totalMonthEarnings)}\n\n")
-
-        totalOverallHours += totalMonthHours
-        totalOverallEarnings += totalMonthEarnings
-    }
-
-    sb.append("----------------------------------\n")
-    sb.append("*TOTALE COMPLESSIVO*\n")
-    sb.append("Ore totali: ${formatDecimalHours(totalOverallHours)} h\n")
-    sb.append("Importo totale: ${String.format(Locale.ITALY, "%.2f", totalOverallEarnings)} €\n")
-
-    return sb.toString()
-}
-
-fun shareReport(context: Context, text: String) {
-    val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
-    val ownerPhone = prefs.getString("owner_phone", "") ?: ""
-    val cleanPhone = ownerPhone.filter { it.isDigit() || it == '+' }
-    
-    if (cleanPhone.isNotBlank()) {
-        try {
-            val url = "https://wa.me/$cleanPhone?text=${Uri.encode(text)}"
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = url.toUri()
-                setPackage("com.whatsapp")
-            }
-            context.startActivity(intent)
-            return
-        } catch (_: Exception) {}
-    }
-    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
-    }
-    context.startActivity(Intent.createChooser(sendIntent, "Invia riepilogo..."))
 }
 
 fun sharePdf(context: Context, file: File) {
@@ -927,10 +797,10 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DetailRow(label = "Totale Ore", value = "${formatDecimalHours(summary.totalHours)} h", isBold = true)
+                        DetailRow(label = "Totale Ore", value = "${formatHours(summary.totalHours)} h", isBold = true)
                         DetailRow(
                             label = "Importo Totale", 
-                            value = String.format(Locale.ITALY, "%.2f €", summary.totalEarnings),
+                            value = formatCurrency(summary.totalEarnings),
                             isBold = true,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -975,11 +845,11 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
                         DetailRow(label = "Mattina", value = formatInterval(log.morningStart, log.morningEnd))
                         DetailRow(label = "Pomeriggio", value = formatInterval(log.afternoonStart, log.afternoonEnd))
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                        DetailRow(label = "Totale Ore", value = "${formatDecimalHours(log.totalHours)} h", isBold = true)
-                        DetailRow(label = "Tariffa", value = String.format(Locale.ITALY, "%.2f €/h", log.hourlyRate))
+                        DetailRow(label = "Totale Ore", value = "${formatHours(log.totalHours)} h", isBold = true)
+                        DetailRow(label = "Tariffa", value = "${formatCurrency(log.hourlyRate)}/h")
                         DetailRow(
                             label = "Importo", 
-                            value = String.format(Locale.ITALY, "%.2f €", log.totalHours * log.hourlyRate),
+                            value = formatCurrency(log.totalHours * log.hourlyRate),
                             isBold = true,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -999,11 +869,14 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
 }
 
 @Composable
-private fun DetailRow(label: String, value: String, isBold: Boolean = false, color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+fun DetailRow(label: String, value: String, isBold: Boolean = false, color: Color = Color.Unspecified) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
         Text(
-            text = value.ifBlank { "-" },
+            text = value, 
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
             color = color
@@ -1011,8 +884,8 @@ private fun DetailRow(label: String, value: String, isBold: Boolean = false, col
     }
 }
 
-private fun formatInterval(start: String?, end: String?): String {
-    return if (!start.isNullOrBlank() && !end.isNullOrBlank()) "$start - $end" else ""
+fun formatInterval(start: String?, end: String?): String {
+    return if (!start.isNullOrBlank() && !end.isNullOrBlank()) "$start - $end" else "N/A"
 }
 
 @Composable
@@ -1023,75 +896,38 @@ fun PeriodNavigation(
     onNext: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
-    val currentYearInRef = calendar.get(Calendar.YEAR)
+    val calendar = Calendar.getInstance(Locale.ITALY)
+    calendar.timeInMillis = referenceDate
 
-    // Logica di blocco rigorosa: non si può mai uscire dall'anno selezionato (currentYearInRef)
-    val canGoPrev = when (selectedFilter) {
-        0 -> false // Filtro "Anno": bloccato, non si cambia anno dalle frecce
-        1 -> calendar.get(Calendar.MONTH) > Calendar.JANUARY // Resta nell'anno (min Gennaio)
+    val label = when (selectedFilter) {
+        0 -> calendar.get(Calendar.YEAR).toString()
+        1 -> SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time)
         2 -> {
-            // Verifica se la settimana precedente appartiene ancora allo stesso anno
-            val tempCal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
-            tempCal.add(Calendar.WEEK_OF_YEAR, -1)
-            tempCal.get(Calendar.YEAR) == currentYearInRef
+            val start = calendar.time
+            calendar.add(Calendar.DAY_OF_YEAR, 6)
+            val end = calendar.time
+            val sdf = SimpleDateFormat("d MMM", Locale.ITALY)
+            "${sdf.format(start)} - ${sdf.format(end)}"
         }
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) > 1 // Resta nell'anno (min 1 Gennaio)
-        else -> false
-    }
-
-    val canGoNext = when (selectedFilter) {
-        0 -> false // Filtro "Anno": bloccato
-        1 -> calendar.get(Calendar.MONTH) < Calendar.DECEMBER // Resta nell'anno (max Dicembre)
-        2 -> {
-            // Verifica se la settimana successiva appartiene ancora allo stesso anno
-            val tempCal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = referenceDate }
-            tempCal.add(Calendar.WEEK_OF_YEAR, 1)
-            tempCal.get(Calendar.YEAR) == currentYearInRef
-        }
-        3 -> calendar.get(Calendar.DAY_OF_YEAR) < calendar.getActualMaximum(Calendar.DAY_OF_YEAR) // Resta nell'anno (max 31 Dicembre)
-        else -> false
-    }
-
-    val sdf = remember(selectedFilter) {
-        when (selectedFilter) {
-            0 -> SimpleDateFormat("yyyy", Locale.ITALY)
-            1 -> SimpleDateFormat("MMMM yyyy", Locale.ITALY)
-            2 -> SimpleDateFormat("'Settimana' w, yyyy", Locale.ITALY)
-            3 -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY)
-            else -> SimpleDateFormat("dd/MM/yyyy", Locale.ITALY)
-        }
-    }
+        3 -> SimpleDateFormat("EEE d MMMM yyyy", Locale.ITALY).format(calendar.time)
+        else -> ""
+    }.replaceFirstChar { it.uppercase() }
 
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        IconButton(onClick = onPrev, enabled = canGoPrev) {
-            Icon(
-                Icons.Default.ChevronLeft,
-                contentDescription = "Precedente",
-                tint = if (canGoPrev) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            )
+        IconButton(onClick = onPrev) {
+            Icon(Icons.Default.ChevronLeft, contentDescription = "Precedente")
         }
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            DynamicCalendarIcon(date = referenceDate)
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        IconButton(onClick = onNext, enabled = canGoNext) {
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = "Successivo",
-                tint = if (canGoNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        IconButton(onClick = onNext) {
+            Icon(Icons.Default.ChevronRight, contentDescription = "Successivo")
         }
     }
 }
