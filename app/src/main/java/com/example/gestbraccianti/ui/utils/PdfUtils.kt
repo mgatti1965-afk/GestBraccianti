@@ -202,7 +202,9 @@ fun generatePdfReport(
     val directory = File(context.getExternalFilesDir(null), "reports")
     if (!directory.exists()) directory.mkdirs()
     
-    val fileName = "Riepilogo_${System.currentTimeMillis()}.pdf"
+    val fileSdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
+    val timestamp = fileSdf.format(Date())
+    val fileName = "GestBraccianti_Rep_$timestamp.pdf"
     val file = File(directory, fileName)
 
     try {

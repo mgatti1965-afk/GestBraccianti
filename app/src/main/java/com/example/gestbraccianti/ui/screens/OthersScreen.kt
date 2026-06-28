@@ -155,7 +155,7 @@ fun OthersScreen(
                                 val timestamp = sdf.format(Date())
                                 val internalBackupDir = File(context.getExternalFilesDir(null), "backups")
                                 if (!internalBackupDir.exists()) internalBackupDir.mkdirs()
-                                val internalFile = File(internalBackupDir, "backup_$timestamp.csv")
+                                val internalFile = File(internalBackupDir, "GestBraccianti_Bkp_$timestamp.csv")
                                 
                                 context.contentResolver.openInputStream(destUri)?.use { input ->
                                     FileOutputStream(internalFile).use { output ->
@@ -182,7 +182,11 @@ fun OthersScreen(
         val regex = Regex("(\\d{8})_\\d{4}")
         val match = regex.find(fileName)
         
-        if (fileName.startsWith("gest_braccianti_") || fileName.startsWith("backup_")) {
+        val isRecognized = fileName.startsWith("GestBraccianti_Bkp_", ignoreCase = true) || 
+                          fileName.startsWith("gest_braccianti_", ignoreCase = true) || 
+                          fileName.startsWith("backup_", ignoreCase = true)
+
+        if (isRecognized) {
             if (match != null) {
                 val datePart = match.groupValues[1]
                 try {
@@ -329,7 +333,7 @@ fun OthersScreen(
                         onExport = {
                             val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
                             val timestamp = sdf.format(Date())
-                            csvExportLauncher.launch("gest_braccianti_$timestamp.csv")
+                            csvExportLauncher.launch("GestBraccianti_Bkp_$timestamp.csv")
                         },
                         onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
                         onRestore = { file -> prepareImport(Uri.fromFile(file), file.name) },

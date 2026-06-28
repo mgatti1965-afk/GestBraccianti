@@ -1,39 +1,31 @@
 package com.example.gestbraccianti.ui.utils
 
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
+import java.text.NumberFormat
 import java.util.Locale
 
-private val symbols = DecimalFormatSymbols(Locale.ITALY).apply {
-    groupingSeparator = '.'
-    decimalSeparator = ','
-}
+private val italianLocale = Locale.ITALY
 
 /**
- * Formats a double as currency with thousands separator (dot) and decimal (comma).
- * Example: 1234.56 -> "1.234,56 €"
+ * Formatta un importo come valuta italiana (€) con separatore migliaia (punto) e decimali (virgola).
  */
 fun formatCurrency(amount: Double): String {
-    val formatter = DecimalFormat("#,##0.00 '€'", symbols)
+    val formatter = NumberFormat.getCurrencyInstance(italianLocale)
     return formatter.format(amount)
 }
 
 /**
- * Formats a double with thousands separator (dot) and a fixed number of decimals (comma).
- * Example: 1234.5 -> "1.234,50"
+ * Formatta un numero con stile italiano (punto per le migliaia, virgola per i decimali).
  */
 fun formatDecimal(value: Double, decimals: Int = 2): String {
-    val pattern = StringBuilder("#,##0")
-    if (decimals > 0) {
-        pattern.append(".")
-        repeat(decimals) { pattern.append("0") }
-    }
-    val formatter = DecimalFormat(pattern.toString(), symbols)
+    val formatter = NumberFormat.getNumberInstance(italianLocale)
+    formatter.minimumFractionDigits = decimals
+    formatter.maximumFractionDigits = decimals
+    formatter.isGroupingUsed = true
     return formatter.format(value)
 }
 
 /**
- * Specific formatter for hours, ensuring thousands separator is present for large totals.
+ * Formatta le ore in formato decimale italiano (es: 1.250,50).
  */
 fun formatHours(hours: Double): String {
     return formatDecimal(hours, 2)
