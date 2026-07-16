@@ -22,19 +22,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
+import com.example.gestbraccianti.ui.utils.TimeUtils
+import com.example.gestbraccianti.ui.utils.formatHours
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.compose.ui.input.pointer.pointerInput
 import java.text.SimpleDateFormat
 import androidx.compose.material.icons.filled.Warning
-import com.example.gestbraccianti.ui.utils.formatHours
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,8 +68,6 @@ fun WorkDayDetailScreen(
         }
     }
 
-    val sdf = SimpleDateFormat("EEEE dd MMMM yyyy", Locale.ITALY)
-
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
             color = MaterialTheme.colorScheme.secondaryContainer,
@@ -77,10 +78,10 @@ fun WorkDayDetailScreen(
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
                 }
                 Text(
-                    text = sdf.format(Date(date)).replaceFirstChar { it.uppercase() },
+                    text = TimeUtils.format(date, TimeUtils.fullDateFormatter).replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(16.dp).weight(1f)
@@ -91,7 +92,7 @@ fun WorkDayDetailScreen(
         Box(modifier = Modifier.weight(1f)) {
             if (logsForDay.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nessun bracciante inserito per oggi.", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.no_workers_today), style = MaterialTheme.typography.titleMedium)
                 }
             } else {
                 LazyColumn(
@@ -118,17 +119,23 @@ fun WorkDayDetailScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "M: ${log.morningStart ?: "--"}-${log.morningEnd ?: "--"} | P: ${log.afternoonStart ?: "--"}-${log.afternoonEnd ?: "--"}",
+                                        text = stringResource(
+                                            R.string.time_range_summary,
+                                            log.morningStart ?: "--",
+                                            log.morningEnd ?: "--",
+                                            log.afternoonStart ?: "--",
+                                            log.afternoonEnd ?: "--"
+                                        ),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        text = "Totale: ${formatHours(log.totalHours)} h",
+                                        text = stringResource(R.string.total_hours_short, formatHours(log.totalHours)),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                                 IconButton(onClick = { workLogViewModel.deleteLog(log) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Rimuovi", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.remove_desc), tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
@@ -149,7 +156,7 @@ fun WorkDayDetailScreen(
                     modifier = Modifier.weight(1f),
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     icon = { Icon(Icons.Default.GroupAdd, contentDescription = null) },
-                    text = { Text("Gruppi", fontWeight = FontWeight.Bold) }
+                    text = { Text(stringResource(R.string.btn_groups), fontWeight = FontWeight.Bold) }
                 )
                 ExtendedFloatingActionButton(
                     onClick = {
@@ -159,7 +166,7 @@ fun WorkDayDetailScreen(
                     modifier = Modifier.weight(1f),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     icon = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
-                    text = { Text("Bracciante", fontWeight = FontWeight.Bold) }
+                    text = { Text(stringResource(R.string.btn_worker), fontWeight = FontWeight.Bold) }
                 )
             }
         }
@@ -279,16 +286,16 @@ fun AddGroupToDayDialog(
         val daysCount = ((endDate - currentDate) / (24 * 60 * 60 * 1000)).toInt() + 1
         AlertDialog(
             onDismissRequest = { showRangeConfirmDialog = false },
-            title = { Text("Inserimento orari per $daysCount giorni lavorativi.", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
-            text = { Text("Attenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
+            title = { Text(stringResource(R.string.range_confirm_title, daysCount), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.range_confirm_text)) },
             confirmButton = {
                 Button(onClick = {
                     showRangeConfirmDialog = false
                     selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
-                }) { Text("Conferma") }
+                }) { Text(stringResource(R.string.confirm_btn)) }
             },
             dismissButton = {
-                TextButton(onClick = { showRangeConfirmDialog = false }) { Text("Annulla") }
+                TextButton(onClick = { showRangeConfirmDialog = false }) { Text(stringResource(R.string.cancel_btn)) }
             }
         )
     }
@@ -299,12 +306,12 @@ fun AddGroupToDayDialog(
         // E non ci sono LaunchedEffect che ascoltano le modifiche manuali, quindi non succederà nulla dopo.
     }
     var expanded by remember { mutableStateOf(selectedGroup == null && groups.size > 1) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<Int?>(null) }
 
     fun isTimeRangeValid(start: String, end: String): Boolean {
         if (start.isBlank() || end.isBlank()) return true
         return try {
-            val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
+            val sdf = TimeUtils.timeFormatter
             val s = sdf.parse(start)
             val e = sdf.parse(end)
             s != null && e != null && e.after(s)
@@ -320,15 +327,15 @@ fun AddGroupToDayDialog(
 
     fun validateTimes(): Boolean {
         if (!isMorningValid) {
-            errorMessage = "Fine mattina deve essere dopo l'inizio"
+            errorMessage = R.string.error_morning_range
             return false
         }
         if (!isAfternoonValid) {
-            errorMessage = "Fine pomeriggio deve essere dopo l'inizio"
+            errorMessage = R.string.error_afternoon_range
             return false
         }
         if (morningStart.isBlank() && afternoonStart.isBlank()) {
-            errorMessage = "Inserire almeno un orario di inizio"
+            errorMessage = R.string.error_start_required
             return false
         }
         errorMessage = null
@@ -340,13 +347,13 @@ fun AddGroupToDayDialog(
         title = { 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Aggiungi Gruppo", 
+                    text = stringResource(R.string.add_group_title), 
                     style = MaterialTheme.typography.headlineSmall, 
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { onShowHelp("modifica_orari") }) {
-                    Icon(Icons.Default.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.HelpOutline, contentDescription = stringResource(R.string.help_desc), tint = MaterialTheme.colorScheme.primary)
                 }
             }
         },
@@ -357,7 +364,7 @@ fun AddGroupToDayDialog(
             ) {
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                     TextField(
-                        value = selectedGroup?.name ?: "Seleziona Gruppo",
+                        value = selectedGroup?.name ?: stringResource(R.string.select_group_hint),
                         onValueChange = {},
                         readOnly = true,
                         textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
@@ -379,7 +386,7 @@ fun AddGroupToDayDialog(
                 }
                 HorizontalDivider()
                 TimePickerSection(
-                    label = "Mattina",
+                    label = stringResource(R.string.morning_label),
                     start = morningStart,
                     end = morningEnd,
                     onStartChange = { morningStart = it },
@@ -391,7 +398,7 @@ fun AddGroupToDayDialog(
                 )
                 HorizontalDivider()
                 TimePickerSection(
-                    label = "Pomeriggio",
+                    label = stringResource(R.string.afternoon_label),
                     start = afternoonStart,
                     end = afternoonEnd,
                     onStartChange = { afternoonStart = it },
@@ -403,8 +410,8 @@ fun AddGroupToDayDialog(
                     defaultStart = "13:00",
                     defaultEnd = "17:00"
                 )
-                if (errorMessage != null) {
-                    Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                errorMessage?.let {
+                    Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -427,9 +434,9 @@ fun AddGroupToDayDialog(
                         selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
                     }
                 }
-            }, enabled = isFormValid) { Text("Salva") }
+            }, enabled = isFormValid) { Text(stringResource(R.string.btn_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_btn)) } }
     )
 }
 
@@ -452,7 +459,7 @@ fun TimePickerSection(
         Spacer(modifier = Modifier.height(4.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Inizio", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.start_label), style = MaterialTheme.typography.labelMedium)
                 TactileTimePicker(
                     value = start,
                     defaultValue = defaultStart,
@@ -462,7 +469,7 @@ fun TimePickerSection(
                 )
             }
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Fine", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.end_label), style = MaterialTheme.typography.labelMedium)
                 TactileTimePicker(
                     value = end,
                     defaultValue = defaultEnd,
@@ -510,12 +517,12 @@ fun TactileTimePicker(
         var tempTime by remember { mutableStateOf(value.ifBlank { defaultValue }) }
         AlertDialog(
             onDismissRequest = { showManualEdit = false },
-            title = { Text("Inserimento Manuale") },
+            title = { Text(stringResource(R.string.manual_entry_title)) },
             text = {
                 TextField(
                     value = tempTime, 
                     onValueChange = { tempTime = it }, 
-                    placeholder = { Text("HH:mm") }, 
+                    placeholder = { Text(stringResource(R.string.time_hint)) }, 
                     textStyle = MaterialTheme.typography.displaySmall.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Bold), 
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number), 
                     modifier = Modifier.fillMaxWidth(), 
@@ -528,9 +535,9 @@ fun TactileTimePicker(
                         onValueChange(tempTime)
                         showManualEdit = false 
                     }
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.ok_btn)) }
             },
-            dismissButton = { TextButton(onClick = { showManualEdit = false }) { Text("Annulla") } }
+            dismissButton = { TextButton(onClick = { showManualEdit = false }) { Text(stringResource(R.string.cancel_btn)) } }
         )
     }
 
@@ -540,7 +547,7 @@ fun TactileTimePicker(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Default.Add,
-            contentDescription = "Più"
+            contentDescription = stringResource(R.string.plus_desc)
         )
 
         Text(
@@ -566,12 +573,12 @@ fun TactileTimePicker(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             icon = Icons.Default.Remove,
-            contentDescription = "Meno"
+            contentDescription = stringResource(R.string.minus_desc)
         )
 
         if (value.isNotBlank()) {
             Text(
-                "CANCELLA", 
+                stringResource(R.string.clear_btn),
                 style = MaterialTheme.typography.labelSmall, 
                 color = MaterialTheme.colorScheme.error, 
                 fontWeight = FontWeight.Bold,
@@ -668,16 +675,16 @@ fun AddWorkerToDayDialog(
         val daysCount = ((endDate - currentDate) / (24 * 60 * 60 * 1000)).toInt() + 1
         AlertDialog(
             onDismissRequest = { showRangeConfirmDialog = false },
-            title = { Text("Inserimento orari per $daysCount giorni lavorativi.", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
-            text = { Text("Attenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?") },
+            title = { Text(stringResource(R.string.range_confirm_title, daysCount), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.range_confirm_text)) },
             confirmButton = {
                 Button(onClick = {
                     showRangeConfirmDialog = false
                     selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
-                }) { Text("Conferma") }
+                }) { Text(stringResource(R.string.confirm_btn)) }
             },
             dismissButton = {
-                TextButton(onClick = { showRangeConfirmDialog = false }) { Text("Annulla") }
+                TextButton(onClick = { showRangeConfirmDialog = false }) { Text(stringResource(R.string.cancel_btn)) }
             }
         )
     }
@@ -708,12 +715,12 @@ fun AddWorkerToDayDialog(
     // RIMOSSI I LAUNCHED EFFECT CHE CAUSAVANO IL DOMINO
 
     var expanded by remember { mutableStateOf(editingLog == null && selectedWorker == null && selectableWorkers.size > 1) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<Int?>(null) }
 
     fun isTimeRangeValid(start: String, end: String): Boolean {
         if (start.isBlank() || end.isBlank()) return true
         return try {
-            val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
+            val sdf = TimeUtils.timeFormatter
             val s = sdf.parse(start)
             val e = sdf.parse(end)
             s != null && e != null && e.after(s)
@@ -728,13 +735,13 @@ fun AddWorkerToDayDialog(
                      (morningStart.isNotBlank() || afternoonStart.isNotBlank())
 
     fun validateTimes(): Boolean {
-        val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
+        val sdf = TimeUtils.timeFormatter
         try {
             if (morningStart.isNotBlank() && morningEnd.isNotBlank()) {
                 val start = sdf.parse(morningStart)
                 val end = sdf.parse(morningEnd)
                 if (start != null && end != null && !end.after(start)) {
-                    errorMessage = "Fine mattina deve essere dopo l'inizio"
+                    errorMessage = R.string.error_morning_range
                     return false
                 }
             }
@@ -742,12 +749,12 @@ fun AddWorkerToDayDialog(
                 val start = sdf.parse(afternoonStart)
                 val end = sdf.parse(afternoonEnd)
                 if (start != null && end != null && !end.after(start)) {
-                    errorMessage = "Fine pomeriggio deve essere dopo l'inizio"
+                    errorMessage = R.string.error_afternoon_range
                     return false
                 }
             }
         } catch (_: Exception) {
-            errorMessage = "Formato orario non valido"
+            errorMessage = R.string.error_invalid_time
             return false
         }
         errorMessage = null
@@ -759,13 +766,13 @@ fun AddWorkerToDayDialog(
         title = { 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = if (editingLog == null) "Aggiungi Bracciante" else "Modifica Orari", 
+                    text = stringResource(if (editingLog == null) R.string.add_worker_desc else R.string.edit_hours_title), 
                     style = MaterialTheme.typography.headlineSmall, 
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { onShowHelp("modifica_orari") }) {
-                    Icon(Icons.Default.HelpOutline, contentDescription = "Aiuto", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.HelpOutline, contentDescription = stringResource(R.string.help_desc), tint = MaterialTheme.colorScheme.primary)
                 }
             }
         },
@@ -777,7 +784,7 @@ fun AddWorkerToDayDialog(
                 if (editingLog == null) {
                     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                         TextField(
-                            value = selectedWorker?.let { "${it.surname} ${it.name}".trim() } ?: "Seleziona Bracciante", 
+                            value = selectedWorker?.let { "${it.surname} ${it.name}".trim() } ?: stringResource(R.string.select_worker_hint), 
                             onValueChange = {}, 
                             readOnly = true, 
                             textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), 
@@ -798,11 +805,11 @@ fun AddWorkerToDayDialog(
                         }
                     }
                 } else {
-                    Text("Bracciante: ${selectedWorker?.surname} ${selectedWorker?.name}".trim(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.worker_label_prefix, "${selectedWorker?.surname} ${selectedWorker?.name}".trim()), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 TimePickerSection(
-                    label = "Mattina",
+                    label = stringResource(R.string.morning_label),
                     start = morningStart,
                     end = morningEnd,
                     onStartChange = { morningStart = it },
@@ -814,7 +821,7 @@ fun AddWorkerToDayDialog(
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 TimePickerSection(
-                    label = "Pomeriggio",
+                    label = stringResource(R.string.afternoon_label),
                     start = afternoonStart,
                     end = afternoonEnd,
                     onStartChange = { afternoonStart = it },
@@ -826,8 +833,8 @@ fun AddWorkerToDayDialog(
                     defaultStart = "13:00",
                     defaultEnd = "17:00"
                 )
-                if (errorMessage != null) {
-                    Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                errorMessage?.let {
+                    Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -850,9 +857,9 @@ fun AddWorkerToDayDialog(
                         selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
                     }
                 }
-            }, enabled = isFormValid) { Text("Salva") }
+            }, enabled = isFormValid) { Text(stringResource(R.string.btn_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_btn)) } }
     )
 }
 
@@ -864,8 +871,6 @@ fun ExpandPeriodSection(
     endDate: Long,
     onEndDateChange: (Long) -> Unit
 ) {
-    val sdf = SimpleDateFormat("EEE dd/MM/yyyy", Locale.ITALY)
-    
     val daysCount = remember(currentDate, endDate) {
         val diff = endDate - currentDate
         (diff / (24 * 60 * 60 * 1000)).toInt() + 1
@@ -877,12 +882,12 @@ fun ExpandPeriodSection(
             modifier = Modifier.fillMaxWidth().clickable { onExpandedChange(!isExpanded) }
         ) {
             Checkbox(checked = isExpanded, onCheckedChange = onExpandedChange)
-            Text("Espandi a più giorni", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.expand_period_label), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
         }
         
         if (isExpanded) {
             Column(modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)) {
-                Text("Data fine periodo:", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.end_date_label), style = MaterialTheme.typography.labelMedium)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -898,11 +903,11 @@ fun ExpandPeriodSection(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         icon = Icons.Default.Remove,
-                        contentDescription = "Meno un giorno"
+                        contentDescription = stringResource(R.string.prev_day_desc)
                     )
                     
                     Text(
-                        text = sdf.format(Date(endDate)).replaceFirstChar { it.uppercase() },
+                        text = TimeUtils.format(endDate, TimeUtils.shortDateDayFormatter).replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary,
@@ -921,12 +926,12 @@ fun ExpandPeriodSection(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         icon = Icons.Default.Add,
-                        contentDescription = "Più un giorno"
+                        contentDescription = stringResource(R.string.next_day_desc)
                     )
                 }
                 
                 Text(
-                    text = "Totale: $daysCount giorni",
+                    text = stringResource(R.string.total_days_label, daysCount),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 4.dp)
@@ -939,7 +944,7 @@ fun ExpandPeriodSection(
                     Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        "Gli orari esistenti nel periodo verranno sovrascritti.",
+                        stringResource(R.string.overwrite_warning),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error
                     )

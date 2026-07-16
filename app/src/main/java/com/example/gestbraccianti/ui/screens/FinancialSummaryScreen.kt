@@ -28,12 +28,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.gestbraccianti.R
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.utils.formatHours
 import com.example.gestbraccianti.ui.utils.generatePdfReport
 import com.example.gestbraccianti.ui.utils.formatCurrency
 import com.example.gestbraccianti.ui.utils.formatDecimal
+import com.example.gestbraccianti.ui.utils.TimeUtils
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
 import kotlinx.coroutines.flow.first
@@ -70,7 +73,12 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
     val referenceDate by viewModel.currentReferenceDate.collectAsState()
     val groups by groupViewModel.groupsForYear.collectAsState()
     var selectedFilter by remember { mutableIntStateOf(0) }
-    val filters = listOf("Anno", "Mese", "Settimana", "Giorno")
+    val filters = listOf(
+        stringResource(R.string.filter_year),
+        stringResource(R.string.filter_month),
+        stringResource(R.string.filter_week),
+        stringResource(R.string.filter_day)
+    )
     
     var groupingType by remember { mutableStateOf(GroupingType.BY_WORKER) }
     var viewMode by remember { mutableStateOf(ViewMode.DETAIL) }
@@ -159,7 +167,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = "Esporta PDF")
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = stringResource(R.string.export_pdf_desc))
                 }
             }
         }
@@ -169,7 +177,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 onDismissRequest = { showReportDialog = false },
                 title = { 
                     Text(
-                        text = "Genera Report PDF",
+                        text = stringResource(R.string.pdf_report_dialog_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     ) 
@@ -178,12 +186,12 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (groupingType == GroupingType.BY_GROUP) {
                             Text(
-                                text = "Verrà generato il PDF per i gruppi come visualizzati a video.",
+                                text = stringResource(R.string.pdf_group_desc),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         } else {
                             Text(
-                                text = "Seleziona i braccianti da includere:",
+                                text = stringResource(R.string.pdf_select_workers_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -211,7 +219,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                                         selected = selectedWorkerIdForReport == null,
                                         onClick = { selectedWorkerIdForReport = null }
                                     )
-                                    Text("Tutti i braccianti", style = MaterialTheme.typography.bodyLarge)
+                                    Text(stringResource(R.string.pdf_all_workers), style = MaterialTheme.typography.bodyLarge)
                                 }
 
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -275,11 +283,11 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                             if (pdfFile != null) sharePdf(context, pdfFile)
                         }
                     ) {
-                        Text("Genera PDF")
+                        Text(stringResource(R.string.btn_generate_pdf))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showReportDialog = false }) { Text("Annulla") }
+                    TextButton(onClick = { showReportDialog = false }) { Text(stringResource(R.string.cancel_btn)) }
                 }
             )
         }
@@ -319,7 +327,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 FilterChip(
                     selected = groupingType == GroupingType.BY_WORKER,
                     onClick = { groupingType = GroupingType.BY_WORKER },
-                    label = { Text("👤 Bracc.") },
+                    label = { Text(stringResource(R.string.chip_workers)) },
                     leadingIcon = if (groupingType == GroupingType.BY_WORKER) {
                         { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
                     } else null
@@ -330,7 +338,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         groupingType = GroupingType.BY_GROUP
                         viewMode = ViewMode.TOTALS
                     },
-                    label = { Text("👥 Gruppi") },
+                    label = { Text(stringResource(R.string.chip_groups)) },
                     leadingIcon = if (groupingType == GroupingType.BY_GROUP) {
                         { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
                     } else null
@@ -355,8 +363,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 if (filteredLogs.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = if (selectedFilter == 0) "Nessun movimento registrato nell'anno."
-                            else "Nessun dato disponibile per questa selezione.",
+                            text = if (selectedFilter == 0) stringResource(R.string.no_data_year)
+                            else stringResource(R.string.no_data_selection),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -393,7 +401,6 @@ fun GroupedFinancialView(
 ) {
     val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
     val calendar = remember { Calendar.getInstance(Locale.ITALY) }
-    val daySdf = remember { SimpleDateFormat("dd/MM", Locale.ITALY) }
 
     val monthlyLogs = remember(logs) {
         logs.groupBy { log ->
@@ -408,12 +415,7 @@ fun GroupedFinancialView(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         monthlyLogs.forEach { (monthIdx, mLogs) ->
-            val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(
-                Calendar.getInstance(Locale.ITALY).apply { 
-                    mLogs.firstOrNull()?.let { timeInMillis = it.date }
-                    set(Calendar.MONTH, monthIdx) 
-                }.time
-            ).replaceFirstChar { it.uppercase() }
+            val monthName = TimeUtils.formatMonth(mLogs.first().date)
 
             item {
                 Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)) {
@@ -462,10 +464,10 @@ fun GroupedFinancialView(
 
             if (groupingType == GroupingType.BY_GROUP) {
                 items(groupTotals, key = { "g_${monthIdx}_${it.first ?: -1}" }) { (gId, hours, earnings) ->
-                    val groupName = groups.find { it.id == gId }?.name ?: "Senza Gruppo"
+                    val groupName = groups.find { it.id == gId }?.name ?: stringResource(R.string.no_group_label)
                     SummaryCard(
                         title = groupName,
-                        subtitle = "Totale Gruppo",
+                        subtitle = stringResource(R.string.group_total_subtitle),
                         hours = hours,
                         earnings = earnings,
                         onClick = { onTotalClick(AggregatedSummary(groupName, monthName, hours, earnings)) }
@@ -477,7 +479,7 @@ fun GroupedFinancialView(
                     val workerName = "${worker?.surname ?: ""} ${worker?.name ?: "Bracc. $wId"}"
                     SummaryCard(
                         title = workerName,
-                        subtitle = "Totale Bracciante",
+                        subtitle = stringResource(R.string.worker_total_subtitle),
                         hours = hours,
                         earnings = earnings,
                         onClick = { onTotalClick(AggregatedSummary(workerName, monthName, hours, earnings)) }
@@ -504,7 +506,7 @@ fun GroupedFinancialView(
                                 shape = MaterialTheme.shapes.small
                             ) {
                                 Text(
-                                    text = daySdf.format(Date(log.date)),
+                                    text = TimeUtils.format(log.date, TimeUtils.dayMonthFormatter),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -563,9 +565,9 @@ fun GroupedFinancialView(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val totalLabel = when (selectedFilter) {
-                            2 -> "Totale Settimanale"
-                            3 -> "Totale Giornaliero"
-                            else -> "Totale Mensile"
+                            2 -> stringResource(R.string.total_weekly)
+                            3 -> stringResource(R.string.total_daily)
+                            else -> stringResource(R.string.total_monthly)
                         }
                         Text(
                             totalLabel,
@@ -612,7 +614,7 @@ fun GroupedFinancialView(
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(
-                        text = "RIEPILOGO COMPLESSIVO",
+                        text = stringResource(R.string.overall_summary_title),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
@@ -632,7 +634,7 @@ fun GroupedFinancialView(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Ore Totali",
+                                    stringResource(R.string.total_hours_label),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -661,7 +663,7 @@ fun GroupedFinancialView(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Importo Totale",
+                                    stringResource(R.string.total_amount_label),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -733,14 +735,14 @@ fun sharePdf(context: Context, file: File) {
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "Invia PDF..."))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.btn_send_pdf)))
 }
 
 @Composable
 fun DynamicCalendarIcon(date: Long) {
     val calendar = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = date }
     val day = calendar.get(Calendar.DAY_OF_MONTH).toString()
-    val monthShort = SimpleDateFormat("MMM", Locale.ITALY).format(calendar.time).uppercase()
+    val monthShort = TimeUtils.format(calendar.timeInMillis, TimeUtils.monthShortFormatter).uppercase()
 
     Column(
         modifier = Modifier
@@ -797,9 +799,9 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DetailRow(label = "Totale Ore", value = "${formatHours(summary.totalHours)} h", isBold = true)
+                        DetailRow(label = stringResource(R.string.total_hours_label), value = "${formatHours(summary.totalHours)} h", isBold = true)
                         DetailRow(
-                            label = "Importo Totale", 
+                            label = stringResource(R.string.total_amount_label), 
                             value = formatCurrency(summary.totalEarnings),
                             isBold = true,
                             color = MaterialTheme.colorScheme.primary
@@ -807,29 +809,27 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
                     }
                 }
                 Text(
-                    "Riepilogo dei compensi per il periodo selezionato.",
+                    stringResource(R.string.summary_desc),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Chiudi") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_close)) }
         }
     )
 }
 
 @Composable
 fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit) {
-    val daySdf = remember { SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY) }
-    
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Column {
                 Text(text = workerName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    text = daySdf.format(Date(log.date)).replaceFirstChar { it.uppercase() },
+                    text = TimeUtils.format(log.date, TimeUtils.fullDateFormatter).replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -842,13 +842,13 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DetailRow(label = "Mattina", value = formatInterval(log.morningStart, log.morningEnd))
-                        DetailRow(label = "Pomeriggio", value = formatInterval(log.afternoonStart, log.afternoonEnd))
+                        DetailRow(label = stringResource(R.string.morning_label), value = formatInterval(log.morningStart, log.morningEnd))
+                        DetailRow(label = stringResource(R.string.afternoon_label), value = formatInterval(log.afternoonStart, log.afternoonEnd))
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                        DetailRow(label = "Totale Ore", value = "${formatHours(log.totalHours)} h", isBold = true)
-                        DetailRow(label = "Tariffa", value = "${formatCurrency(log.hourlyRate)}/h")
+                        DetailRow(label = stringResource(R.string.total_hours_label), value = "${formatHours(log.totalHours)} h", isBold = true)
+                        DetailRow(label = stringResource(R.string.rate_label), value = "${formatCurrency(log.hourlyRate)}/h")
                         DetailRow(
-                            label = "Importo", 
+                            label = stringResource(R.string.amount_label), 
                             value = formatCurrency(log.totalHours * log.hourlyRate),
                             isBold = true,
                             color = MaterialTheme.colorScheme.primary
@@ -856,14 +856,14 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
                     }
                 }
                 Text(
-                    "Vista in sola lettura. Per modificare, usa la sezione di inserimento giornaliero.",
+                    stringResource(R.string.detail_readonly_msg),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Chiudi") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_close)) }
         }
     )
 }
@@ -901,15 +901,14 @@ fun PeriodNavigation(
 
     val label = when (selectedFilter) {
         0 -> calendar.get(Calendar.YEAR).toString()
-        1 -> SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time)
+        1 -> TimeUtils.formatMonth(calendar.timeInMillis)
         2 -> {
-            val start = calendar.time
+            val start = calendar.timeInMillis
             calendar.add(Calendar.DAY_OF_YEAR, 6)
-            val end = calendar.time
-            val sdf = SimpleDateFormat("d MMM", Locale.ITALY)
-            "${sdf.format(start)} - ${sdf.format(end)}"
+            val end = calendar.timeInMillis
+            "${TimeUtils.format(start, TimeUtils.dayMonthShortFormatter)} - ${TimeUtils.format(end, TimeUtils.dayMonthShortFormatter)}"
         }
-        3 -> SimpleDateFormat("EEE d MMMM yyyy", Locale.ITALY).format(calendar.time)
+        3 -> TimeUtils.format(calendar.timeInMillis, TimeUtils.dayShortFullDateFormatter)
         else -> ""
     }.replaceFirstChar { it.uppercase() }
 
@@ -919,7 +918,7 @@ fun PeriodNavigation(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Precedente")
+            Icon(Icons.Default.ChevronLeft, contentDescription = stringResource(R.string.nav_prev_desc))
         }
         Text(
             text = label,
@@ -927,7 +926,7 @@ fun PeriodNavigation(
             fontWeight = FontWeight.Bold
         )
         IconButton(onClick = onNext) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Successivo")
+            Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.nav_next_desc))
         }
     }
 }

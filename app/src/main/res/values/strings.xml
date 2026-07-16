@@ -1,3 +1,167 @@
 <resources>
     <string name="app_name">GestBraccianti</string>
+
+    <!-- OthersScreen -->
+    <string name="screen_others_title">Varie</string>
+    <string name="tab_data">Dati</string>
+    <string name="tab_test">Test</string>
+    <string name="owner_card_title">Azienda / Titolare</string>
+    <string name="owner_surname_label">Cognome</string>
+    <string name="owner_name_label">Nome</string>
+    <string name="import_contacts_desc">Importa da Contatti</string>
+
+    <string name="csv_card_title">Esportazione e Backup (CSV)</string>
+    <string name="csv_card_desc">Formato leggibile compatibile con Excel o Blocco Note.</string>
+    <string name="btn_export">Esporta</string>
+    <string name="btn_import">Importa</string>
+    <string name="internal_backups_title">Cronologia Backup Interni</string>
+    <string name="no_backups_msg">Nessun backup salvato internamente.</string>
+
+    <string name="confirm_import_title">Conferma Importazione</string>
+    <string name="confirm_import_text">Attenzione: caricamento dati del %1$s.\n\nQuesta operazione cancellerà tutti i dati attuali e li sostituirà con quelli del file scelto. Confermi?</string>
+    <string name="confirm_btn">Conferma</string>
+    <string name="cancel_btn">Annulla</string>
+
+    <string name="toast_exported">Dati esportati!</string>
+    <string name="toast_imported">Dati importati!</string>
+    <string name="toast_import_error">Errore durante l\'importazione.</string>
+    <string name="toast_invalid_file">File non riconosciuto come export valido.</string>
+
+    <string name="test_area_title">Area Test</string>
+    <string name="btn_create_test_workers">Crea 10 Braccianti di Test</string>
+    <string name="test_area_desc">Usa questo tasto per generare rapidamente dati di prova.</string>
+    <string name="toast_test_workers_created">Creati 10 braccianti di prova</string>
+
+    <string name="share_backup_title">Invia Backup</string>
+    <string name="share_desc">Condividi</string>
+    <string name="restore_desc">Ripristina</string>
+    <string name="delete_desc">Elimina</string>
+
+    <!-- WorkerRegistryScreen -->
+    <string name="tab_workers">Anagrafica</string>
+    <string name="tab_groups">Gruppi</string>
+
+    <!-- WorkerListTab -->
+    <string name="search_worker_hint">Cerca bracciante…</string>
+    <string name="clear_search_desc">Cancella ricerca</string>
+    <string name="no_workers_msg">Nessun bracciante registrato.</string>
+    <string name="copy_prev_year_btn">Copia da anno precedente</string>
+    <string name="toast_workers_copied">Copiati %1$d braccianti!</string>
+    <string name="no_search_results">Nessun risultato per \"%1$s\"</string>
+    <string name="worker_rate_label">Tariffa: %1$s/h</string>
+    <string name="add_worker_desc">Aggiungi Bracciante</string>
+    <string name="edit_desc">Modifica</string>
+
+    <!-- GroupListTab -->
+    <string name="no_groups_msg">Nessun gruppo creato.</string>
+    <string name="toast_groups_copied">Copiati %1$d gruppi!</string>
+    <string name="toast_new_groups_copied">Copiati %1$d nuovi gruppi!</string>
+    <string name="toast_no_new_groups">Nessun nuovo gruppo da copiare.</string>
+    <string name="group_members_count">%1$d braccianti</string>
+    <string name="group_members_label">Componenti:</string>
+    <string name="create_group_desc">Crea Gruppo</string>
+
+    <!-- Add/Edit Group Dialog -->
+    <string name="new_group_title">Nuovo Gruppo</string>
+    <string name="group_name_label">Nome Gruppo</string>
+    <string name="btn_create">Crea</string>
+
+    <!-- Edit Group Members Dialog -->
+    <string name="group_members_dialog_title">Componenti: %1$s</string>
+    <string name="btn_close">Chiudi</string>
+
+    <!-- AddEditWorkerDialog -->
+    <string name="new_worker_title">Nuovo Bracciante</string>
+    <string name="edit_worker_title">Modifica Bracciante</string>
+    <string name="surname_required_label">Cognome (Obbligatorio)</string>
+    <string name="surname_error_msg">Il cognome è necessario per salvare.</string>
+    <string name="name_label">Nome</string>
+    <string name="phone_label">Telefono</string>
+    <string name="hourly_rate_label">Paga Oraria (€)</string>
+    <string name="btn_add">Aggiungi</string>
+    <string name="btn_save">Salva</string>
+
+    <!-- FinancialSummaryScreen -->
+    <string name="filter_year">Anno</string>
+    <string name="filter_month">Mese</string>
+    <string name="filter_week">Settimana</string>
+    <string name="filter_day">Giorno</string>
+    <string name="export_pdf_desc">Esporta PDF</string>
+    <string name="pdf_report_dialog_title">Genera Report PDF</string>
+    <string name="pdf_group_desc">Verrà generato il PDF per i gruppi come visualizzati a video.</string>
+    <string name="pdf_select_workers_label">Seleziona i braccianti da includere:</string>
+    <string name="pdf_all_workers">Tutti i braccianti</string>
+    <string name="btn_generate_pdf">Genera PDF</string>
+    <string name="nav_prev_desc">Precedente</string>
+    <string name="nav_next_desc">Successivo</string>
+    <string name="chip_workers">👤 Bracc.</string>
+    <string name="chip_groups">👥 Gruppi</string>
+    <string name="no_data_year">Nessun movimento registrato nell\'anno.</string>
+    <string name="no_data_selection">Nessun dato disponibile per questa selezione.</string>
+    <string name="group_total_subtitle">Totale Gruppo</string>
+    <string name="worker_total_subtitle">Totale Bracciante</string>
+    <string name="no_group_label">Senza Gruppo</string>
+    <string name="total_weekly">Totale Settimanale</string>
+    <string name="total_daily">Totale Giornaliero</string>
+    <string name="total_monthly">Totale Mensile</string>
+    <string name="overall_summary_title">RIEPILOGO COMPLESSIVO</string>
+    <string name="total_hours_label">Ore Totali</string>
+    <string name="total_amount_label">Importo Totale</string>
+    <string name="btn_send_pdf">Invia PDF…</string>
+    <string name="summary_desc">Riepilogo dei compensi per il periodo selezionato.</string>
+    <string name="morning_label">Mattina</string>
+    <string name="afternoon_label">Pomeriggio</string>
+    <string name="rate_label">Tariffa</string>
+    <string name="amount_label">Importo</string>
+    <string name="detail_readonly_msg">Vista in sola lettura. Per modificare, usa la sezione di inserimento giornaliero.</string>
+
+    <!-- DailyLoggingScreen -->
+    <string name="prev_month_desc">Mese precedente</string>
+    <string name="next_month_desc">Mese successivo</string>
+    <string name="registered_days_label">Giornate registrate</string>
+    <string name="no_data_month">Nessun dato per questo mese.</string>
+    <string name="worker_hours_summary">%1$d bracc. • %2$s ore</string>
+    <string name="monday_short">L</string>
+    <string name="tuesday_short">M</string>
+    <string name="wednesday_short">M</string>
+    <string name="thursday_short">G</string>
+    <string name="friday_short">V</string>
+    <string name="saturday_short">S</string>
+    <string name="sunday_short">D</string>
+
+    <!-- WorkDayDetailScreen -->
+    <string name="back_desc">Indietro</string>
+    <string name="no_workers_today">Nessun bracciante inserito per oggi.</string>
+    <string name="time_range_summary">M: %1$s-%2$s | P: %3$s-%4$s</string>
+    <string name="total_hours_short">Totale: %1$s h</string>
+    <string name="remove_desc">Rimuovi</string>
+    <string name="btn_groups">Gruppi</string>
+    <string name="btn_worker">Bracciante</string>
+    <string name="range_confirm_title">Inserimento orari per %1$d giorni lavorativi.</string>
+    <string name="range_confirm_text">Attenzione: gli orari già presenti in questo periodo verranno sovrascritti. Vuoi continuare?</string>
+    <string name="error_morning_range">Fine mattina deve essere dopo l\'inizio</string>
+    <string name="error_afternoon_range">Fine pomeriggio deve essere dopo l\'inizio</string>
+    <string name="error_start_required">Inserire almeno un orario di inizio</string>
+    <string name="add_group_title">Aggiungi Gruppo</string>
+    <string name="help_desc">Aiuto</string>
+    <string name="select_group_hint">Seleziona Gruppo</string>
+    <string name="start_label">Inizio</string>
+    <string name="end_label">Fine</string>
+    <string name="manual_entry_title">Inserimento Manuale</string>
+    <string name="time_hint">HH:mm</string>
+    <string name="ok_btn">OK</string>
+    <string name="clear_btn">CANCELLA</string>
+    <string name="plus_desc">Più</string>
+    <string name="minus_desc">Meno</string>
+    <string name="edit_hours_title">Modifica Orari</string>
+    <string name="select_worker_hint">Seleziona Bracciante</string>
+    <string name="worker_label_prefix">Bracciante: %1$s</string>
+    <string name="error_invalid_time">Formato orario non valido</string>
+    <string name="expand_period_label">Espandi a più giorni</string>
+    <string name="end_date_label">Data fine periodo:</string>
+    <string name="prev_day_desc">Meno un giorno</string>
+    <string name="next_day_desc">Più un giorno</string>
+    <string name="total_days_label">Totale: %1$d giorni</string>
+    <string name="overwrite_warning">Gli orari esistenti nel periodo verranno sovrascritti.</string>
+
 </resources>

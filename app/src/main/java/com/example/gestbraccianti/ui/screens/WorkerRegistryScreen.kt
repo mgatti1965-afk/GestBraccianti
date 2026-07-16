@@ -27,8 +27,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.stringResource
+import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
+import com.example.gestbraccianti.ui.utils.formatCurrency
+import com.example.gestbraccianti.ui.utils.formatDecimal
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import java.util.Locale
@@ -40,7 +44,7 @@ fun WorkerRegistryScreen(
     yearId: Int
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Anagrafica", "Gruppi")
+    val tabs = listOf(stringResource(R.string.tab_workers), stringResource(R.string.tab_groups))
 
     Column(modifier = Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = selectedTab) {
@@ -103,12 +107,12 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    placeholder = { Text("Cerca bracciante...") },
+                    placeholder = { Text(stringResource(R.string.search_worker_hint)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Cancella")
+                                Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_search_desc))
                             }
                         }
                     },
@@ -119,24 +123,24 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
             if (workersWithRate.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Nessun bracciante registrato.")
+                        Text(stringResource(R.string.no_workers_msg))
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = {
                                 viewModel.copyWorkersFromPreviousYear(yearId) { count ->
-                                    Toast.makeText(context, "Copiati $count braccianti!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.toast_workers_copied, count), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         ) {
                             Icon(Icons.Default.ContentCopy, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Copia da anno precedente")
+                            Text(stringResource(R.string.copy_prev_year_btn))
                         }
                     }
                 }
             } else if (filteredWorkers.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nessun risultato per \"$searchQuery\"")
+                    Text(stringResource(R.string.no_search_results, searchQuery))
                 }
             } else {
                 LazyColumn(
@@ -189,7 +193,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Tariffa: ${com.example.gestbraccianti.ui.utils.formatCurrency(rate)}/h",
+                                        text = stringResource(R.string.worker_rate_label, formatCurrency(rate)),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Medium
@@ -197,7 +201,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                 }
                                 Icon(
                                     Icons.Default.Edit,
-                                    contentDescription = "Modifica",
+                                    contentDescription = stringResource(R.string.edit_desc),
                                     tint = MaterialTheme.colorScheme.outline
                                 )
                             }
@@ -209,7 +213,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
         FloatingActionButton(
             onClick = { selectedWorker = null; currentRate = 0.0; showDialog = true },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-        ) { Icon(Icons.Default.Add, contentDescription = "Aggiungi Bracciante") }
+        ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_worker_desc)) }
 
     }
 }
@@ -226,18 +230,18 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
         if (groups.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Nessun gruppo creato.")
+                    Text(stringResource(R.string.no_groups_msg))
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
                             groupViewModel.copyGroupsFromPreviousYear(yearId) { count ->
-                                Toast.makeText(context, "Copiati $count gruppi!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.toast_groups_copied, count), Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Copia da anno precedente")
+                        Text(stringResource(R.string.copy_prev_year_btn))
                     }
                 }
             }
@@ -267,11 +271,11 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                                     modifier = Modifier.weight(1f)
                                 )
                                 IconButton(onClick = { groupViewModel.deleteGroup(group) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Elimina", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_desc), tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                             Text(
-                                text = "${members.size} braccianti", 
+                                text = stringResource(R.string.group_members_count, members.size), 
                                 style = MaterialTheme.typography.titleMedium, 
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold
@@ -279,7 +283,7 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                             if (members.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "Componenti:",
+                                    text = stringResource(R.string.group_members_label),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.outline
                                 )
@@ -308,16 +312,16 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
         FloatingActionButton(
             onClick = { showAddGroupDialog = true },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-        ) { Icon(Icons.Default.Add, contentDescription = "Crea Gruppo") }
+        ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_group_desc)) }
 
         if (groups.isNotEmpty()) {
             SmallFloatingActionButton(
                 onClick = {
                     groupViewModel.copyGroupsFromPreviousYear(yearId) { count ->
                         if (count > 0) {
-                            Toast.makeText(context, "Copiati $count nuovi gruppi!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_new_groups_copied, count), Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(context, "Nessun nuovo gruppo da copiare.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_no_new_groups), Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
@@ -327,7 +331,7 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copia da anno precedente")
+                Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy_prev_year_btn))
             }
         }
     }
@@ -336,12 +340,12 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
         var groupName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddGroupDialog = false },
-            title = { Text("Nuovo Gruppo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.new_group_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
             text = { 
                 TextField(
                     value = groupName, 
                     onValueChange = { groupName = it }, 
-                    label = { Text("Nome Gruppo") },
+                    label = { Text(stringResource(R.string.group_name_label)) },
                     textStyle = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.fillMaxWidth()
                 ) 
@@ -352,9 +356,9 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                         groupViewModel.createGroup(groupName)
                         showAddGroupDialog = false
                     }
-                }) { Text("Crea") }
+                }) { Text(stringResource(R.string.btn_create)) }
             },
-            dismissButton = { TextButton(onClick = { showAddGroupDialog = false }) { Text("Annulla") } }
+            dismissButton = { TextButton(onClick = { showAddGroupDialog = false }) { Text(stringResource(R.string.cancel_btn)) } }
         )
     }
 
@@ -363,7 +367,7 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
         val members by groupViewModel.getWorkersInGroup(group.id).collectAsState(initial = emptyList())
         AlertDialog(
             onDismissRequest = { groupToEditMembers = null },
-            title = { Text("Componenti: ${group.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.group_members_dialog_title, group.name), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
             text = {
                 LazyColumn(modifier = Modifier.heightIn(max = 500.dp)) {
                     items(allWorkers, key = { it.id }) { worker ->
@@ -392,7 +396,7 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                     }
                 }
             },
-            confirmButton = { Button(onClick = { groupToEditMembers = null }) { Text("Chiudi") } }
+            confirmButton = { Button(onClick = { groupToEditMembers = null }) { Text(stringResource(R.string.btn_close)) } }
         )
     }
 }
@@ -407,7 +411,7 @@ fun AddEditWorkerDialog(
     var name by remember(worker) { mutableStateOf(worker?.name ?: "") }
     var surname by remember(worker) { mutableStateOf(worker?.surname ?: "") }
     var phoneNumber by remember(worker) { mutableStateOf(worker?.phoneNumber ?: "") }
-    var rate by remember(initialRate) { mutableStateOf(if (initialRate > 0) com.example.gestbraccianti.ui.utils.formatDecimal(initialRate) else "") }
+    var rate by remember(initialRate) { mutableStateOf(if (initialRate > 0) formatDecimal(initialRate) else "") }
     val context = LocalContext.current
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
@@ -490,7 +494,7 @@ fun AddEditWorkerDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (worker == null) "Nuovo Bracciante" else "Modifica Bracciante", 
+                    text = if (worker == null) stringResource(R.string.new_worker_title) else stringResource(R.string.edit_worker_title), 
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -505,7 +509,7 @@ fun AddEditWorkerDialog(
                         }
                     }
                 }) {
-                    Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
+                    Icon(Icons.Default.ContactPage, contentDescription = stringResource(R.string.import_contacts_desc))
                 }
             }
         },
@@ -514,25 +518,25 @@ fun AddEditWorkerDialog(
                 TextField(
                     value = surname, 
                     onValueChange = { surname = it }, 
-                    label = { Text("Cognome (Obbligatorio)", style = MaterialTheme.typography.labelLarge) },
+                    label = { Text(stringResource(R.string.surname_required_label), style = MaterialTheme.typography.labelLarge) },
                     textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.fillMaxWidth(),
                     isError = surname.isBlank()
                 )
                 if (surname.isBlank()) {
-                    Text("Il cognome è necessario per salvare.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.surname_error_msg), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                 }
                 TextField(
                     value = name, 
                     onValueChange = { name = it }, 
-                    label = { Text("Nome", style = MaterialTheme.typography.labelLarge) },
+                    label = { Text(stringResource(R.string.name_label), style = MaterialTheme.typography.labelLarge) },
                     textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.fillMaxWidth()
                 )
                 TextField(
                     value = phoneNumber, 
                     onValueChange = { phoneNumber = it }, 
-                    label = { Text("Telefono", style = MaterialTheme.typography.labelLarge) }, 
+                    label = { Text(stringResource(R.string.phone_label), style = MaterialTheme.typography.labelLarge) }, 
                     textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone)
@@ -544,7 +548,7 @@ fun AddEditWorkerDialog(
                             rate = input.replace('.', ',')
                         }
                     },
-                    label = { Text("Paga Oraria (€)", style = MaterialTheme.typography.labelLarge) },
+                    label = { Text(stringResource(R.string.hourly_rate_label), style = MaterialTheme.typography.labelLarge) },
                     textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -562,8 +566,8 @@ fun AddEditWorkerDialog(
                     }
                 },
                 enabled = surname.isNotBlank()
-            ) { Text(if (worker == null) "Aggiungi" else "Salva") }
+            ) { Text(if (worker == null) stringResource(R.string.btn_add) else stringResource(R.string.btn_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_btn)) } }
     )
 }

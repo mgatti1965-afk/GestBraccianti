@@ -19,22 +19,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
-import androidx.room.withTransaction
 import com.example.gestbraccianti.R
-import com.example.gestbraccianti.data.AppDatabase
-import com.example.gestbraccianti.data.entity.*
+import com.example.gestbraccianti.data.utils.CsvUtils
+import com.example.gestbraccianti.ui.utils.TimeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.example.gestbraccianti.ui.utils.formatDecimalHours
-import com.example.gestbraccianti.ui.utils.parseTimeToDouble
 import java.io.*
-import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
@@ -147,12 +143,11 @@ fun OthersScreen(
         onResult = { uri ->
             uri?.let { destUri ->
                 scope.launch {
-                    val success = exportToCsv(context, destUri)
+                    val success = CsvUtils.exportToCsv(context, destUri)
                     if (success) {
                         withContext(Dispatchers.IO) {
                             try {
-                                val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
-                                val timestamp = sdf.format(Date())
+                                val timestamp = TimeUtils.fileTimestampFormatter.format(Date())
                                 val internalBackupDir = File(context.getExternalFilesDir(null), "backups")
                                 if (!internalBackupDir.exists()) internalBackupDir.mkdirs()
                                 val internalFile = File(internalBackupDir, "GestBraccianti_Bkp_$timestamp.csv")
@@ -166,7 +161,7 @@ fun OthersScreen(
                                 Log.e("OthersScreen", "Errore salvataggio backup interno", e)
                             }
                         }
-                        Toast.makeText(context, "Dati esportati!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.toast_exported), Toast.LENGTH_SHORT).show()
                         refreshBackupList()
                     }
                 }
@@ -190,10 +185,8 @@ fun OthersScreen(
             if (match != null) {
                 val datePart = match.groupValues[1]
                 try {
-                    val originalFormat = SimpleDateFormat("yyyyMMdd", Locale.ITALY)
-                    val targetFormat = SimpleDateFormat("dd/MM/yyyy", Locale.ITALY)
-                    val date = originalFormat.parse(datePart)
-                    importDateStr = if (date != null) targetFormat.format(date) else "data sconosciuta"
+                    val date = TimeUtils.yearFormatter.apply { applyPattern("yyyyMMdd") }.parse(datePart)
+                    importDateStr = if (date != null) TimeUtils.dateFormatter.format(date) else "data sconosciuta"
                 } catch (e: Exception) {
                     importDateStr = "data non valida"
                 }
@@ -203,7 +196,7 @@ fun OthersScreen(
             importUri = uri
             showImportConfirmation = true
         } else {
-            Toast.makeText(context, "File non riconosciuto come export valido.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.toast_invalid_file), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -220,30 +213,33 @@ fun OthersScreen(
     if (showImportConfirmation && importUri != null) {
         AlertDialog(
             onDismissRequest = { showImportConfirmation = false },
-            title = { Text("Conferma Importazione") },
-            text = { Text("Attenzione: caricamento dati del $importDateStr.\n\nQuesta operazione cancellerà tutti i dati attuali e li sostituirà con quelli del file scelto. Confermi?") },
+            title = { Text(stringResource(R.string.confirm_import_title)) },
+            text = { Text(stringResource(R.string.confirm_import_text, importDateStr)) },
             confirmButton = {
                 Button(
                     onClick = {
                         scope.launch {
-                            val success = importFromCsv(context, importUri!!)
+                            // Auto-backup before import
+                            CsvUtils.createInternalBackup(context)
+
+                            val success = CsvUtils.importFromCsv(context, importUri!!)
                             if (success) {
-                                Toast.makeText(context, "Dati importati!", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, context.getString(R.string.toast_imported), Toast.LENGTH_LONG).show()
                             } else {
-                                Toast.makeText(context, "Errore durante l'importazione.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.toast_import_error), Toast.LENGTH_SHORT).show()
                             }
                             showImportConfirmation = false
                             importUri = null
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Conferma") }
+                ) { Text(stringResource(R.string.confirm_btn)) }
             },
             dismissButton = {
                 TextButton(onClick = { 
                     showImportConfirmation = false 
                     importUri = null
-                }) { Text("Annulla") }
+                }) { Text(stringResource(R.string.cancel_btn)) }
             }
         )
     }
@@ -256,7 +252,7 @@ fun OthersScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Varie", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.screen_others_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
         val isOwner = remember(ownerPhone, ownerName, ownerSurname) {
             val phone = ownerPhone.replace("+39", "").replace(" ", "")
@@ -275,9 +271,9 @@ fun OthersScreen(
         }
 
         TabRow(selectedTabIndex = selectedTab) {
-            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Dati") })
+            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text(stringResource(R.string.tab_data)) })
             if (isOwner) {
-                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Test") })
+                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text(stringResource(R.string.tab_test)) })
             }
         }
 
@@ -289,7 +285,7 @@ fun OthersScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Azienda / Titolare", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                Text(stringResource(R.string.owner_card_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                                 IconButton(onClick = {
                                     when (PackageManager.PERMISSION_GRANTED) {
                                         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
@@ -300,7 +296,7 @@ fun OthersScreen(
                                         }
                                     }
                                 }) {
-                                    Icon(Icons.Default.ContactPage, contentDescription = "Importa da Contatti")
+                                    Icon(Icons.Default.ContactPage, contentDescription = stringResource(R.string.import_contacts_desc))
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -311,7 +307,7 @@ fun OthersScreen(
                                         ownerSurname = it
                                         prefs.edit { putString("owner_surname", it) }
                                     },
-                                    label = { Text("Cognome", style = MaterialTheme.typography.labelLarge) },
+                                    label = { Text(stringResource(R.string.owner_surname_label), style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true
                                 )
@@ -321,7 +317,7 @@ fun OthersScreen(
                                         ownerName = it
                                         prefs.edit { putString("owner_name", it) }
                                     },
-                                    label = { Text("Nome", style = MaterialTheme.typography.labelLarge) },
+                                    label = { Text(stringResource(R.string.owner_name_label), style = MaterialTheme.typography.labelLarge) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true
                                 )
@@ -331,8 +327,7 @@ fun OthersScreen(
 
                     DatabaseTab(
                         onExport = {
-                            val sdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
-                            val timestamp = sdf.format(Date())
+                            val timestamp = TimeUtils.fileTimestampFormatter.format(Date())
                             csvExportLauncher.launch("GestBraccianti_Bkp_$timestamp.csv")
                         },
                         onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
@@ -364,7 +359,7 @@ fun TestTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        Text("Area Test", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.test_area_title), style = MaterialTheme.typography.titleMedium)
 
         Button(
             onClick = {
@@ -378,32 +373,21 @@ fun TestTab(
                             yearId = yearId
                         )
                     }
-                    Toast.makeText(context, "Creati 10 braccianti di test", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_test_workers_created), Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(Icons.Default.Add, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Crea 10 Braccianti di Test")
+            Text(stringResource(R.string.btn_create_test_workers))
         }
 
         Text(
-            "Usa questo tasto per generare rapidamente dati di prova.",
+            stringResource(R.string.test_area_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-    }
-}
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-fun TestTabPreview() {
-    MaterialTheme {
-        TestTab(
-            workerViewModel = null,
-            yearId = 1
         )
     }
 }
@@ -417,34 +401,33 @@ fun DatabaseTab(
     onRefresh: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Esportazione e Backup (CSV)", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.csv_card_title), style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Formato leggibile compatibile con Excel o Blocco Note.", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.csv_card_desc), style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onExport, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.FileUpload, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("Esporta")
+                        Text(stringResource(R.string.btn_export))
                     }
                     OutlinedButton(onClick = onImport, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.FileDownload, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("Importa")
+                        Text(stringResource(R.string.btn_import))
                     }
                 }
             }
         }
 
-        Text("Cronologia Backup Interni", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.internal_backups_title), style = MaterialTheme.typography.titleMedium)
         
         if (backupFiles.isEmpty()) {
-            Text("Nessun backup salvato internamente.", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.no_backups_msg), style = MaterialTheme.typography.bodySmall)
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -481,18 +464,18 @@ fun BackupFileItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(file.name, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.ITALY).format(Date(file.lastModified())),
+                    TimeUtils.dateTimeFormatter.format(Date(file.lastModified())),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
             IconButton(onClick = onShare) {
-                Icon(Icons.Default.Share, contentDescription = "Condividi")
+                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share_desc))
             }
             IconButton(onClick = onRestore) {
-                Icon(Icons.Default.FileDownload, contentDescription = "Ripristina")
+                Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.restore_desc))
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Elimina", tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_desc), tint = MaterialTheme.colorScheme.error)
             }
         }
     }
@@ -509,7 +492,7 @@ fun shareFile(context: Context, file: File) {
         putExtra(android.content.Intent.EXTRA_STREAM, uri)
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(android.content.Intent.createChooser(intent, "Invia Backup"))
+    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.share_backup_title)))
 }
 
 fun getFileName(context: Context, uri: Uri): String? {
@@ -532,113 +515,4 @@ fun getFileName(context: Context, uri: Uri): String? {
         }
     }
     return result
-}
-
-suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-    val db = AppDatabase.getDatabase(context)
-    try {
-        context.contentResolver.openOutputStream(uri)?.use { output ->
-            OutputStreamWriter(output).use { writer ->
-                val workers = db.workerDao().getAllWorkersStatic()
-                if (workers.isNotEmpty()) {
-                    writer.write("TIPO;ID;NOME;COGNOME;TELEFONO;ARCHIVIATO\n")
-                    workers.forEach {
-                        writer.write("W;${it.id};${it.name};${it.surname};${it.phoneNumber};${if (it.isArchived) 1 else 0}\n")
-                    }
-                }
-                val years = db.harvestYearDao().getAllYearsStatic()
-                if (years.isNotEmpty()) {
-                    writer.write("TIPO;ID;CORRENTE\n")
-                    years.forEach {
-                        writer.write("Y;${it.id};${if (it.isCurrent) 1 else 0}\n")
-                    }
-                }
-                val configs = db.workerYearConfigDao().getAllConfigsStatic()
-                if (configs.isNotEmpty()) {
-                    writer.write("TIPO;LAV_ID;ANNO_ID;TARIFFA\n")
-                    configs.forEach { conf ->
-                        writer.write("C;${conf.workerId};${conf.harvestYearId};${conf.hourlyRate}\n")
-                    }
-                }
-                val logs = db.workLogDao().getAllLogsStatic()
-                if (logs.isNotEmpty()) {
-                    writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE;TARIFFA\n")
-                    logs.forEach { log ->
-                        writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)};${log.hourlyRate}\n")
-                    }
-                }
-                val plantations = db.plantationDao().getAllPlantationsStatic()
-                if (plantations.isNotEmpty()) {
-                    writer.write("TIPO;ID;NOME;ARCHIVIATO\n")
-                    plantations.forEach {
-                        writer.write("P;${it.id};${it.name};${if (it.isArchived) 1 else 0}\n")
-                    }
-                }
-                val groups = db.workerGroupDao().getAllGroupsStatic()
-                if (groups.isNotEmpty()) {
-                    writer.write("TIPO;ID;NOME;ANNO_ID\n")
-                    groups.forEach {
-                        writer.write("G;${it.id};${it.name};${it.yearId}\n")
-                    }
-                }
-                val crossRefs = db.workerGroupDao().getAllCrossRefsStatic()
-                if (crossRefs.isNotEmpty()) {
-                    writer.write("TIPO;LAV_ID;GRP_ID\n")
-                    crossRefs.forEach {
-                        writer.write("X;${it.workerId};${it.groupId}\n")
-                    }
-                }
-            }
-        }
-        true
-    } catch (e: Exception) {
-        Log.e("OthersScreen", "Errore esportazione CSV", e)
-        false
-    }
-}
-
-suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-    val db = AppDatabase.getDatabase(context)
-    try {
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            BufferedReader(InputStreamReader(input)).use { reader ->
-                db.withTransaction {
-                    db.clearAllTables()
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null) {
-                        val parts = line!!.split(";").map { it.trim() }
-                        if (parts.isEmpty() || parts[0].startsWith("TIPO")) continue
-                        when (parts[0]) {
-                            "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
-                            "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
-                            "C" -> if (parts.size >= 4) db.workerYearConfigDao().insertConfig(WorkerYearConfig(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), hourlyRate = parts[3].toDouble()))
-                            "L" -> if (parts.size >= 9) {
-                                val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
-                                db.workLogDao().insertLog(
-                                    WorkLog(
-                                        workerId = parts[1].toLong(),
-                                        harvestYearId = parts[2].toInt(),
-                                        date = parts[3].toLong(),
-                                        morningStart = parts[4].ifBlank { null },
-                                        morningEnd = parts[5].ifBlank { null },
-                                        afternoonStart = parts[6].ifBlank { null },
-                                        afternoonEnd = parts[7].ifBlank { null },
-                                        totalHours = parseTimeToDouble(parts[8]),
-                                        hourlyRate = rate
-                                    )
-                                )
-                            }
-                            "P" -> if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
-                            "G" -> if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
-                            "X" -> if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
-                        }
-                    }
-                }
-            }
-        }
-        true
-    } catch (e: Exception) {
-        Log.e("OthersScreen", "Errore importazione CSV", e)
-        false
-    }
 }

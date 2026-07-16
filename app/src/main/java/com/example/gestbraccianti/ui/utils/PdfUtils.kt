@@ -61,12 +61,12 @@ fun generatePdfReport(
     val ownerSurname = prefs.getString("owner_surname", "") ?: ""
     
     val sdf = when (filterTitle) {
-        "Mese" -> SimpleDateFormat("MMMM yyyy", Locale.ITALY)
-        "Settimana" -> SimpleDateFormat("'Settimana' w, yyyy", Locale.ITALY)
-        "Giorno" -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.ITALY)
-        else -> SimpleDateFormat("yyyy", Locale.ITALY)
+        "Mese" -> TimeUtils.monthYearFormatter
+        "Settimana" -> TimeUtils.weekYearFormatter
+        "Giorno" -> TimeUtils.fullDateFormatter
+        else -> TimeUtils.yearFormatter
     }
-    val period = sdf.format(Date(referenceDate)).replaceFirstChar { it.uppercase() }
+    val period = TimeUtils.format(referenceDate, sdf).replaceFirstChar { it.uppercase() }
 
     canvas.drawText("RIEPILOGO PRESENZE E COMPENSI", margin, y, titlePaint)
     y += 25f
@@ -86,7 +86,6 @@ fun generatePdfReport(
 
     val workerMap = yearStats.associateBy { it.workerId }
     val calendar = Calendar.getInstance(Locale.ITALY)
-    val daySdf = SimpleDateFormat("dd/MM", Locale.ITALY)
 
     fun checkNewPage() {
         if (y > pageHeight - 60f) {
@@ -110,7 +109,7 @@ fun generatePdfReport(
 
     monthlyLogs.forEach { (monthIdx, mLogs) ->
         calendar.set(Calendar.MONTH, monthIdx)
-        val monthName = SimpleDateFormat("MMMM yyyy", Locale.ITALY).format(calendar.time).uppercase()
+        val monthName = TimeUtils.formatMonth(calendar.timeInMillis).uppercase()
         
         checkNewPage()
         canvas.drawText(monthName, margin, y, headerPaint)
@@ -163,7 +162,7 @@ fun generatePdfReport(
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
                 val earnStr = formatCurrency(log.totalHours * log.hourlyRate)
-                val line = "• ${daySdf.format(Date(log.date))} $workerName: ${formatHours(log.totalHours)}h | $earnStr"
+                val line = "• ${TimeUtils.format(log.date, TimeUtils.dayMonthFormatter)} $workerName: ${formatHours(log.totalHours)}h | $earnStr"
                 
                 checkNewPage()
                 canvas.drawText(line, margin + 10f, y, bodyPaint)
@@ -202,8 +201,7 @@ fun generatePdfReport(
     val directory = File(context.getExternalFilesDir(null), "reports")
     if (!directory.exists()) directory.mkdirs()
     
-    val fileSdf = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ITALY)
-    val timestamp = fileSdf.format(Date())
+    val timestamp = TimeUtils.format(System.currentTimeMillis(), TimeUtils.fileTimestampFormatter)
     val fileName = "GestBraccianti_Rep_$timestamp.pdf"
     val file = File(directory, fileName)
 

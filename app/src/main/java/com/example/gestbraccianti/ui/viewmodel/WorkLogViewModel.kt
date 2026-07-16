@@ -7,6 +7,8 @@ import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.repository.WorkLogRepository
 import com.example.gestbraccianti.data.repository.WorkerYearConfigRepository
 import com.example.gestbraccianti.data.model.WorkerYearStats
+import com.example.gestbraccianti.ui.utils.TimeUtils
+import com.example.gestbraccianti.ui.utils.formatCurrency
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -115,7 +117,7 @@ class WorkLogViewModel(
             if (id != 0L) {
                 val oldLog = workLogRepository.getLogById(id)
                 if (oldLog != null && oldLog.hourlyRate != currentRate && oldLog.hourlyRate != 0.0) {
-                    _uiEvent.emit("Tariffa aggiornata: da ${String.format(Locale.ITALY, "%.2f", oldLog.hourlyRate)}€ a ${String.format(Locale.ITALY, "%.2f", currentRate)}€")
+                    _uiEvent.emit("Tariffa aggiornata: da ${formatCurrency(oldLog.hourlyRate)} a ${formatCurrency(currentRate)}")
                 }
             }
 
@@ -192,9 +194,8 @@ class WorkLogViewModel(
     private fun calculateHours(start: String?, end: String?): Double {
         if (start.isNullOrBlank() || end.isNullOrBlank()) return 0.0
         return try {
-            val sdf = SimpleDateFormat("HH:mm", Locale.ITALY)
-            val startDate = sdf.parse(start)
-            val endDate = sdf.parse(end)
+            val startDate = TimeUtils.timeFormatter.parse(start)
+            val endDate = TimeUtils.timeFormatter.parse(end)
             if ((startDate != null) && (endDate != null)) {
                 val diff = endDate.time - startDate.time
                 if (diff > 0) {

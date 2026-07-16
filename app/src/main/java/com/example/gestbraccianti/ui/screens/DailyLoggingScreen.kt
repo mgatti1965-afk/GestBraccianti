@@ -13,10 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.gestbraccianti.R
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.utils.formatHours
 import com.example.gestbraccianti.ui.utils.formatDecimal
-import java.text.SimpleDateFormat
+import com.example.gestbraccianti.ui.utils.TimeUtils
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,7 +29,6 @@ fun DailyLoggingScreen(
 ) {
     val allLogs by viewModel.allLogs.collectAsState()
     val referenceDate by viewModel.currentReferenceDate.collectAsState()
-    val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.ITALY)
 
     var selectedCalendar by remember {
         mutableStateOf(Calendar.getInstance().apply {
@@ -96,13 +97,13 @@ fun DailyLoggingScreen(
                     ) {
                         Icon(
                             Icons.Default.ChevronLeft,
-                            contentDescription = "Mese precedente",
+                            contentDescription = stringResource(R.string.prev_month_desc),
                             tint = if (!isFirstMonth) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                         )
                     }
 
                     Text(
-                        text = monthYearFormat.format(selectedCalendar.time).replaceFirstChar { it.uppercase() },
+                        text = TimeUtils.formatMonth(selectedCalendar.timeInMillis),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -113,7 +114,7 @@ fun DailyLoggingScreen(
                     ) {
                         Icon(
                             Icons.Default.ChevronRight,
-                            contentDescription = "Mese successivo",
+                            contentDescription = stringResource(R.string.next_month_desc),
                             tint = if (!isLastMonth) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                         )
                     }
@@ -129,7 +130,7 @@ fun DailyLoggingScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                "Giornate registrate",
+                stringResource(R.string.registered_days_label),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.primary
@@ -137,7 +138,7 @@ fun DailyLoggingScreen(
 
             if (filteredDays.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("Nessun dato per questo mese.", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.no_data_month), style = MaterialTheme.typography.bodySmall)
                 }
             } else {
                 LazyColumn(
@@ -172,11 +173,11 @@ fun DailyLoggingScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = SimpleDateFormat("EEEE", Locale.ITALY).format(cal.time).replaceFirstChar { it.uppercase() },
+                                        text = TimeUtils.format(date, TimeUtils.dayNameFormatter).replaceFirstChar { it.uppercase() },
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                     Text(
-                                        text = "$totalWorkers bracc. • ${formatHours(totalHours)} ore",
+                                        text = stringResource(R.string.worker_hours_summary, totalWorkers, formatHours(totalHours)),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -209,9 +210,17 @@ fun MonthGrid(
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            listOf("L", "M", "M", "G", "V", "S", "D").forEach { day ->
+            listOf(
+                R.string.monday_short,
+                R.string.tuesday_short,
+                R.string.wednesday_short,
+                R.string.thursday_short,
+                R.string.friday_short,
+                R.string.saturday_short,
+                R.string.sunday_short
+            ).forEach { dayRes ->
                 Text(
-                    text = day,
+                    text = stringResource(dayRes),
                     modifier = Modifier.weight(1f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     style = MaterialTheme.typography.labelSmall,
