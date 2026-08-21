@@ -72,6 +72,8 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     var selectedWorker by remember { mutableStateOf<Worker?>(null) }
     var currentRate by remember { mutableStateOf(0.0) }
     var searchQuery by remember { mutableStateOf("") }
+    
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val filteredWorkers = remember(workersWithRate, searchQuery) {
         if (searchQuery.isBlank()) workersWithRate
@@ -94,6 +96,35 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                     viewModel.updateWorkerInfo(selectedWorker!!.id, name, surname, phone, yearId, rate)
                 }
                 showDialog = false
+            },
+            onDelete = {
+                showDeleteConfirm = true
+                showDialog = false
+            }
+        )
+    }
+
+    if (showDeleteConfirm && selectedWorker != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.delete_worker_confirm_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.delete_worker_confirm_msg, "${selectedWorker!!.surname} ${selectedWorker!!.name}")) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteWorker(selectedWorker!!)
+                        showDeleteConfirm = false
+                        selectedWorker = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.confirm_btn))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.cancel_btn))
+                }
             }
         )
     }
@@ -406,7 +437,8 @@ fun AddEditWorkerDialog(
     worker: Worker?,
     initialRate: Double,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Double) -> Unit
+    onConfirm: (String, String, String, Double) -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     var name by remember(worker) { mutableStateOf(worker?.name ?: "") }
     var surname by remember(worker) { mutableStateOf(worker?.surname ?: "") }
@@ -510,6 +542,15 @@ fun AddEditWorkerDialog(
                     }
                 }) {
                     Icon(Icons.Default.ContactPage, contentDescription = stringResource(R.string.import_contacts_desc))
+                }
+                if (worker != null && onDelete != null) {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.delete_desc),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         },

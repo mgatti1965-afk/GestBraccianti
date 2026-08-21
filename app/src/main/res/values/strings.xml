@@ -80,6 +80,8 @@
     <string name="hourly_rate_label">Paga Oraria (€)</string>
     <string name="btn_add">Aggiungi</string>
     <string name="btn_save">Salva</string>
+    <string name="delete_worker_confirm_title">Elimina Bracciante</string>
+    <string name="delete_worker_confirm_msg">Sei sicuro di voler eliminare %1$s? Questa azione è irreversibile e cancellerà TUTTE le sue giornate lavorative e i compensi, inclusi quelli degli ANNI PRECEDENTI.\n\nATTENZIONE: Si consiglia vivamente di effettuare una stampa o un backup dei dati prima di procedere.</string>
 
     <!-- FinancialSummaryScreen -->
     <string name="filter_year">Anno</string>

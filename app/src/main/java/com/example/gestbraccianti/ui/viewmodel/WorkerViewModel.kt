@@ -79,6 +79,16 @@ class WorkerViewModel(
         }
     }
 
+    fun deleteWorker(worker: Worker) {
+        viewModelScope.launch {
+            workerRepository.deleteWorker(worker)
+            // Refresh
+            val currentYear = _selectedYearId.value
+            _selectedYearId.value = null
+            _selectedYearId.value = currentYear
+        }
+    }
+
     fun copyWorkersFromPreviousYear(currentYearId: Int, onResult: (Int) -> Unit) {
         viewModelScope.launch {
             val previousYearId = currentYearId - 1
