@@ -68,17 +68,17 @@ object CsvUtils {
         // Configs
         val configs = db.workerYearConfigDao().getAllConfigsStatic()
         if (configs.isNotEmpty()) {
-            writer.write("TIPO;LAV_ID;ANNO_ID;TARIFFA\n")
+            writer.write("TIPO;LAV_ID;ANNO_ID;TARIFFA;STRAORD;FESTIVO\n")
             configs.forEach { conf ->
-                writer.write("C;${conf.workerId};${conf.harvestYearId};${conf.hourlyRate}\n")
+                writer.write("C;${conf.workerId};${conf.harvestYearId};${conf.hourlyRate};${conf.extraHourlyRate};${conf.holidayHourlyRate}\n")
             }
         }
         // Logs
         val logs = db.workLogDao().getAllLogsStatic()
         if (logs.isNotEmpty()) {
-            writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE;TARIFFA\n")
+            writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE;TARIFFA;STRAORD;FESTIVO;MAN_FEST;TOTALE\n")
             logs.forEach { log ->
-                writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)};${log.hourlyRate}\n")
+                writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)};${log.hourlyRate};${log.extraHourlyRate};${log.holidayHourlyRate};${if (log.isManualHoliday) 1 else 0};${log.totalAmount}\n")
             }
         }
         // Plantations
@@ -121,9 +121,41 @@ object CsvUtils {
                             when (parts[0]) {
                                 "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
                                 "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
-                                "C" -> if (parts.size >= 4) db.workerYearConfigDao().insertConfig(WorkerYearConfig(workerId = parts[1].toLong(), harvestYearId = parts[2].toInt(), hourlyRate = parts[3].toDouble()))
+                                "C" -> if (parts.size >= 4) {
+                                    val rate = parts[3].toDoubleOrNull() ?: 0.0
+                                    db.workerYearConfigDao().insertConfig(
+                                        WorkerYearConfig(
+                                            workerId = parts[1].toLong(),
+                                            harvestYearId = parts[2].toInt(),
+                                            hourlyRate = rate,
+                                            extraHourlyRate = if (parts.size >= 5) parts[4].toDoubleOrNull() ?: rate else rate,
+                                            holidayHourlyRate = if (parts.size >= 6) parts[5].toDoubleOrNull() ?: rate else rate
+                                        )
+                                    )
+                                }
                                 "L" -> if (parts.size >= 9) {
+                                    val isLegacy = parts.size <= 11
+                                    
                                     val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
+                                    
+                                    val extraRate: Double
+                                    val holidayRate: Double
+                                    val isManFest: Boolean
+                                    val totalAmt: Double
+
+                                    if (isLegacy) {
+                                        extraRate = rate
+                                        holidayRate = rate
+                                        isManFest = false
+                                        // In legacy, index 10 is the totalAmount
+                                        totalAmt = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: 0.0 else 0.0
+                                    } else {
+                                        extraRate = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: rate else rate
+                                        holidayRate = if (parts.size >= 12) parts[11].toDoubleOrNull() ?: rate else rate
+                                        isManFest = if (parts.size >= 13) parts[12] == "1" else false
+                                        totalAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
+                                    }
+
                                     db.workLogDao().insertLog(
                                         WorkLog(
                                             workerId = parts[1].toLong(),
@@ -134,7 +166,11 @@ object CsvUtils {
                                             afternoonStart = parts[6].ifBlank { null },
                                             afternoonEnd = parts[7].ifBlank { null },
                                             totalHours = parseTimeToDouble(parts[8]),
-                                            hourlyRate = rate
+                                            hourlyRate = rate,
+                                            extraHourlyRate = extraRate,
+                                            holidayHourlyRate = holidayRate,
+                                            isManualHoliday = isManFest,
+                                            totalAmount = totalAmt
                                         )
                                     )
                                 }

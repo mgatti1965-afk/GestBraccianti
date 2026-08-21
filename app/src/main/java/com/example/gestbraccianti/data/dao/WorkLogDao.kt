@@ -37,12 +37,23 @@ interface WorkLogDao {
 
     @Query("""
         UPDATE work_logs 
-        SET hourlyRate = (
-            SELECT hourlyRate FROM worker_year_configs 
-            WHERE worker_year_configs.workerId = work_logs.workerId 
-            AND worker_year_configs.harvestYearId = work_logs.harvestYearId
-        )
-        WHERE hourlyRate = 0.0
+        SET 
+            hourlyRate = (
+                SELECT hourlyRate FROM worker_year_configs 
+                WHERE worker_year_configs.workerId = work_logs.workerId 
+                AND worker_year_configs.harvestYearId = work_logs.harvestYearId
+            ),
+            extraHourlyRate = (
+                SELECT extraHourlyRate FROM worker_year_configs 
+                WHERE worker_year_configs.workerId = work_logs.workerId 
+                AND worker_year_configs.harvestYearId = work_logs.harvestYearId
+            ),
+            holidayHourlyRate = (
+                SELECT holidayHourlyRate FROM worker_year_configs 
+                WHERE worker_year_configs.workerId = work_logs.workerId 
+                AND worker_year_configs.harvestYearId = work_logs.harvestYearId
+            )
+        WHERE (hourlyRate = 0.0 OR extraHourlyRate = 0.0 OR holidayHourlyRate = 0.0)
     """)
     suspend fun fillMissingRates()
 

@@ -33,7 +33,7 @@ interface WorkerDao {
     suspend fun getWorkerById(id: Long): Worker?
 
     @Query("""
-        SELECT w.*, wyc.hourlyRate 
+        SELECT w.*, wyc.hourlyRate, wyc.extraHourlyRate, wyc.holidayHourlyRate
         FROM workers w
         INNER JOIN worker_year_configs wyc ON w.id = wyc.workerId
         WHERE wyc.harvestYearId = :yearId

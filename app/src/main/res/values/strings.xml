@@ -8,7 +8,16 @@
     <string name="owner_card_title">Azienda / Titolare</string>
     <string name="owner_surname_label">Cognome</string>
     <string name="owner_name_label">Nome</string>
+    <string name="owner_phone_label">Telefono</string>
     <string name="import_contacts_desc">Importa da Contatti</string>
+
+    <string name="settings_plant_title">Impostazioni Calcolo (Impianto)</string>
+    <string name="settings_extra_threshold_label">Straordinari dopo (ore)</string>
+    <string name="settings_festive_days_label">Giorni Festivi Settimanali</string>
+    <string name="settings_festive_none">Nessuno</string>
+    <string name="settings_festive_sunday">Domenica</string>
+    <string name="settings_festive_saturday">Sabato</string>
+    <string name="settings_festive_sat_sun">Sabato e Domenica</string>
 
     <string name="csv_card_title">Esportazione e Backup (CSV)</string>
     <string name="csv_card_desc">Formato leggibile compatibile con Excel o Blocco Note.</string>
@@ -77,7 +86,9 @@
     <string name="surname_error_msg">Il cognome è necessario per salvare.</string>
     <string name="name_label">Nome</string>
     <string name="phone_label">Telefono</string>
-    <string name="hourly_rate_label">Paga Oraria (€)</string>
+    <string name="hourly_rate_label">Paga Oraria Normale (€)</string>
+    <string name="extra_hourly_rate_label">Paga Oraria Straordinario (€)</string>
+    <string name="holiday_hourly_rate_label">Paga Oraria Festivi (€)</string>
     <string name="btn_add">Aggiungi</string>
     <string name="btn_save">Salva</string>
     <string name="delete_worker_confirm_title">Elimina Bracciante</string>
@@ -165,5 +176,8 @@
     <string name="next_day_desc">Più un giorno</string>
     <string name="total_days_label">Totale: %1$d giorni</string>
     <string name="overwrite_warning">Gli orari esistenti nel periodo verranno sovrascritti.</string>
+    <string name="manual_holiday_toggle_toast_on">Giorno festivo forzato per %1$s</string>
+    <string name="manual_holiday_toggle_toast_off">Calcolo festivo automatico ripristinato per %1$s</string>
+    <string name="holiday_indicator">FESTIVO</string>
 
 </resources>

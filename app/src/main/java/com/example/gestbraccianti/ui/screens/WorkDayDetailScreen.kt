@@ -6,6 +6,9 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,7 +43,7 @@ import java.text.SimpleDateFormat
 import androidx.compose.material.icons.filled.Warning
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WorkDayDetailScreen(
     date: Long,
@@ -103,21 +106,49 @@ fun WorkDayDetailScreen(
                     items(logsForDay) { log ->
                         val worker = workers.find { it.id == log.workerId }
                         Card(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                editingLog = log
-                                showAddWorkerDialog = true
-                            }
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        editingLog = log
+                                        showAddWorkerDialog = true
+                                    },
+                                    onLongClick = {
+                                        workLogViewModel.toggleManualHoliday(log)
+                                        val status = if (!log.isManualHoliday) context.getString(R.string.manual_holiday_toggle_toast_on) 
+                                                     else context.getString(R.string.manual_holiday_toggle_toast_off)
+                                        Toast.makeText(context, status.format("${worker?.surname} ${worker?.name}"), Toast.LENGTH_SHORT).show()
+                                    }
+                                )
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "${worker?.surname ?: ""} ${worker?.name ?: ""}".trim(),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "${worker?.surname ?: ""} ${worker?.name ?: ""}".trim(),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (log.isManualHoliday) {
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                                shape = MaterialTheme.shapes.extraSmall,
+                                                modifier = Modifier.padding(start = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.holiday_indicator),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    fontWeight = FontWeight.Black
+                                                )
+                                            }
+                                        }
+                                    }
                                     Text(
                                         text = stringResource(
                                             R.string.time_range_summary,

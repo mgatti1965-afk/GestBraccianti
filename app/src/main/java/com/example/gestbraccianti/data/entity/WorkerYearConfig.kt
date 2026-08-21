@@ -26,5 +26,7 @@ import androidx.room.Index
 data class WorkerYearConfig(
     val workerId: Long,
     val harvestYearId: Int,
-    val hourlyRate: Double
+    val hourlyRate: Double,
+    val extraHourlyRate: Double = 0.0,
+    val holidayHourlyRate: Double = 0.0
 )

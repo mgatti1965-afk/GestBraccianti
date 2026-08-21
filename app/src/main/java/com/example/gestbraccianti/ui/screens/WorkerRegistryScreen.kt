@@ -70,7 +70,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     val workersWithRate by viewModel.workersWithRateForCurrentYear.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var selectedWorker by remember { mutableStateOf<Worker?>(null) }
-    var currentRate by remember { mutableStateOf(0.0) }
+    var currentRates by remember { mutableStateOf(Triple(0.0, 0.0, 0.0)) }
     var searchQuery by remember { mutableStateOf("") }
     
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -87,13 +87,13 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     if (showDialog) {
         AddEditWorkerDialog(
             worker = selectedWorker,
-            initialRate = currentRate,
+            initialRates = currentRates,
             onDismiss = { showDialog = false },
-            onConfirm = { name, surname, phone, rate ->
+            onConfirm = { name, surname, phone, rate, extraRate, holidayRate ->
                 if (selectedWorker == null) {
-                    viewModel.addWorkerToYear(name, surname, phone, rate, yearId)
+                    viewModel.addWorkerToYear(name, surname, phone, rate, extraRate, holidayRate, yearId)
                 } else {
-                    viewModel.updateWorkerInfo(selectedWorker!!.id, name, surname, phone, yearId, rate)
+                    viewModel.updateWorkerInfo(selectedWorker!!.id, name, surname, phone, yearId, rate, extraRate, holidayRate)
                 }
                 showDialog = false
             },
@@ -188,7 +188,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                 .padding(horizontal = 4.dp)
                                 .clickable {
                                     selectedWorker = worker
-                                    currentRate = rate
+                                    currentRates = Triple(item.hourlyRate, item.extraHourlyRate, item.holidayHourlyRate)
                                     showDialog = true
                                 },
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -242,7 +242,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
             }
         }
         FloatingActionButton(
-            onClick = { selectedWorker = null; currentRate = 0.0; showDialog = true },
+            onClick = { selectedWorker = null; currentRates = Triple(0.0, 0.0, 0.0); showDialog = true },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
         ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_worker_desc)) }
 
@@ -435,15 +435,17 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
 @Composable
 fun AddEditWorkerDialog(
     worker: Worker?,
-    initialRate: Double,
+    initialRates: Triple<Double, Double, Double>,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Double) -> Unit,
+    onConfirm: (String, String, String, Double, Double, Double) -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     var name by remember(worker) { mutableStateOf(worker?.name ?: "") }
     var surname by remember(worker) { mutableStateOf(worker?.surname ?: "") }
     var phoneNumber by remember(worker) { mutableStateOf(worker?.phoneNumber ?: "") }
-    var rate by remember(initialRate) { mutableStateOf(if (initialRate > 0) formatDecimal(initialRate) else "") }
+    var rate by remember(initialRates.first) { mutableStateOf(if (initialRates.first > 0) formatDecimal(initialRates.first) else "") }
+    var extraRate by remember(initialRates.second) { mutableStateOf(if (initialRates.second > 0) formatDecimal(initialRates.second) else "") }
+    var holidayRate by remember(initialRates.third) { mutableStateOf(if (initialRates.third > 0) formatDecimal(initialRates.third) else "") }
     val context = LocalContext.current
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
@@ -590,7 +592,35 @@ fun AddEditWorkerDialog(
                         }
                     },
                     label = { Text(stringResource(R.string.hourly_rate_label), style = MaterialTheme.typography.labelLarge) },
-                    textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                    )
+                )
+                TextField(
+                    value = extraRate,
+                    onValueChange = { input ->
+                        if (input.isEmpty() || input.matches(Regex("""^\d*[.,]?\d{0,2}$"""))) {
+                            extraRate = input.replace('.', ',')
+                        }
+                    },
+                    label = { Text(stringResource(R.string.extra_hourly_rate_label), style = MaterialTheme.typography.labelLarge) },
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                    )
+                )
+                TextField(
+                    value = holidayRate,
+                    onValueChange = { input ->
+                        if (input.isEmpty() || input.matches(Regex("""^\d*[.,]?\d{0,2}$"""))) {
+                            holidayRate = input.replace('.', ',')
+                        }
+                    },
+                    label = { Text(stringResource(R.string.holiday_hourly_rate_label), style = MaterialTheme.typography.labelLarge) },
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.tertiary),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -602,8 +632,10 @@ fun AddEditWorkerDialog(
             Button(
                 onClick = {
                     val r = rate.replace(',', '.').toDoubleOrNull() ?: 0.0
+                    val er = extraRate.replace(',', '.').toDoubleOrNull() ?: 0.0
+                    val hr = holidayRate.replace(',', '.').toDoubleOrNull() ?: 0.0
                     if (surname.isNotBlank()) {
-                        onConfirm(name, surname, phoneNumber, r)
+                        onConfirm(name, surname, phoneNumber, r, er, hr)
                     }
                 },
                 enabled = surname.isNotBlank()

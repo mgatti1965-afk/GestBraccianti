@@ -436,7 +436,7 @@ fun GroupedFinancialView(
             val workerTotals = if (viewMode == ViewMode.TOTALS && groupingType == GroupingType.BY_WORKER) {
                 mLogs.groupBy { it.workerId }.map { (wId, wLogs) ->
                     val hours = wLogs.sumOf { it.totalHours }
-                    val earnings = wLogs.sumOf { it.totalHours * it.hourlyRate }
+                    val earnings = wLogs.sumOf { it.totalAmount }
                     Triple(wId, hours, earnings)
                 }.sortedByDescending { it.third }
             } else emptyList()
@@ -448,7 +448,7 @@ fun GroupedFinancialView(
                     val gLogs = mLogs.filter { it.workerId in workersInGroup }
                     if (gLogs.isNotEmpty()) {
                         val hours = gLogs.sumOf { it.totalHours }
-                        val earnings = gLogs.sumOf { it.totalHours * it.hourlyRate }
+                        val earnings = gLogs.sumOf { it.totalAmount }
                         result.add(Triple(group.id, hours, earnings))
                     }
                 }
@@ -456,7 +456,7 @@ fun GroupedFinancialView(
                 val noGroupLogs = mLogs.filter { it.workerId !in allGroupWorkers }
                 if (noGroupLogs.isNotEmpty()) {
                     val hours = noGroupLogs.sumOf { it.totalHours }
-                    val earnings = noGroupLogs.sumOf { it.totalHours * it.hourlyRate }
+                    val earnings = noGroupLogs.sumOf { it.totalAmount }
                     result.add(Triple(null, hours, earnings))
                 }
                 result.sortedByDescending { it.third }
@@ -488,8 +488,7 @@ fun GroupedFinancialView(
             } else {
                 items(mLogs.sortedBy { it.date }, key = { log -> "${log.workerId}_${log.date}" }) { log ->
                     val worker = workerMap[log.workerId]
-                    val effectiveRate = log.hourlyRate
-                    val earnings = log.totalHours * effectiveRate
+                    val earnings = log.totalAmount
                     
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable { onLogClick(log) },
@@ -502,14 +501,14 @@ fun GroupedFinancialView(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                color = if (log.isManualHoliday) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
                                 shape = MaterialTheme.shapes.small
                             ) {
                                 Text(
                                     text = TimeUtils.format(log.date, TimeUtils.dayMonthFormatter),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    color = if (log.isManualHoliday) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
@@ -520,8 +519,8 @@ fun GroupedFinancialView(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold
                                 )
-                                if (effectiveRate > 0) {
-                                    val rateStr = formatDecimal(effectiveRate)
+                                if (log.hourlyRate > 0) {
+                                    val rateStr = formatDecimal(log.hourlyRate)
                                     Text(
                                         text = "@ $rateStr €/h",
                                         style = MaterialTheme.typography.labelSmall,
@@ -539,7 +538,7 @@ fun GroupedFinancialView(
                                     text = formatCurrency(earnings),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = if (log.isManualHoliday) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -549,7 +548,7 @@ fun GroupedFinancialView(
             
             item {
                 val mHours = mLogs.sumOf { it.totalHours }
-                val mEarnings = mLogs.sumOf { log -> log.totalHours * log.hourlyRate }
+                val mEarnings = mLogs.sumOf { it.totalAmount }
                 
                 Column(
                     modifier = Modifier
@@ -597,7 +596,7 @@ fun GroupedFinancialView(
         
         item {
             val yHours = logs.sumOf { it.totalHours }
-            val yEarnings = logs.sumOf { log -> log.totalHours * log.hourlyRate }
+            val yEarnings = logs.sumOf { it.totalAmount }
             
             Spacer(modifier = Modifier.height(32.dp))
             
@@ -823,11 +822,39 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
 
 @Composable
 fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE) }
+    val threshold = prefs.getFloat("extra_hours_threshold", 8.0f).toDouble()
+    val festiveType = prefs.getInt("festive_days_type", 0)
+
+    val cal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = log.date }
+    val isFestive = log.isManualHoliday || when (festiveType) {
+        1 -> cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY
+        2 -> cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+        3 -> cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+        else -> false
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Column {
-                Text(text = workerName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = workerName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    if (isFestive) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.holiday_indicator),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
                 Text(
                     text = TimeUtils.format(log.date, TimeUtils.fullDateFormatter).replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.labelMedium,
@@ -845,13 +872,23 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
                         DetailRow(label = stringResource(R.string.morning_label), value = formatInterval(log.morningStart, log.morningEnd))
                         DetailRow(label = stringResource(R.string.afternoon_label), value = formatInterval(log.afternoonStart, log.afternoonEnd))
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                        
                         DetailRow(label = stringResource(R.string.total_hours_label), value = "${formatHours(log.totalHours)} h", isBold = true)
-                        DetailRow(label = stringResource(R.string.rate_label), value = "${formatCurrency(log.hourlyRate)}/h")
+                        
+                        if (isFestive) {
+                            DetailRow(label = stringResource(R.string.holiday_hourly_rate_label), value = "${formatCurrency(log.holidayHourlyRate)}/h")
+                        } else {
+                            DetailRow(label = stringResource(R.string.hourly_rate_label), value = "${formatCurrency(log.hourlyRate)}/h")
+                            if (log.totalHours > threshold) {
+                                DetailRow(label = stringResource(R.string.extra_hourly_rate_label), value = "${formatCurrency(log.extraHourlyRate)}/h")
+                            }
+                        }
+
                         DetailRow(
                             label = stringResource(R.string.amount_label), 
-                            value = formatCurrency(log.totalHours * log.hourlyRate),
+                            value = formatCurrency(log.totalAmount),
                             isBold = true,
-                            color = MaterialTheme.colorScheme.primary
+                            color = if (isFestive) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                         )
                     }
                 }

@@ -34,6 +34,14 @@ class WorkLogViewModel(
         _selectedYearId.value = yearId
         viewModelScope.launch {
             workLogRepository.fillMissingRates()
+            // Dopo aver riempito le tariffe, ricalcoliamo gli importi per sicurezza (migrazione dati)
+            val logs = workLogRepository.getLogsForYear(yearId).first()
+            logs.forEach { log ->
+                if (log.totalAmount == 0.0 && log.totalHours > 0) {
+                    val updated = calculateAmounts(log)
+                    workLogRepository.updateLog(updated)
+                }
+            }
         }
         val now = Calendar.getInstance(Locale.ITALY)
         val currentSystemYear = now[Calendar.YEAR]
@@ -112,7 +120,10 @@ class WorkLogViewModel(
     ) {
         viewModelScope.launch {
             val totalHours = calculateHours(morningStart, morningEnd) + calculateHours(afternoonStart, afternoonEnd)
-            val currentRate = configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
+            val config = configRepository.getConfig(workerId, yearId)
+            val currentRate = config?.hourlyRate ?: 0.0
+            val extraRate = config?.extraHourlyRate ?: 0.0
+            val holidayRate = config?.holidayHourlyRate ?: 0.0
 
             if (id != 0L) {
                 val oldLog = workLogRepository.getLogById(id)
@@ -131,8 +142,11 @@ class WorkLogViewModel(
                 afternoonStart = afternoonStart,
                 afternoonEnd = afternoonEnd,
                 totalHours = totalHours,
-                hourlyRate = currentRate
-            )
+                hourlyRate = currentRate,
+                extraHourlyRate = extraRate,
+                holidayHourlyRate = holidayRate
+            ).let { calculateAmounts(it) }
+
             if (id == 0L) {
                 workLogRepository.insertLog(log)
             } else {
@@ -153,7 +167,10 @@ class WorkLogViewModel(
     ) {
         viewModelScope.launch {
             val totalHours = calculateHours(morningStart, morningEnd) + calculateHours(afternoonStart, afternoonEnd)
-            val currentRate = configRepository.getConfig(workerId, yearId)?.hourlyRate ?: 0.0
+            val config = configRepository.getConfig(workerId, yearId)
+            val currentRate = config?.hourlyRate ?: 0.0
+            val extraRate = config?.extraHourlyRate ?: 0.0
+            val holidayRate = config?.holidayHourlyRate ?: 0.0
             
             // Carichiamo i log una volta sola per efficienza
             val logsInYear = workLogRepository.getLogsForYear(yearId).first()
@@ -177,8 +194,11 @@ class WorkLogViewModel(
                     afternoonStart = afternoonStart,
                     afternoonEnd = afternoonEnd,
                     totalHours = totalHours,
-                    hourlyRate = currentRate
-                )
+                    hourlyRate = currentRate,
+                    extraHourlyRate = extraRate,
+                    holidayHourlyRate = holidayRate,
+                    isManualHoliday = existingLog?.isManualHoliday ?: false
+                ).let { calculateAmounts(it) }
                 
                 if (log.id == 0L) {
                     workLogRepository.insertLog(log)
@@ -188,6 +208,43 @@ class WorkLogViewModel(
                 
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
             }
+        }
+    }
+
+    private fun calculateAmounts(log: WorkLog): WorkLog {
+        val context = com.example.gestbraccianti.GestBracciantiApplication.instance
+        val prefs = context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE)
+        
+        val threshold = prefs.getFloat("extra_hours_threshold", 8.0f).toDouble()
+        val festiveType = prefs.getInt("festive_days_type", 0)
+
+        val cal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = log.date }
+        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+        
+        val isFestive = log.isManualHoliday || when (festiveType) {
+            1 -> dayOfWeek == Calendar.SATURDAY
+            2 -> dayOfWeek == Calendar.SUNDAY
+            3 -> dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
+            else -> false
+        }
+
+        val totalAmount = if (isFestive) {
+            log.totalHours * log.holidayHourlyRate
+        } else {
+            if (log.totalHours > threshold) {
+                (threshold * log.hourlyRate) + ((log.totalHours - threshold) * log.extraHourlyRate)
+            } else {
+                log.totalHours * log.hourlyRate
+            }
+        }
+
+        return log.copy(totalAmount = totalAmount)
+    }
+
+    fun toggleManualHoliday(log: WorkLog) {
+        viewModelScope.launch {
+            val updatedLog = log.copy(isManualHoliday = !log.isManualHoliday).let { calculateAmounts(it) }
+            workLogRepository.updateLog(updatedLog)
         }
     }
 

@@ -33,5 +33,9 @@ data class WorkLog(
     val afternoonStart: String? = null,
     val afternoonEnd: String? = null,
     val totalHours: Double = 0.0,
-    val hourlyRate: Double = 0.0
+    val hourlyRate: Double = 0.0,
+    val extraHourlyRate: Double = 0.0,
+    val holidayHourlyRate: Double = 0.0,
+    val isManualHoliday: Boolean = false,
+    val totalAmount: Double = 0.0
 )

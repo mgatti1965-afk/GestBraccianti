@@ -42,11 +42,17 @@ class WorkerViewModel(
         _selectedYearId.value = yearId
     }
 
-    fun addWorkerToYear(name: String, surname: String, phoneNumber: String, hourlyRate: Double, yearId: Int) {
+    fun addWorkerToYear(name: String, surname: String, phoneNumber: String, hourlyRate: Double, extraRate: Double, holidayRate: Double, yearId: Int) {
         viewModelScope.launch {
             val workerId = workerRepository.insertWorker(Worker(name = name, surname = surname, phoneNumber = phoneNumber))
             configRepository.insertConfig(
-                WorkerYearConfig(workerId = workerId, harvestYearId = yearId, hourlyRate = hourlyRate)
+                WorkerYearConfig(
+                    workerId = workerId,
+                    harvestYearId = yearId,
+                    hourlyRate = hourlyRate,
+                    extraHourlyRate = extraRate,
+                    holidayHourlyRate = holidayRate
+                )
             )
         }
     }
@@ -55,7 +61,7 @@ class WorkerViewModel(
         return configRepository.getConfig(workerId, yearId)
     }
 
-    fun updateWorkerInfo(workerId: Long, name: String, surname: String, phoneNumber: String, yearId: Int, newRate: Double) {
+    fun updateWorkerInfo(workerId: Long, name: String, surname: String, phoneNumber: String, yearId: Int, newRate: Double, extraRate: Double, holidayRate: Double) {
         viewModelScope.launch {
             // Recupera il lavoratore esistente per preservare i campi non modificati (es. isArchived)
             val existingWorker = workerRepository.getWorkerById(workerId)
@@ -69,7 +75,13 @@ class WorkerViewModel(
                 )
             }
             configRepository.insertConfig(
-                WorkerYearConfig(workerId = workerId, harvestYearId = yearId, hourlyRate = newRate)
+                WorkerYearConfig(
+                    workerId = workerId,
+                    harvestYearId = yearId,
+                    hourlyRate = newRate,
+                    extraHourlyRate = extraRate,
+                    holidayHourlyRate = holidayRate
+                )
             )
             
             // Forza il refresh ricaricando l'anno selezionato
@@ -108,7 +120,9 @@ class WorkerViewModel(
                     WorkerYearConfig(
                         workerId = config.workerId,
                         harvestYearId = currentYearId,
-                        hourlyRate = config.hourlyRate
+                        hourlyRate = config.hourlyRate,
+                        extraHourlyRate = config.extraHourlyRate,
+                        holidayHourlyRate = config.holidayHourlyRate
                     )
                 )
             }

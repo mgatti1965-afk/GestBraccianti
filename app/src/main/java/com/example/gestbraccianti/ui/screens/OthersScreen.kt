@@ -9,6 +9,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -46,6 +47,13 @@ fun OthersScreen(
     var ownerName by remember { mutableStateOf(prefs.getString("owner_name", "") ?: "") }
     var ownerSurname by remember { mutableStateOf(prefs.getString("owner_surname", "") ?: "") }
     var ownerPhone by remember { mutableStateOf(prefs.getString("owner_phone", "") ?: "") }
+
+    var extraHoursThreshold by remember { 
+        mutableStateOf(prefs.getFloat("extra_hours_threshold", 8.0f).toString().replace(".", ",")) 
+    }
+    var festiveDaysType by remember { 
+        mutableIntStateOf(prefs.getInt("festive_days_type", 0)) 
+    }
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickContact(),
@@ -325,6 +333,70 @@ fun OthersScreen(
                         }
                     }
 
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(stringResource(R.string.settings_plant_title), style = MaterialTheme.typography.titleMedium)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            OutlinedTextField(
+                                value = extraHoursThreshold,
+                                onValueChange = { input ->
+                                    if (input.isEmpty() || input.matches(Regex("""^\d*[.,]?\d{0,1}$"""))) {
+                                        extraHoursThreshold = input.replace('.', ',')
+                                        val value = extraHoursThreshold.replace(',', '.').toFloatOrNull() ?: 8.0f
+                                        prefs.edit { putFloat("extra_hours_threshold", value) }
+                                    }
+                                },
+                                label = { Text(stringResource(R.string.settings_extra_threshold_label)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                                ),
+                                singleLine = true
+                            )
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Text(
+                                text = stringResource(R.string.settings_festive_days_label),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            val options = listOf(
+                                stringResource(R.string.settings_festive_none),
+                                stringResource(R.string.settings_festive_saturday),
+                                stringResource(R.string.settings_festive_sunday),
+                                stringResource(R.string.settings_festive_sat_sun)
+                            )
+                            
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                options.forEachIndexed { index, label ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { 
+                                                festiveDaysType = index
+                                                prefs.edit { putInt("festive_days_type", index) }
+                                            }
+                                    ) {
+                                        RadioButton(
+                                            selected = festiveDaysType == index,
+                                            onClick = {
+                                                festiveDaysType = index
+                                                prefs.edit { putInt("festive_days_type", index) }
+                                            }
+                                        )
+                                        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     DatabaseTab(
                         onExport = {
                             val timestamp = TimeUtils.fileTimestampFormatter.format(Date())
@@ -364,12 +436,14 @@ fun TestTab(
         Button(
             onClick = {
                 scope.launch {
-                    for (i in 1..10) {
+                        for (i in 1..10) {
                         workerViewModel?.addWorkerToYear(
                             name = "Bracciante",
                             surname = "$i",
                             phoneNumber = "331000000$i",
                             hourlyRate = 10.0,
+                            extraRate = 12.0,
+                            holidayRate = 15.0,
                             yearId = yearId
                         )
                     }

@@ -32,7 +32,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WorkerGroup::class,
         WorkerGroupCrossRef::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -53,6 +53,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // worker_year_configs
+                db.execSQL("ALTER TABLE worker_year_configs ADD COLUMN extraHourlyRate REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE worker_year_configs ADD COLUMN holidayHourlyRate REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("UPDATE worker_year_configs SET extraHourlyRate = hourlyRate, holidayHourlyRate = hourlyRate")
+
+                // work_logs
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN extraHourlyRate REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN holidayHourlyRate REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN isManualHoliday INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN totalAmount REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("UPDATE work_logs SET extraHourlyRate = hourlyRate, holidayHourlyRate = hourlyRate, totalAmount = totalHours * hourlyRate")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -60,8 +76,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gest_braccianti_db"
                 )
-                    .addMigrations(MIGRATION_5_6)
-                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance

@@ -5,6 +5,16 @@ import com.example.gestbraccianti.data.AppDatabase
 import com.example.gestbraccianti.data.repository.*
 
 class GestBracciantiApplication : Application() {
+    companion object {
+        lateinit var instance: GestBracciantiApplication
+            private set
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
+
     val database by lazy { AppDatabase.getDatabase(this) }
     
     val harvestRepository by lazy { 
