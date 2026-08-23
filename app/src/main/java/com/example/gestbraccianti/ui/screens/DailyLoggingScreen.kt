@@ -1,6 +1,8 @@
 package com.example.gestbraccianti.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -124,7 +127,9 @@ fun DailyLoggingScreen(
             MonthGrid(
                 calendar = selectedCalendar,
                 workedDaysMap = workedDaysMap,
-                onDateClick = onDateClick
+                allLogs = allLogs,
+                onDateClick = onDateClick,
+                onDateLongClick = { date -> viewModel.toggleHolidayForDate(date) }
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -196,8 +201,17 @@ fun DailyLoggingScreen(
 fun MonthGrid(
     calendar: Calendar,
     workedDaysMap: Map<Int, Double>,
-    onDateClick: (Long) -> Unit
+    allLogs: List<com.example.gestbraccianti.data.entity.WorkLog>,
+    onDateClick: (Long) -> Unit,
+    onDateLongClick: (Long) -> Unit
 ) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE) }
+    val festiveType = remember(prefs) { prefs.getInt("festive_days_type", 3) }
+    val globalFestiveDates = remember(allLogs) { 
+        prefs.getStringSet("global_festive_dates", emptySet())?.mapNotNull { it.toLongOrNull() }?.toSet() ?: emptySet() 
+    }
+
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
     val firstDayOfMonth = (calendar.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val firstDayOfWeek = firstDayOfMonth.get(Calendar.DAY_OF_WEEK)
@@ -244,21 +258,28 @@ fun MonthGrid(
                         val isToday = isCurrentMonth && dayNum == today.get(Calendar.DAY_OF_MONTH)
                         val totalHours = workedDaysMap[dayNum]
                         
+                        val cellCal = (calendar.clone() as Calendar).apply {
+                            set(Calendar.DAY_OF_MONTH, dayNum)
+                            set(Calendar.HOUR_OF_DAY, 0)
+                            set(Calendar.MINUTE, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        val cellDate = cellCal.timeInMillis
+
+                        val logsForDay = allLogs.filter { it.date == cellDate }
+                        val isManualHoliday = logsForDay.any { it.isManualHoliday }
+                        
+                        val isFestive = TimeUtils.isFestive(cellDate, isManualHoliday, festiveType, globalFestiveDates)
+
                         DayCell(
                             day = dayNum,
                             isToday = isToday,
+                            isFestive = isFestive,
                             totalHours = totalHours,
                             modifier = Modifier.weight(1f),
-                            onClick = {
-                                val clickCal = (calendar.clone() as Calendar).apply {
-                                    set(Calendar.DAY_OF_MONTH, dayNum)
-                                    set(Calendar.HOUR_OF_DAY, 0)
-                                    set(Calendar.MINUTE, 0)
-                                    set(Calendar.SECOND, 0)
-                                    set(Calendar.MILLISECOND, 0)
-                                }
-                                onDateClick(clickCal.timeInMillis)
-                            }
+                            onClick = { onDateClick(cellDate) },
+                            onLongClick = { onDateLongClick(cellDate) }
                         )
                     } else {
                         Spacer(modifier = Modifier.weight(1f))
@@ -270,26 +291,34 @@ fun MonthGrid(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DayCell(
     day: Int,
     isToday: Boolean,
+    isFestive: Boolean,
     totalHours: Double?,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     val hasWorked = totalHours != null && totalHours > 0
 
     Surface(
-        onClick = onClick,
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier
+            .aspectRatio(1f)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = MaterialTheme.shapes.small,
         color = when {
-            hasWorked -> MaterialTheme.colorScheme.primaryContainer
+            hasWorked -> if (isFestive) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
+            isFestive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
             isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             else -> MaterialTheme.colorScheme.surface
         },
-        border = if (isToday) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
+        border = if (isToday) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else if (isFestive && !hasWorked) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) else null,
         tonalElevation = if (hasWorked) 4.dp else if (isToday) 2.dp else 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -297,14 +326,18 @@ fun DayCell(
                 Text(
                     text = day.toString(),
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (hasWorked || isToday) FontWeight.Bold else FontWeight.Normal,
-                    color = if (hasWorked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    fontWeight = if (hasWorked || isToday || isFestive) FontWeight.Bold else FontWeight.Normal,
+                    color = when {
+                        hasWorked -> if (isFestive) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                        isFestive -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
                 )
                 if (hasWorked) {
                     Text(
-                        text = "${formatHours(totalHours!!)}h",
+                        text = formatHours(totalHours!!),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        color = if (isFestive) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                     )
                 }
             }

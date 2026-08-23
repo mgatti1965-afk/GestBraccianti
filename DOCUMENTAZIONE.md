@@ -34,9 +34,10 @@ Mostra una griglia dei giorni del mese. I giorni con ore registrate sono evidenz
 ### Dettaglio Giornata
 Cliccando su un giorno si accede alla gestione dei lavoratori per quella data:
 *   **Aggiunta rapida:** È possibile aggiungere singoli braccianti o interi gruppi predefiniti.
-*   **Gestione Orari Ottimizzata:**
-    *   **Selettori Rapidi:** I controlli per l'inserimento dell'orario supportano l'auto-ripetizione (pressione prolungata) per uno scorrimento veloce dei numeri.
-    *   **Calcolo Automatico:** L'app calcola in tempo reale il totale delle ore e l'importo dovuto.
+*   **Gestione Orari e Tariffe Differenziate:**
+    *   **Selettori Rapidi:** I controlli per l'inserimento dell'orario supportano l'auto-ripetizione (pressione prolungata).
+    *   **Calcolo Automatico Avanzato:** L'app calcola in tempo reale il totale delle ore e l'importo dovuto, distinguendo tra ore ordinarie, straordinarie e festive.
+    *   **Gestione Festività:** È possibile contrassegnare manualmente una giornata come festiva tramite un interruttore dedicato (toggle), che applicherà la tariffa festiva a tutte le ore della giornata.
 *   **Espandi Periodo (Inserimento Massivo):**
     *   Permette di duplicare gli orari inseriti su un intervallo di giorni consecutivi.
     *   **Selettore Data Abbreviato:** Visualizzazione chiara (es. "Lun 25/12") per una selezione rapida del termine del periodo.
@@ -59,7 +60,7 @@ In questa sezione è possibile visualizzare l'andamento economico e lavorativo c
     *   **Vista Totali (📊):** Mostra un riepilogo sintetico con i totali di ore e compensi per lavoratore o gruppo nel periodo scelto.
 *   **Generazione Report:**
     *   **Condivisione WhatsApp/Testo:** Genera un riepilogo testuale pronto da inviare.
-    *   **Esportazione PDF:** Genera un documento PDF professionale con il logo e i dettagli dei pagamenti, filtrabile per singolo bracciante, per gruppo o per tutti.
+    *   **Esportazione PDF:** Genera un documento PDF professionale con il logo e i dettagli dei pagamenti. Il report include ora il dettaglio per **Ore Ordinarie**, **Straordinari** e **Festivi**, marcando i giorni festivi con l'etichetta `[F]`.
 
 ---
 
@@ -67,7 +68,10 @@ In questa sezione è possibile visualizzare l'andamento economico e lavorativo c
 Gestione centralizzata dei collaboratori.
 
 ### Anagrafica
-*   **Scheda Lavoratore:** Nome, Cognome, Numero di telefono e **Tariffa Oraria** specifica per l'anno selezionato.
+*   **Scheda Lavoratore:** Nome, Cognome, Numero di telefono e gestione tariffe per l'anno selezionato:
+    *   **Tariffa Base:** Applicata alle ore ordinarie.
+    *   **Tariffa Straordinari:** Applicata alle ore che eccedono la soglia giornaliera (se impostata).
+    *   **Tariffa Festivi:** Applicata nei giorni festivi o domenicali.
 *   **Importazione Contatti:** Possibilità di importare i dati dei lavoratori direttamente dalla rubrica del telefono.
 *   **Copia Annata:** Funzione per copiare l'elenco dei braccianti dall'anno precedente per non doverli reinserire.
 
@@ -80,6 +84,8 @@ Permette di raggruppare i braccianti (es. "Squadra Raccolta", "Squadra Potatura"
 Sezione dedicata alla configurazione e alla sicurezza dei dati.
 
 *   **Dati Titolare:** Inserimento di Nome, Cognome e Telefono del proprietario (utilizzati nell'intestazione dei report PDF).
+*   **Giorni Festivi Settimanali:** Configurazione dei giorni che l'app deve considerare automaticamente come festivi (Nessuno, Sabato, Domenica o entrambi).
+*   **Soglia Straordinari:** Impostazione del numero di ore giornaliere oltre le quali scatta la tariffa straordinaria.
 *   **Backup CSV:**
     *   **Esporta:** Salva tutti i dati in un file CSV leggibile da Excel.
     *   **Importa:** Ripristina i dati da un file precedentemente salvato.
@@ -88,9 +94,10 @@ Sezione dedicata alla configurazione e alla sicurezza dei dati.
 ---
 
 ## Note Tecniche
-*   **Database:** Utilizza Room Persistence Library per la gestione locale dei dati.
+*   **Database:** Utilizza Room Persistence Library. Versione corrente: **v7** (introdotte tariffe multiple e flag festività).
 *   **Interfaccia:** Sviluppata interamente in Jetpack Compose con Material Design 3.
-*   **Reportistica:** Utilizza iText/Canvas per la generazione dei documenti PDF.
+*   **Reportistica:** Utilizza iText/Canvas per la generazione dei documenti PDF, con supporto al riepilogo analitico delle tariffe.
+*   **Portabilità:** Supporto importazione CSV da versioni precedenti (legacy) con ricalcolo automatico dei compensi.
 
 ---
 *Documentazione generata automaticamente per il progetto GestBraccianti.*

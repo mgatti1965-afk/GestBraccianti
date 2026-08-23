@@ -3,6 +3,8 @@ package com.example.gestbraccianti.ui.utils
 import java.text.NumberFormat
 import java.util.Locale
 
+import kotlin.math.roundToInt
+
 private val italianLocale = Locale.ITALY
 
 /**
@@ -25,8 +27,17 @@ fun formatDecimal(value: Double, decimals: Int = 2): String {
 }
 
 /**
- * Formatta le ore in formato decimale italiano (es: 1.250,50).
+ * Formatta le ore in formato leggibile (es: 8,75 -> 8h 45m).
  */
 fun formatHours(hours: Double): String {
+    val h = hours.toInt()
+    val m = ((hours - h) * 60).roundToInt()
+    return "${h}h ${m}'"
+}
+
+/**
+ * Formatta le ore in formato decimale italiano (es: 1.250,50).
+ */
+fun formatHoursDecimal(hours: Double): String {
     return formatDecimal(hours, 2)
 }

@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -465,11 +467,34 @@ fun GroupedFinancialView(
             if (groupingType == GroupingType.BY_GROUP) {
                 items(groupTotals, key = { "g_${monthIdx}_${it.first ?: -1}" }) { (gId, hours, earnings) ->
                     val groupName = groups.find { it.id == gId }?.name ?: stringResource(R.string.no_group_label)
+                    
+                    val workersInGroup = if (gId != null) groupToWorkers[gId] ?: emptyList() 
+                                         else mLogs.map { it.workerId }.distinct().filter { wId -> 
+                                             groupToWorkers.values.none { wId in it } 
+                                         }
+                    val gLogs = mLogs.filter { it.workerId in workersInGroup }
+                    
+                    var gOrdH = 0.0; var gExtH = 0.0; var gHolH = 0.0
+                    var gOrdA = 0.0; var gExtA = 0.0; var gHolA = 0.0
+                    
+                    val context = LocalContext.current
+                    
+                    gLogs.forEach { log ->
+                        gOrdH += log.ordinaryHours
+                        gExtH += log.extraHours
+                        gHolH += log.holidayHours
+                        gOrdA += log.ordinaryAmount
+                        gExtA += log.extraAmount
+                        gHolA += log.holidayAmount
+                    }
+
                     SummaryCard(
                         title = groupName,
                         subtitle = stringResource(R.string.group_total_subtitle),
                         hours = hours,
                         earnings = earnings,
+                        ordH = gOrdH, extH = gExtH, holH = gHolH,
+                        ordA = gOrdA, extA = gExtA, holA = gHolA,
                         onClick = { onTotalClick(AggregatedSummary(groupName, monthName, hours, earnings)) }
                     )
                 }
@@ -477,11 +502,29 @@ fun GroupedFinancialView(
                 items(workerTotals, key = { "w_${monthIdx}_${it.first}" }) { (wId, hours, earnings) ->
                     val worker = workerMap[wId]
                     val workerName = "${worker?.surname ?: ""} ${worker?.name ?: "Bracc. $wId"}"
+                    
+                    val wLogs = mLogs.filter { it.workerId == wId }
+                    var wOrdH = 0.0; var wExtH = 0.0; var wHolH = 0.0
+                    var wOrdA = 0.0; var wExtA = 0.0; var wHolA = 0.0
+                    
+                    val context = LocalContext.current
+                    
+                    wLogs.forEach { log ->
+                        wOrdH += log.ordinaryHours
+                        wExtH += log.extraHours
+                        wHolH += log.holidayHours
+                        wOrdA += log.ordinaryAmount
+                        wExtA += log.extraAmount
+                        wHolA += log.holidayAmount
+                    }
+
                     SummaryCard(
                         title = workerName,
                         subtitle = stringResource(R.string.worker_total_subtitle),
                         hours = hours,
                         earnings = earnings,
+                        ordH = wOrdH, extH = wExtH, holH = wHolH,
+                        ordA = wOrdA, extA = wExtA, holA = wHolA,
                         onClick = { onTotalClick(AggregatedSummary(workerName, monthName, hours, earnings)) }
                     )
                 }
@@ -530,7 +573,7 @@ fun GroupedFinancialView(
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "${formatHours(log.totalHours)} h",
+                                    text = formatHours(log.totalHours),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -580,7 +623,6 @@ fun GroupedFinancialView(
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Text(" h", style = MaterialTheme.typography.labelSmall)
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 text = formatCurrency(mEarnings),
@@ -595,8 +637,24 @@ fun GroupedFinancialView(
         }
         
         item {
-            val yHours = logs.sumOf { it.totalHours }
-            val yEarnings = logs.sumOf { it.totalAmount }
+            var totalOrdHours = 0.0
+            var totalExtHours = 0.0
+            var totalHolHours = 0.0
+            var totalOrdAmt = 0.0
+            var totalExtAmt = 0.0
+            var totalHolAmt = 0.0
+
+            logs.forEach { log ->
+                totalOrdHours += log.ordinaryHours
+                totalExtHours += log.extraHours
+                totalHolHours += log.holidayHours
+                totalOrdAmt += log.ordinaryAmount
+                totalExtAmt += log.extraAmount
+                totalHolAmt += log.holidayAmount
+            }
+
+            val yHours = totalOrdHours + totalExtHours + totalHolHours
+            val yEarnings = totalOrdAmt + totalExtAmt + totalHolAmt
             
             Spacer(modifier = Modifier.height(32.dp))
             
@@ -639,7 +697,7 @@ fun GroupedFinancialView(
                                 )
                             }
                             Text(
-                                text = "${formatHours(yHours)} h",
+                                text = formatHours(yHours),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -676,6 +734,29 @@ fun GroupedFinancialView(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Dettaglio suddivisione
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SummaryBreakdownRow(
+                            label = stringResource(R.string.total_ordinary_label),
+                            hours = totalOrdHours,
+                            amount = totalOrdAmt
+                        )
+                        SummaryBreakdownRow(
+                            label = stringResource(R.string.total_extra_label),
+                            hours = totalExtHours,
+                            amount = totalExtAmt
+                        )
+                        SummaryBreakdownRow(
+                            label = stringResource(R.string.total_holiday_label),
+                            hours = totalHolHours,
+                            amount = totalHolAmt
+                        )
+                    }
                 }
             }
         }
@@ -683,43 +764,121 @@ fun GroupedFinancialView(
 }
 
 @Composable
-fun SummaryCard(title: String, subtitle: String, hours: Double, earnings: Double, onClick: () -> Unit = {}) {
+fun SummaryBreakdownRow(label: String, hours: Double, amount: Double) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = formatHours(hours),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = formatCurrency(amount),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+fun SummaryCard(
+    title: String,
+    subtitle: String,
+    hours: Double,
+    earnings: Double,
+    ordH: Double = 0.0,
+    extH: Double = 0.0,
+    holH: Double = 0.0,
+    ordA: Double = 0.0,
+    extA: Double = 0.0,
+    holA: Double = 0.0,
+    onClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = formatHours(hours),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatCurrency(earnings),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "${formatHours(hours)} h",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = formatCurrency(earnings),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            
+            if (ordH > 0 || extH > 0 || holH > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (ordH > 0) {
+                        SmallStatChip(label = "N", hours = ordH, color = MaterialTheme.colorScheme.primary)
+                    }
+                    if (extH > 0) {
+                        SmallStatChip(label = "S", hours = extH, color = MaterialTheme.colorScheme.secondary)
+                    }
+                    if (holH > 0) {
+                        SmallStatChip(label = "F", hours = holH, color = MaterialTheme.colorScheme.tertiary)
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+fun SmallStatChip(label: String, hours: Double, color: Color) {
+    Surface(
+        color = color.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(4.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
+    ) {
+        Text(
+            text = "$label: ${formatHours(hours)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -798,7 +957,7 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DetailRow(label = stringResource(R.string.total_hours_label), value = "${formatHours(summary.totalHours)} h", isBold = true)
+                        DetailRow(label = stringResource(R.string.total_hours_label), value = formatHours(summary.totalHours), isBold = true)
                         DetailRow(
                             label = stringResource(R.string.total_amount_label), 
                             value = formatCurrency(summary.totalEarnings),
@@ -824,16 +983,9 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
 fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE) }
-    val threshold = prefs.getFloat("extra_hours_threshold", 8.0f).toDouble()
-    val festiveType = prefs.getInt("festive_days_type", 0)
+    val festiveType = prefs.getInt("festive_days_type", 3)
 
-    val cal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = log.date }
-    val isFestive = log.isManualHoliday || when (festiveType) {
-        1 -> cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY
-        2 -> cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
-        3 -> cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
-        else -> false
-    }
+    val isFestive = TimeUtils.isFestive(log.date, log.isManualHoliday, festiveType)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -873,14 +1025,20 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
                         DetailRow(label = stringResource(R.string.afternoon_label), value = formatInterval(log.afternoonStart, log.afternoonEnd))
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         
-                        DetailRow(label = stringResource(R.string.total_hours_label), value = "${formatHours(log.totalHours)} h", isBold = true)
-                        
                         if (isFestive) {
-                            DetailRow(label = stringResource(R.string.holiday_hourly_rate_label), value = "${formatCurrency(log.holidayHourlyRate)}/h")
+                            DetailRow(label = "Ore Festive", value = formatHours(log.holidayHours), isBold = true)
+                            DetailRow(label = "Tariffa Festiva", value = "${formatCurrency(log.holidayHourlyRate)}/h")
                         } else {
-                            DetailRow(label = stringResource(R.string.hourly_rate_label), value = "${formatCurrency(log.hourlyRate)}/h")
-                            if (log.totalHours > threshold) {
-                                DetailRow(label = stringResource(R.string.extra_hourly_rate_label), value = "${formatCurrency(log.extraHourlyRate)}/h")
+                            DetailRow(label = "Ore Ordinarie", value = formatHours(log.ordinaryHours))
+                            if (log.extraHours > 0) {
+                                DetailRow(label = "Ore Straordinarie", value = formatHours(log.extraHours))
+                            }
+                            DetailRow(label = "Totale Ore", value = formatHours(log.totalHours), isBold = true)
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            DetailRow(label = "Tariffa Base", value = "${formatCurrency(log.hourlyRate)}/h")
+                            if (log.extraHours > 0) {
+                                DetailRow(label = "Tariffa Straord.", value = "${formatCurrency(log.extraHourlyRate)}/h")
                             }
                         }
 

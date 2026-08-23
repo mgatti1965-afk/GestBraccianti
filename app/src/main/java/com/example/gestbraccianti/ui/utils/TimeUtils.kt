@@ -24,6 +24,18 @@ object TimeUtils {
     val yearFormatter = SimpleDateFormat("yyyy", italianLocale)
     val weekYearFormatter = SimpleDateFormat("'Settimana' w, yyyy", italianLocale)
 
+    fun isFestive(date: Long, isManual: Boolean, festiveType: Int, globalFestiveDates: Set<Long> = emptySet()): Boolean {
+        if (isManual || globalFestiveDates.contains(date)) return true
+        val cal = java.util.Calendar.getInstance(italianLocale).apply { timeInMillis = date }
+        val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
+        return when (festiveType) {
+            1 -> dayOfWeek == java.util.Calendar.SATURDAY
+            2 -> dayOfWeek == java.util.Calendar.SUNDAY
+            3 -> dayOfWeek == java.util.Calendar.SATURDAY || dayOfWeek == java.util.Calendar.SUNDAY
+            else -> false
+        }
+    }
+
     fun format(date: Long, formatter: SimpleDateFormat): String {
         return formatter.format(Date(date))
     }
@@ -36,6 +48,7 @@ object TimeUtils {
 fun formatDecimalHours(hours: Double): String {
     return String.format(Locale.US, "%.2f", hours)
 }
+
 
 fun parseTimeToDouble(timeStr: String): Double {
     val cleanStr = timeStr.trim()

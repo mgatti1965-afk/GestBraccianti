@@ -125,11 +125,10 @@ class WorkLogViewModel(
             val extraRate = config?.extraHourlyRate ?: 0.0
             val holidayRate = config?.holidayHourlyRate ?: 0.0
 
-            if (id != 0L) {
-                val oldLog = workLogRepository.getLogById(id)
-                if (oldLog != null && oldLog.hourlyRate != currentRate && oldLog.hourlyRate != 0.0) {
-                    _uiEvent.emit("Tariffa aggiornata: da ${formatCurrency(oldLog.hourlyRate)} a ${formatCurrency(currentRate)}")
-                }
+            val existingLog = if (id != 0L) workLogRepository.getLogById(id) else null
+            
+            if (existingLog != null && existingLog.hourlyRate != currentRate && existingLog.hourlyRate != 0.0) {
+                _uiEvent.emit("Tariffa aggiornata: da ${formatCurrency(existingLog.hourlyRate)} a ${formatCurrency(currentRate)}")
             }
 
             val log = WorkLog(
@@ -144,7 +143,8 @@ class WorkLogViewModel(
                 totalHours = totalHours,
                 hourlyRate = currentRate,
                 extraHourlyRate = extraRate,
-                holidayHourlyRate = holidayRate
+                holidayHourlyRate = holidayRate,
+                isManualHoliday = existingLog?.isManualHoliday ?: false
             ).let { calculateAmounts(it) }
 
             if (id == 0L) {
@@ -216,35 +216,81 @@ class WorkLogViewModel(
         val prefs = context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE)
         
         val threshold = prefs.getFloat("extra_hours_threshold", 8.0f).toDouble()
-        val festiveType = prefs.getInt("festive_days_type", 0)
+        val festiveType = prefs.getInt("festive_days_type", 3)
 
-        val cal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = log.date }
-        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
-        
-        val isFestive = log.isManualHoliday || when (festiveType) {
-            1 -> dayOfWeek == Calendar.SATURDAY
-            2 -> dayOfWeek == Calendar.SUNDAY
-            3 -> dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
-            else -> false
-        }
+        val isFestive = TimeUtils.isFestive(log.date, log.isManualHoliday, festiveType)
 
-        val totalAmount = if (isFestive) {
-            log.totalHours * log.holidayHourlyRate
+        var ordH = 0.0
+        var extH = 0.0
+        var holH = 0.0
+        var ordA = 0.0
+        var extA = 0.0
+        var holA = 0.0
+
+        if (isFestive) {
+            holH = log.totalHours
+            holA = log.totalHours * log.holidayHourlyRate
         } else {
             if (log.totalHours > threshold) {
-                (threshold * log.hourlyRate) + ((log.totalHours - threshold) * log.extraHourlyRate)
+                ordH = threshold
+                extH = log.totalHours - threshold
+                ordA = threshold * log.hourlyRate
+                extA = extH * log.extraHourlyRate
             } else {
-                log.totalHours * log.hourlyRate
+                ordH = log.totalHours
+                ordA = log.totalHours * log.hourlyRate
             }
         }
 
-        return log.copy(totalAmount = totalAmount)
+        return log.copy(
+            totalAmount = ordA + extA + holA,
+            ordinaryHours = ordH,
+            extraHours = extH,
+            holidayHours = holH,
+            ordinaryAmount = ordA,
+            extraAmount = extA,
+            holidayAmount = holA
+        )
     }
 
     fun toggleManualHoliday(log: WorkLog) {
         viewModelScope.launch {
             val updatedLog = log.copy(isManualHoliday = !log.isManualHoliday).let { calculateAmounts(it) }
             workLogRepository.updateLog(updatedLog)
+        }
+    }
+
+    fun toggleHolidayForDate(date: Long) {
+        viewModelScope.launch {
+            val context = com.example.gestbraccianti.GestBracciantiApplication.instance
+            val prefs = context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE)
+            val globalFestiveSet = prefs.getStringSet("global_festive_dates", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+            
+            val yearId = _selectedYearId.value ?: return@launch
+            val logsForDay = workLogRepository.getLogsByDate(date, yearId)
+            
+            val dateStr = date.toString()
+            val isCurrentlyGlobalFestive = globalFestiveSet.contains(dateStr)
+            
+            if (isCurrentlyGlobalFestive) {
+                globalFestiveSet.remove(dateStr)
+            } else {
+                globalFestiveSet.add(dateStr)
+            }
+            
+            prefs.edit().putStringSet("global_festive_dates", globalFestiveSet).apply()
+
+            // Aggiorniamo anche i log esistenti per coerenza
+            if (logsForDay.isNotEmpty()) {
+                val targetState = !isCurrentlyGlobalFestive
+                logsForDay.forEach { log ->
+                    val updatedLog = log.copy(isManualHoliday = targetState).let { calculateAmounts(it) }
+                    workLogRepository.updateLog(updatedLog)
+                }
+            }
+            
+            val toastMsg = if (!isCurrentlyGlobalFestive) "Giorno impostato come festivo" else "Ripristinato giorno feriale"
+            _uiEvent.emit(toastMsg)
         }
     }
 

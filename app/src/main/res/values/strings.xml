@@ -120,6 +120,9 @@
     <string name="overall_summary_title">RIEPILOGO COMPLESSIVO</string>
     <string name="total_hours_label">Ore Totali</string>
     <string name="total_amount_label">Importo Totale</string>
+    <string name="total_ordinary_label">Ordinarie</string>
+    <string name="total_extra_label">Straordinari</string>
+    <string name="total_holiday_label">Festivi</string>
     <string name="btn_send_pdf">Invia PDF…</string>
     <string name="summary_desc">Riepilogo dei compensi per il periodo selezionato.</string>
     <string name="morning_label">Mattina</string>
@@ -133,7 +136,7 @@
     <string name="next_month_desc">Mese successivo</string>
     <string name="registered_days_label">Giornate registrate</string>
     <string name="no_data_month">Nessun dato per questo mese.</string>
-    <string name="worker_hours_summary">%1$d bracc. • %2$s ore</string>
+    <string name="worker_hours_summary">%1$d bracc. • %2$s</string>
     <string name="monday_short">L</string>
     <string name="tuesday_short">M</string>
     <string name="wednesday_short">M</string>
@@ -146,7 +149,7 @@
     <string name="back_desc">Indietro</string>
     <string name="no_workers_today">Nessun bracciante inserito per oggi.</string>
     <string name="time_range_summary">M: %1$s-%2$s | P: %3$s-%4$s</string>
-    <string name="total_hours_short">Totale: %1$s h</string>
+    <string name="total_hours_short">Totale: %1$s</string>
     <string name="remove_desc">Rimuovi</string>
     <string name="btn_groups">Gruppi</string>
     <string name="btn_worker">Bracciante</string>

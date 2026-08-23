@@ -49,10 +49,11 @@ fun OthersScreen(
     var ownerPhone by remember { mutableStateOf(prefs.getString("owner_phone", "") ?: "") }
 
     var extraHoursThreshold by remember { 
-        mutableStateOf(prefs.getFloat("extra_hours_threshold", 8.0f).toString().replace(".", ",")) 
+        val savedValue = prefs.getFloat("extra_hours_threshold", 8.0f)
+        mutableStateOf(savedValue.toInt().toString())
     }
     var festiveDaysType by remember { 
-        mutableIntStateOf(prefs.getInt("festive_days_type", 0)) 
+        mutableIntStateOf(prefs.getInt("festive_days_type", 3))
     }
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
@@ -289,124 +290,173 @@ fun OthersScreen(
 
         when (currentTab) {
             0 -> {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.weight(1f)) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.owner_card_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                IconButton(onClick = {
-                                    when (PackageManager.PERMISSION_GRANTED) {
-                                        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
-                                            contactPickerLauncher.launch(null)
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.owner_card_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = {
+                                        when (PackageManager.PERMISSION_GRANTED) {
+                                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
+                                                contactPickerLauncher.launch(null)
+                                            }
+                                            else -> {
+                                                permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                                            }
                                         }
-                                        else -> {
-                                            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                                        }
+                                    }) {
+                                        Icon(Icons.Default.ContactPage, contentDescription = stringResource(R.string.import_contacts_desc))
                                     }
-                                }) {
-                                    Icon(Icons.Default.ContactPage, contentDescription = stringResource(R.string.import_contacts_desc))
                                 }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(
-                                    value = ownerSurname,
-                                    onValueChange = {
-                                        ownerSurname = it
-                                        prefs.edit { putString("owner_surname", it) }
-                                    },
-                                    label = { Text(stringResource(R.string.owner_surname_label), style = MaterialTheme.typography.labelLarge) },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
-                                )
-                                OutlinedTextField(
-                                    value = ownerName,
-                                    onValueChange = {
-                                        ownerName = it
-                                        prefs.edit { putString("owner_name", it) }
-                                    },
-                                    label = { Text(stringResource(R.string.owner_name_label), style = MaterialTheme.typography.labelLarge) },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
-                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = ownerSurname,
+                                        onValueChange = {
+                                            ownerSurname = it
+                                            prefs.edit { putString("owner_surname", it) }
+                                        },
+                                        label = { Text(stringResource(R.string.owner_surname_label), style = MaterialTheme.typography.labelLarge) },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = ownerName,
+                                        onValueChange = {
+                                            ownerName = it
+                                            prefs.edit { putString("owner_name", it) }
+                                        },
+                                        label = { Text(stringResource(R.string.owner_name_label), style = MaterialTheme.typography.labelLarge) },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                }
                             }
                         }
                     }
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(stringResource(R.string.settings_plant_title), style = MaterialTheme.typography.titleMedium)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            OutlinedTextField(
-                                value = extraHoursThreshold,
-                                onValueChange = { input ->
-                                    if (input.isEmpty() || input.matches(Regex("""^\d*[.,]?\d{0,1}$"""))) {
-                                        extraHoursThreshold = input.replace('.', ',')
-                                        val value = extraHoursThreshold.replace(',', '.').toFloatOrNull() ?: 8.0f
-                                        prefs.edit { putFloat("extra_hours_threshold", value) }
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(stringResource(R.string.settings_plant_title), style = MaterialTheme.typography.titleMedium)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_extra_threshold_label),
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Text(
+                                            text = "Soglia oltre la quale scatta la tariffa straordinaria",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
                                     }
-                                },
-                                label = { Text(stringResource(R.string.settings_extra_threshold_label)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                                ),
-                                singleLine = true
-                            )
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            Text(
-                                text = stringResource(R.string.settings_festive_days_label),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            val options = listOf(
-                                stringResource(R.string.settings_festive_none),
-                                stringResource(R.string.settings_festive_saturday),
-                                stringResource(R.string.settings_festive_sunday),
-                                stringResource(R.string.settings_festive_sat_sun)
-                            )
-                            
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                options.forEachIndexed { index, label ->
+                                    OutlinedTextField(
+                                        value = extraHoursThreshold,
+                                        onValueChange = { input ->
+                                            if (input.isEmpty() || (input.all { it.isDigit() } && input.length <= 2)) {
+                                                extraHoursThreshold = input
+                                                val value = input.toFloatOrNull() ?: 8.0f
+                                                prefs.edit { putFloat("extra_hours_threshold", value) }
+                                            }
+                                        },
+                                        modifier = Modifier.width(80.dp),
+                                        textStyle = LocalTextStyle.current.copy(
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                        ),
+                                        singleLine = true
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Text(
+                                    text = stringResource(R.string.settings_festive_days_label),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                val isSaturdayFestive = (festiveDaysType and 1) != 0
+                                val isSundayFestive = (festiveDaysType and 2) != 0
+                                
+                                Column {
+                                    // Sabato
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier
                                             .fillMaxWidth()
+                                            .heightIn(min = 48.dp)
                                             .clickable { 
-                                                festiveDaysType = index
-                                                prefs.edit { putInt("festive_days_type", index) }
+                                                val newValue = if (isSaturdayFestive) festiveDaysType and 2 else festiveDaysType or 1
+                                                festiveDaysType = newValue
+                                                prefs.edit { putInt("festive_days_type", newValue) }
                                             }
                                     ) {
-                                        RadioButton(
-                                            selected = festiveDaysType == index,
-                                            onClick = {
-                                                festiveDaysType = index
-                                                prefs.edit { putInt("festive_days_type", index) }
-                                            }
+                                        Checkbox(
+                                            checked = isSaturdayFestive,
+                                            onCheckedChange = null
                                         )
-                                        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                                        Text(
+                                            text = stringResource(R.string.settings_festive_saturday),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier.padding(start = 12.dp).weight(1f)
+                                        )
+                                    }
+                                    // Domenica
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp)
+                                            .clickable { 
+                                                val newValue = if (isSundayFestive) festiveDaysType and 1 else festiveDaysType or 2
+                                                festiveDaysType = newValue
+                                                prefs.edit { putInt("festive_days_type", newValue) }
+                                            }
+                                    ) {
+                                        Checkbox(
+                                            checked = isSundayFestive,
+                                            onCheckedChange = null
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.settings_festive_sunday),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier.padding(start = 12.dp).weight(1f)
+                                        )
                                     }
                                 }
                             }
                         }
                     }
 
-                    DatabaseTab(
-                        onExport = {
-                            val timestamp = TimeUtils.fileTimestampFormatter.format(Date())
-                            csvExportLauncher.launch("GestBraccianti_Bkp_$timestamp.csv")
-                        },
-                        onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
-                        onRestore = { file -> prepareImport(Uri.fromFile(file), file.name) },
-                        backupFiles = backupFiles,
-                        onRefresh = { refreshBackupList() }
-                    )
+                    item {
+                        DatabaseTab(
+                            onExport = {
+                                val timestamp = TimeUtils.fileTimestampFormatter.format(Date())
+                                csvExportLauncher.launch("GestBraccianti_Bkp_$timestamp.csv")
+                            },
+                            onImport = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
+                            onRestore = { file -> prepareImport(Uri.fromFile(file), file.name) },
+                            backupFiles = backupFiles,
+                            onRefresh = { refreshBackupList() }
+                        )
+                    }
                 }
             }
             1 -> {
@@ -503,11 +553,10 @@ fun DatabaseTab(
         if (backupFiles.isEmpty()) {
             Text(stringResource(R.string.no_backups_msg), style = MaterialTheme.typography.bodySmall)
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
+            Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(backupFiles, key = { it.absolutePath }) { file ->
+                backupFiles.forEach { file ->
                     BackupFileItem(
                         file = file,
                         onShare = { shareFile(context, file) },

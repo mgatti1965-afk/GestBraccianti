@@ -32,7 +32,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WorkerGroup::class,
         WorkerGroupCrossRef::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -50,6 +50,23 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE work_logs ADD COLUMN hourlyRate REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN ordinaryHours REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN extraHours REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN holidayHours REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN ordinaryAmount REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN extraAmount REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE work_logs ADD COLUMN holidayAmount REAL NOT NULL DEFAULT 0.0")
+                
+                // Popolamento iniziale per coerenza storica:
+                // 1. Log feriali: tutto su ordinario
+                db.execSQL("UPDATE work_logs SET ordinaryHours = totalHours, ordinaryAmount = totalAmount WHERE isManualHoliday = 0")
+                // 2. Log festivi: tutto su festivo
+                db.execSQL("UPDATE work_logs SET holidayHours = totalHours, holidayAmount = totalAmount WHERE isManualHoliday = 1")
             }
         }
 
@@ -76,7 +93,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gest_braccianti_db"
                 )
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .build()
                 INSTANCE = instance
                 instance

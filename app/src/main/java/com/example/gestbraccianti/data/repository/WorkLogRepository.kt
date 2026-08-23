@@ -13,5 +13,7 @@ class WorkLogRepository(private val workLogDao: WorkLogDao) {
 
     suspend fun getLogById(id: Long): WorkLog? = workLogDao.getLogById(id)
 
+    suspend fun getLogsByDate(date: Long, yearId: Int): List<WorkLog> = workLogDao.getLogsByDate(date, yearId)
+
     suspend fun fillMissingRates() = workLogDao.fillMissingRates()
 }

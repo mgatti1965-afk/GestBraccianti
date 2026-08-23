@@ -107,34 +107,19 @@ fun generatePdfReport(
     var totalExtAmt = 0.0
     var totalHolAmt = 0.0
 
-    val threshold = prefs.getFloat("extra_hours_threshold", 8.0f).toDouble()
-    val festiveType = prefs.getInt("festive_days_type", 0)
+    val festiveType = prefs.getInt("festive_days_type", 3)
+    val globalFestiveDates = prefs.getStringSet("global_festive_dates", emptySet())
+        ?.mapNotNull { it.toLongOrNull() }?.toSet() ?: emptySet()
 
     // Helper to accumulate totals
     fun accumulateTotals(log: WorkLog) {
-        val cal = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = log.date }
-        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
-        val isFestive = log.isManualHoliday || when (festiveType) {
-            1 -> dayOfWeek == Calendar.SATURDAY
-            2 -> dayOfWeek == Calendar.SUNDAY
-            3 -> dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
-            else -> false
-        }
-
-        if (isFestive) {
-            totalHolHours += log.totalHours
-            totalHolAmt += log.totalAmount
-        } else {
-            if (log.totalHours > threshold) {
-                totalOrdHours += threshold
-                totalExtHours += (log.totalHours - threshold)
-                totalOrdAmt += (threshold * log.hourlyRate)
-                totalExtAmt += ((log.totalHours - threshold) * log.extraHourlyRate)
-            } else {
-                totalOrdHours += log.totalHours
-                totalOrdAmt += log.totalAmount
-            }
-        }
+        totalOrdHours += log.ordinaryHours
+        totalExtHours += log.extraHours
+        totalHolHours += log.holidayHours
+        totalOrdAmt += log.ordinaryAmount
+        totalExtAmt += log.extraAmount
+        totalHolAmt += log.holidayAmount
+        
         totalOverallHours += log.totalHours
         totalOverallEarnings += log.totalAmount
     }
@@ -161,25 +146,53 @@ fun generatePdfReport(
                 val workersInGroup = groupToWorkers[group.id] ?: emptyList()
                 val gLogs = mLogs.filter { it.workerId in workersInGroup }
                 if (gLogs.isNotEmpty()) {
+                    var gOrdH = 0.0; var gExtH = 0.0; var gHolH = 0.0
+                    var gOrdA = 0.0; var gExtA = 0.0; var gHolA = 0.0
+                    
+                    gLogs.forEach { log ->
+                        gOrdH += log.ordinaryHours
+                        gExtH += log.extraHours
+                        gHolH += log.holidayHours
+                        gOrdA += log.ordinaryAmount
+                        gExtA += log.extraAmount
+                        gHolA += log.holidayAmount
+                    }
+
                     val hours = gLogs.sumOf { it.totalHours }
                     val earnings = gLogs.sumOf { it.totalAmount }
                     
                     checkNewPage()
                     canvas.drawText("• ${group.name}", margin + 10f, y, boldPaint)
                     y += 18f
-                    canvas.drawText("  Totale: ${formatHours(hours)}h | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint)
+                    canvas.drawText("  N: ${formatHours(gOrdH)} (${formatCurrency(gOrdA)}) | S: ${formatHours(gExtH)} (${formatCurrency(gExtA)}) | F: ${formatHours(gHolH)} (${formatCurrency(gHolA)})", margin + 10f, y, bodyPaint.apply { textSize = 10f })
+                    y += 15f
+                    canvas.drawText("  Totale: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint.apply { textSize = 12f })
                     y += 22f
                 }
             }
             val allGroupWorkers = groupToWorkers.values.flatten().toSet()
             val noGroupLogs = mLogs.filter { it.workerId !in allGroupWorkers }
             if (noGroupLogs.isNotEmpty()) {
+                var gOrdH = 0.0; var gExtH = 0.0; var gHolH = 0.0
+                var gOrdA = 0.0; var gExtA = 0.0; var gHolA = 0.0
+                
+                noGroupLogs.forEach { log ->
+                    gOrdH += log.ordinaryHours
+                    gExtH += log.extraHours
+                    gHolH += log.holidayHours
+                    gOrdA += log.ordinaryAmount
+                    gExtA += log.extraAmount
+                    gHolA += log.holidayAmount
+                }
                 val hours = noGroupLogs.sumOf { it.totalHours }
                 val earnings = noGroupLogs.sumOf { it.totalAmount }
+
                 checkNewPage()
                 canvas.drawText("• Senza Gruppo", margin + 10f, y, boldPaint)
                 y += 18f
-                canvas.drawText("  Totale: ${formatHours(hours)}h | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint)
+                canvas.drawText("  N: ${formatHours(gOrdH)} (${formatCurrency(gOrdA)}) | S: ${formatHours(gExtH)} (${formatCurrency(gExtA)}) | F: ${formatHours(gHolH)} (${formatCurrency(gHolA)})", margin + 10f, y, bodyPaint.apply { textSize = 10f })
+                y += 15f
+                canvas.drawText("  Totale: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint.apply { textSize = 12f })
                 y += 22f
             }
         } else if (viewMode == com.example.gestbraccianti.ui.screens.ViewMode.TOTALS) {
@@ -187,13 +200,28 @@ fun generatePdfReport(
             mLogs.groupBy { it.workerId }.forEach { (wId, wLogs) ->
                 val worker = workerMap[wId]
                 val workerName = "${worker?.surname ?: ""} ${worker?.name ?: "Bracc. $wId"}"
+                
+                var wOrdH = 0.0; var wExtH = 0.0; var wHolH = 0.0
+                var wOrdA = 0.0; var wExtA = 0.0; var wHolA = 0.0
+                
+                wLogs.forEach { log ->
+                    wOrdH += log.ordinaryHours
+                    wExtH += log.extraHours
+                    wHolH += log.holidayHours
+                    wOrdA += log.ordinaryAmount
+                    wExtA += log.extraAmount
+                    wHolA += log.holidayAmount
+                }
+                
                 val hours = wLogs.sumOf { it.totalHours }
                 val earnings = wLogs.sumOf { it.totalAmount }
                 
                 checkNewPage()
                 canvas.drawText("• $workerName", margin + 10f, y, boldPaint)
                 y += 18f
-                canvas.drawText("  Totale: ${formatHours(hours)}h | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint)
+                canvas.drawText("  N: ${formatHours(wOrdH)} (${formatCurrency(wOrdA)}) | S: ${formatHours(wExtH)} (${formatCurrency(wExtA)}) | F: ${formatHours(wHolH)} (${formatCurrency(wHolA)})", margin + 10f, y, bodyPaint.apply { textSize = 10f })
+                y += 15f
+                canvas.drawText("  Totale: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint.apply { textSize = 12f })
                 y += 22f
             }
         } else {
@@ -201,19 +229,31 @@ fun generatePdfReport(
             mLogs.sortedBy { it.date }.forEach { log ->
                 val worker = workerMap[log.workerId]
                 val workerName = if (worker != null) "${worker.surname} ${worker.name}" else "Bracciante ${log.workerId}"
+                
+                val isFestive = TimeUtils.isFestive(log.date, log.isManualHoliday, festiveType, globalFestiveDates)
+                
+                val ordStr = formatHours(log.ordinaryHours)
+                val extStr = formatHours(log.extraHours)
+                val holStr = formatHours(log.holidayHours)
                 val earnStr = formatCurrency(log.totalAmount)
-                val calTemp = Calendar.getInstance(Locale.ITALY).apply { timeInMillis = log.date }
-                val isFestive = log.isManualHoliday || when (festiveType) {
-                    1 -> calTemp.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY
-                    2 -> calTemp.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
-                    3 -> calTemp.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || calTemp.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
-                    else -> false
-                }
-                val festStr = if (isFestive) " [F]" else ""
-                val line = "• ${TimeUtils.format(log.date, TimeUtils.dayMonthFormatter)}$festStr $workerName: ${formatHours(log.totalHours)}h | $earnStr"
+                
+                val dateStr = TimeUtils.format(log.date, TimeUtils.dayMonthFormatter)
+                val festMark = if (isFestive) "*" else ""
+                
+                val line = "$dateStr$festMark $workerName"
+                val breakdown = "Ord: $ordStr | Str: $extStr | Fes: $holStr | Tot: $earnStr"
                 
                 checkNewPage()
                 canvas.drawText(line, margin + 10f, y, bodyPaint)
+                
+                val originalTextSize = bodyPaint.textSize
+                bodyPaint.textSize = 9f
+                bodyPaint.textAlign = android.graphics.Paint.Align.RIGHT
+                canvas.drawText(breakdown, pageWidth - margin - 10f, y, bodyPaint)
+                
+                // Reset paint
+                bodyPaint.textSize = originalTextSize
+                bodyPaint.textAlign = android.graphics.Paint.Align.LEFT
                 y += 18f
             }
         }
@@ -224,7 +264,7 @@ fun generatePdfReport(
         
         checkNewPage()
         y += 5f
-        canvas.drawText("TOTALE PERIODO: ${formatHours(totalMonthHours)}h | $totMonthEarnStr", margin + 10f, y, boldPaint)
+        canvas.drawText("TOTALE PERIODO: ${formatHours(totalMonthHours)} | $totMonthEarnStr", margin + 10f, y, boldPaint)
         y += 35f
     }
 
@@ -237,14 +277,14 @@ fun generatePdfReport(
     y += 20f
     
     // Details split
-    canvas.drawText("Ore ordinarie: ${formatHours(totalOrdHours)}h (${formatCurrency(totalOrdAmt)})", margin, y, bodyPaint)
+    canvas.drawText("Ore ordinarie: ${formatHours(totalOrdHours)} (${formatCurrency(totalOrdAmt)})", margin, y, bodyPaint)
     y += 18f
-    canvas.drawText("Ore straordinarie: ${formatHours(totalExtHours)}h (${formatCurrency(totalExtAmt)})", margin, y, bodyPaint)
+    canvas.drawText("Ore straordinarie: ${formatHours(totalExtHours)} (${formatCurrency(totalExtAmt)})", margin, y, bodyPaint)
     y += 18f
-    canvas.drawText("Ore festive: ${formatHours(totalHolHours)}h (${formatCurrency(totalHolAmt)})", margin, y, bodyPaint)
+    canvas.drawText("Ore festive: ${formatHours(totalHolHours)} (${formatCurrency(totalHolAmt)})", margin, y, bodyPaint)
     y += 25f
 
-    canvas.drawText("Ore totali: ${formatHours(totalOverallHours)} h", margin, y, bodyPaint)
+    canvas.drawText("Ore totali: ${formatHours(totalOverallHours)}", margin, y, bodyPaint)
     y += 18f
     val totalEarnStr = formatCurrency(totalOverallEarnings)
     canvas.drawText("Importo totale: $totalEarnStr", margin, y, boldPaint)

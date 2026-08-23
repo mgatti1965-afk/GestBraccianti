@@ -181,7 +181,6 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                 ) {
                     items(filteredWorkers, key = { it.worker.id }) { item ->
                         val worker = item.worker
-                        val rate = item.hourlyRate
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -223,12 +222,29 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        text = stringResource(R.string.worker_rate_label, formatCurrency(rate)),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Text(
+                                            text = "Ord: ${formatCurrency(item.hourlyRate)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Str: ${formatCurrency(item.extraHourlyRate)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Fes: ${formatCurrency(item.holidayHourlyRate)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                                 Icon(
                                     Icons.Default.Edit,
@@ -588,7 +604,17 @@ fun AddEditWorkerDialog(
                     value = rate,
                     onValueChange = { input ->
                         if (input.isEmpty() || input.matches(Regex("""^\d*[.,]?\d{0,2}$"""))) {
+                            val oldRate = rate
                             rate = input.replace('.', ',')
+                            
+                            // Replica automatica: se Straordinario o Festivo sono uguali alla vecchia paga base 
+                            // (o sono vuoti), li aggiorniamo insieme alla paga base.
+                            if (extraRate.isEmpty() || extraRate == oldRate) {
+                                extraRate = rate
+                            }
+                            if (holidayRate.isEmpty() || holidayRate == oldRate) {
+                                holidayRate = rate
+                            }
                         }
                     },
                     label = { Text(stringResource(R.string.hourly_rate_label), style = MaterialTheme.typography.labelLarge) },

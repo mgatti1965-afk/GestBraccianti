@@ -76,9 +76,17 @@ object CsvUtils {
         // Logs
         val logs = db.workLogDao().getAllLogsStatic()
         if (logs.isNotEmpty()) {
-            writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE;TARIFFA;STRAORD;FESTIVO;MAN_FEST;TOTALE\n")
+            writer.write("TIPO;LAV_ID;ANNO_ID;DATA;M_IN;M_OUT;P_IN;P_OUT;ORE;TARIFFA;STRAORD;FESTIVO;MAN_FEST;TOTALE;ORD_H;EXT_H;HOL_H;ORD_A;EXT_A;HOL_A\n")
             logs.forEach { log ->
-                writer.write("L;${log.workerId};${log.harvestYearId};${log.date};${log.morningStart ?: ""};${log.morningEnd ?: ""};${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};${formatDecimalHours(log.totalHours)};${log.hourlyRate};${log.extraHourlyRate};${log.holidayHourlyRate};${if (log.isManualHoliday) 1 else 0};${log.totalAmount}\n")
+                val line = StringBuilder("L;${log.workerId};${log.harvestYearId};${log.date};")
+                    .append("${log.morningStart ?: ""};${log.morningEnd ?: ""};")
+                    .append("${log.afternoonStart ?: ""};${log.afternoonEnd ?: ""};")
+                    .append("${formatDecimalHours(log.totalHours)};${log.hourlyRate};")
+                    .append("${log.extraHourlyRate};${log.holidayHourlyRate};")
+                    .append("${if (log.isManualHoliday) 1 else 0};${log.totalAmount};")
+                    .append("${log.ordinaryHours};${log.extraHours};${log.holidayHours};")
+                    .append("${log.ordinaryAmount};${log.extraAmount};${log.holidayAmount}\n")
+                writer.write(line.toString())
             }
         }
         // Plantations
@@ -134,7 +142,7 @@ object CsvUtils {
                                     )
                                 }
                                 "L" -> if (parts.size >= 9) {
-                                    val isLegacy = parts.size <= 11
+                                    val isLegacy = parts.size < 20
                                     
                                     val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
                                     
@@ -142,18 +150,48 @@ object CsvUtils {
                                     val holidayRate: Double
                                     val isManFest: Boolean
                                     val totalAmt: Double
+                                    
+                                    val ordH: Double
+                                    val extH: Double
+                                    val holH: Double
+                                    val ordA: Double
+                                    val extA: Double
+                                    val holA: Double
 
                                     if (isLegacy) {
-                                        extraRate = rate
-                                        holidayRate = rate
-                                        isManFest = false
-                                        // In legacy, index 10 is the totalAmount
-                                        totalAmt = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: 0.0 else 0.0
-                                    } else {
+                                        // Legacy handling (pre-v8 breakdown or even older)
+                                        val totalH = parseTimeToDouble(parts[8])
                                         extraRate = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: rate else rate
                                         holidayRate = if (parts.size >= 12) parts[11].toDoubleOrNull() ?: rate else rate
                                         isManFest = if (parts.size >= 13) parts[12] == "1" else false
-                                        totalAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
+                                        
+                                        val rawAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
+                                        totalAmt = if (rawAmt == 0.0 && totalH > 0) {
+                                            totalH * (if (isManFest) holidayRate else rate)
+                                        } else {
+                                            rawAmt
+                                        }
+                                        
+                                        // Simple defaults for breakdown on import legacy (consistent with MIGRATION_7_8)
+                                        if (isManFest) {
+                                            ordH = 0.0; extH = 0.0; holH = totalH
+                                            ordA = 0.0; extA = 0.0; holA = totalAmt
+                                        } else {
+                                            ordH = totalH; extH = 0.0; holH = 0.0
+                                            ordA = totalAmt; extA = 0.0; holA = 0.0
+                                        }
+                                    } else {
+                                        extraRate = parts[10].toDoubleOrNull() ?: rate
+                                        holidayRate = parts[11].toDoubleOrNull() ?: rate
+                                        isManFest = parts[12] == "1"
+                                        totalAmt = parts[13].toDoubleOrNull() ?: 0.0
+                                        
+                                        ordH = parts[14].toDoubleOrNull() ?: 0.0
+                                        extH = parts[15].toDoubleOrNull() ?: 0.0
+                                        holH = parts[16].toDoubleOrNull() ?: 0.0
+                                        ordA = parts[17].toDoubleOrNull() ?: 0.0
+                                        extA = parts[18].toDoubleOrNull() ?: 0.0
+                                        holA = parts[19].toDoubleOrNull() ?: 0.0
                                     }
 
                                     db.workLogDao().insertLog(
@@ -170,7 +208,13 @@ object CsvUtils {
                                             extraHourlyRate = extraRate,
                                             holidayHourlyRate = holidayRate,
                                             isManualHoliday = isManFest,
-                                            totalAmount = totalAmt
+                                            totalAmount = totalAmt,
+                                            ordinaryHours = ordH,
+                                            extraHours = extH,
+                                            holidayHours = holH,
+                                            ordinaryAmount = ordA,
+                                            extraAmount = extA,
+                                            holidayAmount = holA
                                         )
                                     )
                                 }
