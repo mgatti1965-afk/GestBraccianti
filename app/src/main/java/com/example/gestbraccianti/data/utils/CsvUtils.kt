@@ -52,9 +52,9 @@ object CsvUtils {
         // Workers
         val workers = db.workerDao().getAllWorkersStatic()
         if (workers.isNotEmpty()) {
-            writer.write("TIPO;ID;NOME;COGNOME;TELEFONO;ARCHIVIATO\n")
+            writer.write("TIPO;ID;COGNOME;NOME;TELEFONO;ARCHIVIATO\n")
             workers.forEach {
-                writer.write("W;${it.id};${it.name};${it.surname};${it.phoneNumber};${if (it.isArchived) 1 else 0}\n")
+                writer.write("W;${it.id};${it.surname};${it.name};${it.phoneNumber};${if (it.isArchived) 1 else 0}\n")
             }
         }
         // Years
@@ -127,7 +127,7 @@ object CsvUtils {
                             val parts = line!!.split(";").map { it.trim() }
                             if (parts.isEmpty() || parts[0].startsWith("TIPO")) continue
                             when (parts[0]) {
-                                "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), name = parts[2], surname = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
+                                "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), surname = parts[2], name = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
                                 "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
                                 "C" -> if (parts.size >= 4) {
                                     val rate = parts[3].toDoubleOrNull() ?: 0.0

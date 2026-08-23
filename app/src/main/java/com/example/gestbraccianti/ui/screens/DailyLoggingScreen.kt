@@ -78,16 +78,17 @@ fun DailyLoggingScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // L'Header rimane FISSO in alto
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -124,33 +125,51 @@ fun DailyLoggingScreen(
                 }
             }
 
-            MonthGrid(
-                calendar = selectedCalendar,
-                workedDaysMap = workedDaysMap,
-                allLogs = allLogs,
-                onDateClick = onDateClick,
-                onDateLongClick = { date -> viewModel.toggleHolidayForDate(date) }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-            Text(
-                stringResource(R.string.registered_days_label),
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            if (filteredDays.isEmpty()) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.no_data_month), style = MaterialTheme.typography.bodySmall)
+            // Tutto il resto (Calendario + Lista) diventa SCROLLABILE insieme
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Il calendario è il primo elemento della lista
+                item {
+                    MonthGrid(
+                        calendar = selectedCalendar,
+                        workedDaysMap = workedDaysMap,
+                        allLogs = allLogs,
+                        onDateClick = onDateClick,
+                        onDateLongClick = { date -> viewModel.toggleHolidayForDate(date) }
+                    )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+
+                // Etichetta e divisore
+                item {
+                    Column {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        Text(
+                            stringResource(R.string.registered_days_label),
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                if (filteredDays.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                stringResource(R.string.no_data_month),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                } else {
                     items(filteredDays) { date ->
                         val logsForDay = allLogs.filter { it.date == date }
                         val totalWorkers = logsForDay.size
@@ -159,7 +178,7 @@ fun DailyLoggingScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 4.dp)
+                                .padding(horizontal = 16.dp)
                                 .clickable { onDateClick(date) },
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
