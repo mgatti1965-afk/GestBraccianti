@@ -39,6 +39,7 @@ interface WorkerGroupDao {
         SELECT workers.* FROM workers 
         INNER JOIN worker_group_cross_ref ON workers.id = worker_group_cross_ref.workerId 
         WHERE worker_group_cross_ref.groupId = :groupId
+        ORDER BY workers.surname, workers.name ASC
     """)
     fun getWorkersInGroup(groupId: Long): Flow<List<Worker>>
 

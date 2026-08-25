@@ -24,20 +24,37 @@ class WorkLogViewModel(
     private val _selectedYearId = MutableStateFlow<Int?>(null)
     private val _dateRange = MutableStateFlow<Pair<Long, Long>?>(null)
     private val _currentReferenceDate = MutableStateFlow(Calendar.getInstance(Locale.ITALY).timeInMillis)
-
     val currentReferenceDate: StateFlow<Long> = _currentReferenceDate
+
+    private val _globalFestiveDates = MutableStateFlow<Set<Long>>(emptySet())
+    val globalFestiveDates: StateFlow<Set<Long>> = _globalFestiveDates.asStateFlow()
 
     private val _uiEvent = MutableSharedFlow<String>()
     val uiEvent = _uiEvent.asSharedFlow()
+
+    init {
+        loadGlobalFestiveDates()
+    }
+
+    private fun loadGlobalFestiveDates() {
+        val context = com.example.gestbraccianti.GestBracciantiApplication.instance
+        val prefs = context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE)
+        val set = prefs.getStringSet("global_festive_dates", emptySet())?.mapNotNull { it.toLongOrNull() }?.toSet() ?: emptySet()
+        _globalFestiveDates.value = set
+    }
 
     fun setSelectedYear(yearId: Int) {
         _selectedYearId.value = yearId
         viewModelScope.launch {
             workLogRepository.fillMissingRates()
-            // Dopo aver riempito le tariffe, ricalcoliamo gli importi per sicurezza (migrazione dati)
+            // Ricalcoliamo gli importi e le suddivisioni ore se mancano (migrazione dati)
             val logs = workLogRepository.getLogsForYear(yearId).first()
             logs.forEach { log ->
-                if (log.totalAmount == 0.0 && log.totalHours > 0) {
+                val needsUpdate = log.totalHours > 0 && (
+                    log.totalAmount == 0.0 || 
+                    (log.ordinaryHours == 0.0 && log.extraHours == 0.0 && log.holidayHours == 0.0)
+                )
+                if (needsUpdate) {
                     val updated = calculateAmounts(log)
                     workLogRepository.updateLog(updated)
                 }
@@ -279,9 +296,11 @@ class WorkLogViewModel(
             }
             
             prefs.edit().putStringSet("global_festive_dates", globalFestiveSet).apply()
+            _globalFestiveDates.value = globalFestiveSet.mapNotNull { it.toLongOrNull() }.toSet()
 
             // Aggiorniamo anche i log esistenti per coerenza
-            if (logsForDay.isNotEmpty()) {
+            val affectedCount = logsForDay.size
+            if (affectedCount > 0) {
                 val targetState = !isCurrentlyGlobalFestive
                 logsForDay.forEach { log ->
                     val updatedLog = log.copy(isManualHoliday = targetState).let { calculateAmounts(it) }
@@ -289,7 +308,13 @@ class WorkLogViewModel(
                 }
             }
             
-            val toastMsg = if (!isCurrentlyGlobalFestive) "Giorno impostato come festivo" else "Ripristinato giorno feriale"
+            val toastMsg = if (!isCurrentlyGlobalFestive) {
+                if (affectedCount > 0) "Festivo impostato: $affectedCount braccianti ricalcolati"
+                else "Giorno impostato come festivo"
+            } else {
+                if (affectedCount > 0) "Feriale ripristinato: $affectedCount braccianti ricalcolati"
+                else "Ripristinato giorno feriale"
+            }
             _uiEvent.emit(toastMsg)
         }
     }

@@ -11,8 +11,14 @@ class WorkerRepository(private val workerDao: WorkerDao) {
 
     fun getWorkersWithRateForYear(yearId: Int): Flow<List<WorkerWithRate>> = workerDao.getWorkersWithRateForYear(yearId)
 
+    suspend fun getAllWorkersStatic(): List<Worker> = workerDao.getAllWorkersStatic()
+
     suspend fun insertWorker(worker: Worker): Long = workerDao.insertWorker(worker)
     suspend fun updateWorker(worker: Worker) = workerDao.updateWorker(worker)
     suspend fun deleteWorker(worker: Worker) = workerDao.deleteWorker(worker)
     suspend fun getWorkerById(id: Long): Worker? = workerDao.getWorkerById(id)
+
+    suspend fun mergeWorkers(sourceId: Long, targetId: Long) {
+        workerDao.mergeWorkerData(sourceId, targetId)
+    }
 }

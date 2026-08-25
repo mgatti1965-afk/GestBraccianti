@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.room.withTransaction
 import com.example.gestbraccianti.data.AppDatabase
 import com.example.gestbraccianti.data.entity.*
+import com.example.gestbraccianti.ui.utils.capitalizeWords
 import com.example.gestbraccianti.ui.utils.formatDecimalHours
 import com.example.gestbraccianti.ui.utils.parseTimeToDouble
 import kotlinx.coroutines.Dispatchers
@@ -127,7 +128,17 @@ object CsvUtils {
                             val parts = line!!.split(";").map { it.trim() }
                             if (parts.isEmpty() || parts[0].startsWith("TIPO")) continue
                             when (parts[0]) {
-                                "W" -> if (parts.size >= 6) db.workerDao().insertWorker(Worker(id = parts[1].toLong(), surname = parts[2], name = parts[3], phoneNumber = parts[4], isArchived = parts[5] == "1"))
+                                "W" -> if (parts.size >= 6) {
+                                    db.workerDao().insertWorker(
+                                        Worker(
+                                            id = parts[1].toLong(),
+                                            surname = parts[2].trim().capitalizeWords(),
+                                            name = parts[3].trim().capitalizeWords(),
+                                            phoneNumber = parts[4],
+                                            isArchived = parts[5] == "1"
+                                        )
+                                    )
+                                }
                                 "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
                                 "C" -> if (parts.size >= 4) {
                                     val rate = parts[3].toDoubleOrNull() ?: 0.0

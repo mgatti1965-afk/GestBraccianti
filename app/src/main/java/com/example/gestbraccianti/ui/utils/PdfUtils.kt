@@ -164,10 +164,17 @@ fun generatePdfReport(
                     checkNewPage()
                     canvas.drawText("• ${group.name}", margin + 10f, y, boldPaint)
                     y += 18f
-                    canvas.drawText("  N: ${formatHours(gOrdH)} (${formatCurrency(gOrdA)}) | S: ${formatHours(gExtH)} (${formatCurrency(gExtA)}) | F: ${formatHours(gHolH)} (${formatCurrency(gHolA)})", margin + 10f, y, bodyPaint.apply { textSize = 10f })
-                    y += 15f
-                    canvas.drawText("  Totale: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint.apply { textSize = 12f })
-                    y += 22f
+                    
+                    val originalSize = bodyPaint.textSize
+                    bodyPaint.textSize = 10f
+                    canvas.drawText("Ord: ${formatHours(gOrdH)} (${formatCurrency(gOrdA)})", margin + 10f, y, bodyPaint)
+                    canvas.drawText("Str: ${formatHours(gExtH)} (${formatCurrency(gExtA)})", 215f, y, bodyPaint)
+                    canvas.drawText("Fes: ${formatHours(gHolH)} (${formatCurrency(gHolA)})", 390f, y, bodyPaint)
+                    y += 18f
+                    
+                    canvas.drawText("TOTALE GRUPPO: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, boldPaint)
+                    bodyPaint.textSize = originalSize
+                    y += 28f
                 }
             }
             val allGroupWorkers = groupToWorkers.values.flatten().toSet()
@@ -190,10 +197,17 @@ fun generatePdfReport(
                 checkNewPage()
                 canvas.drawText("• Senza Gruppo", margin + 10f, y, boldPaint)
                 y += 18f
-                canvas.drawText("  N: ${formatHours(gOrdH)} (${formatCurrency(gOrdA)}) | S: ${formatHours(gExtH)} (${formatCurrency(gExtA)}) | F: ${formatHours(gHolH)} (${formatCurrency(gHolA)})", margin + 10f, y, bodyPaint.apply { textSize = 10f })
-                y += 15f
-                canvas.drawText("  Totale: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint.apply { textSize = 12f })
-                y += 22f
+                
+                val originalSize = bodyPaint.textSize
+                bodyPaint.textSize = 10f
+                canvas.drawText("Ord: ${formatHours(gOrdH)} (${formatCurrency(gOrdA)})", margin + 10f, y, bodyPaint)
+                canvas.drawText("Str: ${formatHours(gExtH)} (${formatCurrency(gExtA)})", 215f, y, bodyPaint)
+                canvas.drawText("Fes: ${formatHours(gHolH)} (${formatCurrency(gHolA)})", 390f, y, bodyPaint)
+                y += 18f
+                
+                canvas.drawText("TOTALE: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, boldPaint)
+                bodyPaint.textSize = originalSize
+                y += 28f
             }
         } else if (viewMode == com.example.gestbraccianti.ui.screens.ViewMode.TOTALS) {
             // Logic for worker totals
@@ -219,10 +233,17 @@ fun generatePdfReport(
                 checkNewPage()
                 canvas.drawText("• $workerName", margin + 10f, y, boldPaint)
                 y += 18f
-                canvas.drawText("  N: ${formatHours(wOrdH)} (${formatCurrency(wOrdA)}) | S: ${formatHours(wExtH)} (${formatCurrency(wExtA)}) | F: ${formatHours(wHolH)} (${formatCurrency(wHolA)})", margin + 10f, y, bodyPaint.apply { textSize = 10f })
-                y += 15f
-                canvas.drawText("  Totale: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, bodyPaint.apply { textSize = 12f })
-                y += 22f
+                
+                val originalSize = bodyPaint.textSize
+                bodyPaint.textSize = 10f
+                canvas.drawText("Ord: ${formatHours(wOrdH)} (${formatCurrency(wOrdA)})", margin + 10f, y, bodyPaint)
+                canvas.drawText("Str: ${formatHours(wExtH)} (${formatCurrency(wExtA)})", 215f, y, bodyPaint)
+                canvas.drawText("Fes: ${formatHours(wHolH)} (${formatCurrency(wHolA)})", 390f, y, bodyPaint)
+                y += 18f
+                
+                canvas.drawText("TOTALE: ${formatHours(hours)} | ${formatCurrency(earnings)}", margin + 10f, y, boldPaint)
+                bodyPaint.textSize = originalSize
+                y += 28f
             }
         } else {
             // Logic for detail
@@ -240,20 +261,40 @@ fun generatePdfReport(
                 val dateStr = TimeUtils.format(log.date, TimeUtils.dayMonthFormatter)
                 val festMark = if (isFestive) "*" else ""
                 
-                val line = "$dateStr$festMark $workerName"
-                val breakdown = "Ord: $ordStr | Str: $extStr | Fes: $holStr | Tot: $earnStr"
-                
                 checkNewPage()
-                canvas.drawText(line, margin + 10f, y, bodyPaint)
+                
+                // Troncamento nome se troppo lungo per evitare sovrapposizioni
+                val fullText = "$dateStr$festMark $workerName"
+                val namePaint = Paint(bodyPaint)
+                var displayName = fullText
+                val maxNameWidth = 180f
+                if (namePaint.measureText(fullText) > maxNameWidth) {
+                    var truncated = fullText
+                    while (truncated.isNotEmpty() && namePaint.measureText("$truncated...") > maxNameWidth) {
+                        truncated = truncated.dropLast(1)
+                    }
+                    displayName = "$truncated..."
+                }
+                
+                canvas.drawText(displayName, margin + 10f, y, bodyPaint)
                 
                 val originalTextSize = bodyPaint.textSize
-                bodyPaint.textSize = 9f
+                bodyPaint.textSize = 9f // Leggermente più piccolo per i dettagli
+                
+                // Colonne per le ore spostate a destra per dare spazio al nome
+                canvas.drawText("Ord: $ordStr", 240f, y, bodyPaint)
+                canvas.drawText("Str: $extStr", 340f, y, bodyPaint)
+                canvas.drawText("Fes: $holStr", 440f, y, bodyPaint)
+                
+                // Importo allineato a destra e in grassetto
                 bodyPaint.textAlign = android.graphics.Paint.Align.RIGHT
-                canvas.drawText(breakdown, pageWidth - margin - 10f, y, bodyPaint)
+                bodyPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                canvas.drawText(earnStr, pageWidth - margin - 10f, y, bodyPaint)
                 
                 // Reset paint
                 bodyPaint.textSize = originalTextSize
                 bodyPaint.textAlign = android.graphics.Paint.Align.LEFT
+                bodyPaint.typeface = Typeface.DEFAULT
                 y += 18f
             }
         }
@@ -296,7 +337,7 @@ fun generatePdfReport(
     if (!directory.exists()) directory.mkdirs()
     
     val timestamp = TimeUtils.format(System.currentTimeMillis(), TimeUtils.fileTimestampFormatter)
-    val fileName = "GestBraccianti_Rep_$timestamp.pdf"
+    val fileName = "GestBraccianti_$timestamp.pdf"
     val file = File(directory, fileName)
 
     try {

@@ -25,15 +25,19 @@ object TimeUtils {
     val weekYearFormatter = SimpleDateFormat("'Settimana' w, yyyy", italianLocale)
 
     fun isFestive(date: Long, isManual: Boolean, festiveType: Int, globalFestiveDates: Set<Long> = emptySet()): Boolean {
-        if (isManual || globalFestiveDates.contains(date)) return true
         val cal = java.util.Calendar.getInstance(italianLocale).apply { timeInMillis = date }
         val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
-        return when (festiveType) {
+        val naturalFestive = when (festiveType) {
             1 -> dayOfWeek == java.util.Calendar.SATURDAY
             2 -> dayOfWeek == java.util.Calendar.SUNDAY
             3 -> dayOfWeek == java.util.Calendar.SATURDAY || dayOfWeek == java.util.Calendar.SUNDAY
             else -> false
         }
+        
+        // Se è manuale (singolo log) o presente nelle date globali (tutto il giorno), invertiamo il valore naturale
+        val isOverridden = isManual || globalFestiveDates.contains(date)
+        
+        return if (isOverridden) !naturalFestive else naturalFestive
     }
 
     fun format(date: Long, formatter: SimpleDateFormat): String {

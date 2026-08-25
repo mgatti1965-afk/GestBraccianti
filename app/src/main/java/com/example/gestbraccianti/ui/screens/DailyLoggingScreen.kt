@@ -1,20 +1,31 @@
 package com.example.gestbraccianti.ui.screens
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.example.gestbraccianti.R
@@ -76,6 +87,8 @@ fun DailyLoggingScreen(
         }
     }
 
+    val haptic = LocalHapticFeedback.current
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // L'Header rimane FISSO in alto
@@ -125,36 +138,68 @@ fun DailyLoggingScreen(
                 }
             }
 
-            // Tutto il resto (Calendario + Lista) diventa SCROLLABILE insieme
+            var isCalendarExpanded by remember { mutableStateOf(false) }
+            val lazyListState = rememberLazyListState()
+
+            // Sincronizzazione: collassa il calendario quando si scende nella lista
+            LaunchedEffect(lazyListState) {
+                snapshotFlow { lazyListState.firstVisibleItemIndex }
+                    .collect { index ->
+                        if (index > 0) {
+                            isCalendarExpanded = false
+                        }
+                    }
+            }
+
+            // Calendario Espandibile/Collassabile (FISSO rispetto alla lista sotto)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize()
+                    .clickable { isCalendarExpanded = !isCalendarExpanded }
+            ) {
+                MonthGrid(
+                    calendar = selectedCalendar,
+                    workedDaysMap = workedDaysMap,
+                    allLogs = allLogs,
+                    isExpanded = isCalendarExpanded,
+                    viewModel = viewModel,
+                    onDateClick = onDateClick,
+                    onDateLongClick = { date -> 
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.toggleHolidayForDate(date) 
+                    }
+                )
+                
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isCalendarExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            
+            Text(
+                stringResource(R.string.registered_days_label),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Lista dei giorni (SCROLLABILE)
             LazyColumn(
+                state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Il calendario è il primo elemento della lista
-                item {
-                    MonthGrid(
-                        calendar = selectedCalendar,
-                        workedDaysMap = workedDaysMap,
-                        allLogs = allLogs,
-                        onDateClick = onDateClick,
-                        onDateLongClick = { date -> viewModel.toggleHolidayForDate(date) }
-                    )
-                }
-
-                // Etichetta e divisore
-                item {
-                    Column {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        Text(
-                            stringResource(R.string.registered_days_label),
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
                 if (filteredDays.isEmpty()) {
                     item {
                         Box(
@@ -221,25 +266,46 @@ fun MonthGrid(
     calendar: Calendar,
     workedDaysMap: Map<Int, Double>,
     allLogs: List<com.example.gestbraccianti.data.entity.WorkLog>,
+    isExpanded: Boolean,
+    viewModel: com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel,
     onDateClick: (Long) -> Unit,
     onDateLongClick: (Long) -> Unit
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE) }
     val festiveType = remember(prefs) { prefs.getInt("festive_days_type", 3) }
-    val globalFestiveDates = remember(allLogs) { 
-        prefs.getStringSet("global_festive_dates", emptySet())?.mapNotNull { it.toLongOrNull() }?.toSet() ?: emptySet() 
-    }
+    val globalFestiveDates by viewModel.globalFestiveDates.collectAsState()
 
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
     val firstDayOfMonth = (calendar.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val firstDayOfWeek = firstDayOfMonth.get(Calendar.DAY_OF_WEEK)
     
+    // Offset per far iniziare la settimana da Lunedì (2 in Calendar.DAY_OF_WEEK)
     val offset = (firstDayOfWeek - 2 + 7) % 7
     
     val today = Calendar.getInstance()
-    val isCurrentMonth = today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
-                         today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+    
+    // Se non è espanso, mostriamo solo la settimana che contiene "oggi" (se è il mese corrente) 
+    // o la prima settimana (se è un mese diverso)
+    val displayedRows = if (isExpanded) {
+        val totalCells = daysInMonth + offset
+        (totalCells + 6) / 7
+    } else {
+        1
+    }
+
+    // Calcoliamo quale riga mostrare quando è compresso
+    val rowToShow = if (!isExpanded) {
+        val todayInMonth = if (today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
+            today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
+            today.get(Calendar.DAY_OF_MONTH)
+        } else {
+            1
+        }
+        (todayInMonth + offset - 1) / 7
+    } else {
+        0
+    }
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -255,7 +321,7 @@ fun MonthGrid(
                 Text(
                     text = stringResource(dayRes),
                     modifier = Modifier.weight(1f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -264,17 +330,18 @@ fun MonthGrid(
         
         Spacer(modifier = Modifier.height(8.dp))
 
-        val totalCells = daysInMonth + offset
-        val rows = (totalCells + 6) / 7
-        
-        for (row in 0 until rows) {
+        for (r in 0 until displayedRows) {
+            val actualRow = if (isExpanded) r else rowToShow
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 for (col in 0 until 7) {
-                    val cellIndex = row * 7 + col
+                    val cellIndex = actualRow * 7 + col
                     val dayNum = cellIndex - offset + 1
                     
                     if (dayNum in 1..daysInMonth) {
-                        val isToday = isCurrentMonth && dayNum == today.get(Calendar.DAY_OF_MONTH)
+                        val isToday = today.get(Calendar.DAY_OF_MONTH) == dayNum &&
+                                      today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
+                                      today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+
                         val totalHours = workedDaysMap[dayNum]
                         
                         val cellCal = (calendar.clone() as Calendar).apply {
@@ -287,14 +354,16 @@ fun MonthGrid(
                         val cellDate = cellCal.timeInMillis
 
                         val logsForDay = allLogs.filter { it.date == cellDate }
-                        val isManualHoliday = logsForDay.any { it.isManualHoliday }
+                        val isManualFromLogs = logsForDay.any { it.isManualHoliday }
+                        val isGlobalOverride = globalFestiveDates.contains(cellDate)
                         
-                        val isFestive = TimeUtils.isFestive(cellDate, isManualHoliday, festiveType, globalFestiveDates)
+                        val isFestive = TimeUtils.isFestive(cellDate, isManualFromLogs, festiveType, globalFestiveDates)
 
                         DayCell(
                             day = dayNum,
                             isToday = isToday,
                             isFestive = isFestive,
+                            isManualOverride = isGlobalOverride || isManualFromLogs,
                             totalHours = totalHours,
                             modifier = Modifier.weight(1f),
                             onClick = { onDateClick(cellDate) },
@@ -316,6 +385,7 @@ fun DayCell(
     day: Int,
     isToday: Boolean,
     isFestive: Boolean,
+    isManualOverride: Boolean,
     totalHours: Double?,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
@@ -337,10 +407,27 @@ fun DayCell(
             isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             else -> MaterialTheme.colorScheme.surface
         },
-        border = if (isToday) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else if (isFestive && !hasWorked) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) else null,
+        border = if (isToday) {
+            BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
+        } else if (isFestive) {
+            BorderStroke(
+                if (hasWorked) 2.dp else 1.dp,
+                MaterialTheme.colorScheme.tertiary.copy(alpha = if (hasWorked) 0.8f else 0.5f)
+            )
+        } else null,
         tonalElevation = if (hasWorked) 4.dp else if (isToday) 2.dp else 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
+            if (isManualOverride) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.tertiary)
+                )
+            }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = day.toString(),

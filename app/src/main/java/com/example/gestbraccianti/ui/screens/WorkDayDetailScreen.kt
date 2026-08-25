@@ -103,7 +103,14 @@ fun WorkDayDetailScreen(
                     contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(logsForDay) { log ->
+                    val sortedLogs = logsForDay.sortedWith(
+                        compareByDescending<WorkLog> { it.date }
+                            .thenBy { log ->
+                                val worker = workers.find { it.id == log.workerId }
+                                "${worker?.surname} ${worker?.name}"
+                            }
+                    )
+                    items(sortedLogs) { log ->
                         val worker = workers.find { it.id == log.workerId }
                         Card(
                             modifier = Modifier

@@ -60,6 +60,10 @@
     <string name="worker_rate_label">Tariffa: %1$s/h</string>
     <string name="add_worker_desc">Aggiungi Bracciante</string>
     <string name="edit_desc">Modifica</string>
+    <string name="duplicates_alert_title">Braccianti Duplicati Rilevati</string>
+    <string name="duplicates_alert_msg">Sono stati trovati dei braccianti con lo stesso nome e cognome. Vuoi unirli in un unico profilo preservando tutte le giornate lavorative?</string>
+    <string name="btn_merge_now">Unisci Profili</string>
+    <string name="toast_workers_merged">Braccianti uniti con successo!</string>
 
     <!-- GroupListTab -->
     <string name="no_groups_msg">Nessun gruppo creato.</string>
@@ -84,6 +88,7 @@
     <string name="edit_worker_title">Modifica Bracciante</string>
     <string name="surname_required_label">Cognome (Obbligatorio)</string>
     <string name="surname_error_msg">Il cognome è necessario per salvare.</string>
+    <string name="error_duplicate_worker">Bracciante già presente (stesso nome e cognome).</string>
     <string name="name_label">Nome</string>
     <string name="phone_label">Telefono</string>
     <string name="hourly_rate_label">Paga Oraria Normale (€)</string>

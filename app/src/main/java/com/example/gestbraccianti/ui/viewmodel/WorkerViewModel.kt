@@ -8,6 +8,7 @@ import com.example.gestbraccianti.data.entity.WorkerYearConfig
 import com.example.gestbraccianti.data.model.WorkerWithRate
 import com.example.gestbraccianti.data.repository.WorkerRepository
 import com.example.gestbraccianti.data.repository.WorkerYearConfigRepository
+import com.example.gestbraccianti.ui.utils.capitalizeWords
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -42,9 +43,62 @@ class WorkerViewModel(
         _selectedYearId.value = yearId
     }
 
+    val duplicatesFound: StateFlow<List<List<Worker>>> = workerRepository.allWorkers
+        .map { workers ->
+            workers.groupBy { (it.surname + it.name).lowercase().replace(" ", "") }
+                .filter { it.value.size > 1 }
+                .values.toList()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun mergeDuplicateGroup(group: List<Worker>) {
+        viewModelScope.launch {
+            if (group.size < 2) return@launch
+            
+            // Il "target" è il lavoratore con l'ID più basso (presumibilmente il primo creato)
+            val target = group.minByOrNull { it.id } ?: return@launch
+            val sources = group.filter { it.id != target.id }
+            
+            sources.forEach { source ->
+                workerRepository.mergeWorkers(source.id, target.id)
+            }
+            
+            // Messaggio di feedback
+            _uiEvent.emit("Profili uniti correttamente")
+
+            // Refresh
+            val currentYear = _selectedYearId.value
+            _selectedYearId.value = null
+            _selectedYearId.value = currentYear
+        }
+    }
+
+    private val _uiEvent = MutableSharedFlow<String>()
+    val uiEvent = _uiEvent.asSharedFlow()
+
     fun addWorkerToYear(name: String, surname: String, phoneNumber: String, hourlyRate: Double, extraRate: Double, holidayRate: Double, yearId: Int) {
         viewModelScope.launch {
-            val workerId = workerRepository.insertWorker(Worker(name = name, surname = surname, phoneNumber = phoneNumber))
+            val formattedName = name.trim().capitalizeWords()
+            val formattedSurname = surname.trim().capitalizeWords()
+
+            // Cerca se esiste già un lavoratore con lo stesso nome e cognome per evitare duplicati anagrafici
+            val allWorkers = workerRepository.getAllWorkersStatic()
+            val existingWorker = allWorkers.find { 
+                it.name.equals(formattedName, ignoreCase = true) && it.surname.equals(formattedSurname, ignoreCase = true) 
+            }
+            
+            val workerId = if (existingWorker != null) {
+                // Se esiste, aggiorna eventualmente il numero di telefono se quello nuovo non è vuoto
+                if (phoneNumber.isNotBlank() && existingWorker.phoneNumber != phoneNumber) {
+                    workerRepository.updateWorker(existingWorker.copy(phoneNumber = phoneNumber))
+                }
+                existingWorker.id
+            } else {
+                // Se non esiste, crealo
+                workerRepository.insertWorker(Worker(name = formattedName, surname = formattedSurname, phoneNumber = phoneNumber))
+            }
+
+            // Inserisce o aggiorna la configurazione per l'anno specifico
             configRepository.insertConfig(
                 WorkerYearConfig(
                     workerId = workerId,
@@ -63,13 +117,16 @@ class WorkerViewModel(
 
     fun updateWorkerInfo(workerId: Long, name: String, surname: String, phoneNumber: String, yearId: Int, newRate: Double, extraRate: Double, holidayRate: Double) {
         viewModelScope.launch {
+            val formattedName = name.trim().capitalizeWords()
+            val formattedSurname = surname.trim().capitalizeWords()
+
             // Recupera il lavoratore esistente per preservare i campi non modificati (es. isArchived)
             val existingWorker = workerRepository.getWorkerById(workerId)
             if (existingWorker != null) {
                 workerRepository.updateWorker(
                     existingWorker.copy(
-                        name = name,
-                        surname = surname,
+                        name = formattedName,
+                        surname = formattedSurname,
                         phoneNumber = phoneNumber
                     )
                 )

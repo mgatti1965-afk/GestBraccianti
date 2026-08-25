@@ -27,6 +27,7 @@ interface WorkerYearConfigDao {
         WHERE wyc.harvestYearId = :yearId
         GROUP BY w.id
         HAVING totalHours > 0
+        ORDER BY w.surname, w.name ASC
     """)
     fun getWorkerStatsForYear(yearId: Int): Flow<List<WorkerYearStats>>
 
@@ -46,6 +47,7 @@ interface WorkerYearConfigDao {
         WHERE wyc.harvestYearId = :yearId
         GROUP BY w.id
         HAVING totalHours > 0
+        ORDER BY w.surname, w.name ASC
     """)
     fun getWorkerStatsForRange(yearId: Int, startDate: Long, endDate: Long): Flow<List<WorkerYearStats>>
 

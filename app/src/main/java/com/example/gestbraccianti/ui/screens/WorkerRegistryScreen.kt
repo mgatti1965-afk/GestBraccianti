@@ -9,6 +9,8 @@ import androidx.compose.foundation.clickable
 import android.widget.Toast
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -64,10 +66,19 @@ fun WorkerRegistryScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     val context = LocalContext.current
     val workersWithRate by viewModel.workersWithRateForCurrentYear.collectAsState()
+    val duplicates by viewModel.duplicatesFound.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     var showDialog by remember { mutableStateOf(false) }
     var selectedWorker by remember { mutableStateOf<Worker?>(null) }
     var currentRates by remember { mutableStateOf(Triple(0.0, 0.0, 0.0)) }
@@ -90,12 +101,22 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
             initialRates = currentRates,
             onDismiss = { showDialog = false },
             onConfirm = { name, surname, phone, rate, extraRate, holidayRate ->
-                if (selectedWorker == null) {
-                    viewModel.addWorkerToYear(name, surname, phone, rate, extraRate, holidayRate, yearId)
-                } else {
-                    viewModel.updateWorkerInfo(selectedWorker!!.id, name, surname, phone, yearId, rate, extraRate, holidayRate)
+                val isDuplicate = workersWithRate.any {
+                    it.worker.surname.equals(surname, ignoreCase = true) &&
+                            it.worker.name.equals(name, ignoreCase = true) &&
+                            it.worker.id != selectedWorker?.id
                 }
-                showDialog = false
+
+                if (isDuplicate) {
+                    Toast.makeText(context, context.getString(R.string.error_duplicate_worker), Toast.LENGTH_SHORT).show()
+                } else {
+                    if (selectedWorker == null) {
+                        viewModel.addWorkerToYear(name, surname, phone, rate, extraRate, holidayRate, yearId)
+                    } else {
+                        viewModel.updateWorkerInfo(selectedWorker!!.id, name, surname, phone, yearId, rate, extraRate, holidayRate)
+                    }
+                    showDialog = false
+                }
             },
             onDelete = {
                 showDeleteConfirm = true
@@ -131,6 +152,17 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            if (duplicates.isNotEmpty()) {
+                duplicates.forEach { group ->
+                    DuplicatesAlert(
+                        duplicateGroup = group,
+                        onMerge = {
+                            viewModel.mergeDuplicateGroup(group)
+                        }
+                    )
+                }
+            }
+
             if (workersWithRate.isNotEmpty()) {
                 OutlinedTextField(
                     value = searchQuery,
@@ -222,28 +254,18 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Row(
+                                    FlowRow(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Text(
-                                            text = "Ord: ${formatCurrency(item.hourlyRate)}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.primary,
+                                        val rateStyle = MaterialTheme.typography.bodySmall.copy(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontWeight = FontWeight.Bold
                                         )
-                                        Text(
-                                            text = "Str: ${formatCurrency(item.extraHourlyRate)}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.secondary,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "Fes: ${formatCurrency(item.holidayHourlyRate)}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.tertiary,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        Text(text = "Ord: ${formatCurrency(item.hourlyRate)}", style = rateStyle)
+                                        Text(text = "Str: ${formatCurrency(item.extraHourlyRate)}", style = rateStyle)
+                                        Text(text = "Fes: ${formatCurrency(item.holidayHourlyRate)}", style = rateStyle)
                                     }
                                 }
                                 Icon(
@@ -449,6 +471,51 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
 }
 
 @Composable
+fun DuplicatesAlert(
+    duplicateGroup: List<Worker>,
+    onMerge: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Delete, contentDescription = null) // Using Delete as an indicator of cleanup
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.duplicates_alert_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${duplicateGroup.first().surname} ${duplicateGroup.first().name}: " + 
+                       stringResource(R.string.duplicates_alert_msg),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = onMerge,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(stringResource(R.string.btn_merge_now))
+            }
+        }
+    }
+}
+
+@Composable
 fun AddEditWorkerDialog(
     worker: Worker?,
     initialRates: Triple<Double, Double, Double>,
@@ -618,7 +685,7 @@ fun AddEditWorkerDialog(
                         }
                     },
                     label = { Text(stringResource(R.string.hourly_rate_label), style = MaterialTheme.typography.labelLarge) },
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -632,7 +699,7 @@ fun AddEditWorkerDialog(
                         }
                     },
                     label = { Text(stringResource(R.string.extra_hourly_rate_label), style = MaterialTheme.typography.labelLarge) },
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -646,7 +713,7 @@ fun AddEditWorkerDialog(
                         }
                     },
                     label = { Text(stringResource(R.string.holiday_hourly_rate_label), style = MaterialTheme.typography.labelLarge) },
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.tertiary),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal

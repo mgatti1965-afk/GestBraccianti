@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -226,7 +227,12 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
 
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                                 
-                                val workersInPeriod = filteredLogs.map { it.workerId }.distinct()
+                                val workersInPeriod = remember(filteredLogs, stats) {
+                                    filteredLogs.map { it.workerId }.distinct().sortedBy { wId ->
+                                        val w = stats.find { it.workerId == wId }
+                                        "${w?.surname} ${w?.name}"
+                                    }
+                                }
                                 LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
                                     items(workersInPeriod, key = { it }) { wId ->
                                         val w = stats.find { it.workerId == wId }
@@ -404,11 +410,21 @@ fun GroupedFinancialView(
     val workerMap = remember(yearStats) { yearStats.associateBy { it.workerId } }
     val calendar = remember { Calendar.getInstance(Locale.ITALY) }
 
-    val monthlyLogs = remember(logs) {
+    val monthlyLogs = remember(logs, workerMap) {
         logs.groupBy { log ->
             calendar.timeInMillis = log.date
             calendar.get(Calendar.MONTH)
-        }.toSortedMap()
+        }.mapValues { (_, mLogs) ->
+            val sorted = mLogs.sortedWith(
+                compareByDescending<WorkLog> { it.date }
+                    .thenBy { log ->
+                        val w = workerMap[log.workerId]
+                        "${w?.surname} ${w?.name}"
+                    }
+            )
+            val indices = sorted.map { it.date }.distinct().withIndex().associate { it.value to it.index }
+            sorted to indices
+        }.toSortedMap(compareByDescending { it })
     }
 
     LazyColumn(
@@ -416,7 +432,9 @@ fun GroupedFinancialView(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        monthlyLogs.forEach { (monthIdx, mLogs) ->
+        monthlyLogs.forEach { (monthIdx, data) ->
+            val mLogs = data.first
+            val dayIndices = data.second
             val monthName = TimeUtils.formatMonth(mLogs.first().date)
 
             item {
@@ -440,7 +458,10 @@ fun GroupedFinancialView(
                     val hours = wLogs.sumOf { it.totalHours }
                     val earnings = wLogs.sumOf { it.totalAmount }
                     Triple(wId, hours, earnings)
-                }.sortedByDescending { it.third }
+                }.sortedBy { (wId, _, _) ->
+                    val w = workerMap[wId]
+                    "${w?.surname} ${w?.name}"
+                }
             } else emptyList()
 
             val groupTotals = if (groupingType == GroupingType.BY_GROUP) {
@@ -461,7 +482,9 @@ fun GroupedFinancialView(
                     val earnings = noGroupLogs.sumOf { it.totalAmount }
                     result.add(Triple(null, hours, earnings))
                 }
-                result.sortedByDescending { it.third }
+                result.sortedBy { (gId, _, _) ->
+                    if (gId == null) "" else groups.find { it.id == gId }?.name ?: ""
+                }
             } else emptyList()
 
             if (groupingType == GroupingType.BY_GROUP) {
@@ -529,60 +552,95 @@ fun GroupedFinancialView(
                     )
                 }
             } else {
-                items(mLogs.sortedBy { it.date }, key = { log -> "${log.workerId}_${log.date}" }) { log ->
+                itemsIndexed(mLogs, key = { _, log -> "${log.workerId}_${log.date}" }) { index, log ->
                     val worker = workerMap[log.workerId]
                     val earnings = log.totalAmount
+                    val dayIndex = dayIndices[log.date] ?: 0
+                    val isNewDay = index == 0 || mLogs[index - 1].date != log.date
                     
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onLogClick(log) },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = CardDefaults.outlinedCardBorder(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    val cardBg = if (dayIndex % 2 == 0) MaterialTheme.colorScheme.surface 
+                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+
+                    Column {
+                        if (isNewDay && index > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { onLogClick(log) },
+                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            border = if (isNewDay) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) 
+                                     else CardDefaults.outlinedCardBorder(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
-                            Surface(
-                                color = if (log.isManualHoliday) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                                shape = MaterialTheme.shapes.small
-                            ) {
-                                Text(
-                                    text = TimeUtils.format(log.date, TimeUtils.dayMonthFormatter),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (log.isManualHoliday) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "${worker?.surname ?: ""} ${worker?.name ?: "Bracciante ${log.workerId}"}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                if (log.hourlyRate > 0) {
-                                    val rateStr = formatDecimal(log.hourlyRate)
-                                    Text(
-                                        text = "@ $rateStr €/h",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.outline
-                                    )
+                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        color = if (log.isManualHoliday) MaterialTheme.colorScheme.tertiaryContainer 
+                                                else if (dayIndex % 2 == 0) MaterialTheme.colorScheme.secondaryContainer 
+                                                else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
+                                        shape = MaterialTheme.shapes.small
+                                    ) {
+                                        Text(
+                                            text = TimeUtils.format(log.date, TimeUtils.dayMonthFormatter),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (log.isManualHoliday) MaterialTheme.colorScheme.onTertiaryContainer 
+                                                    else if (dayIndex % 2 == 0) MaterialTheme.colorScheme.onSecondaryContainer
+                                                    else MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${worker?.surname ?: ""} ${worker?.name ?: "Bracciante ${log.workerId}"}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (log.hourlyRate > 0) {
+                                            val rateStr = formatDecimal(log.hourlyRate)
+                                            Text(
+                                                text = "@ $rateStr €/h",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.outline
+                                            )
+                                        }
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = formatHours(log.totalHours),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = formatCurrency(earnings),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (log.isManualHoliday) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = formatHours(log.totalHours),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = formatCurrency(earnings),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (log.isManualHoliday) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-                                )
+                                
+                                if (log.ordinaryHours > 0 || log.extraHours > 0 || log.holidayHours > 0) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (log.ordinaryHours > 0) {
+                                            SmallStatChip(label = "N", hours = log.ordinaryHours, color = MaterialTheme.colorScheme.primary)
+                                        }
+                                        if (log.extraHours > 0) {
+                                            SmallStatChip(label = "S", hours = log.extraHours, color = MaterialTheme.colorScheme.secondary)
+                                        }
+                                        if (log.holidayHours > 0) {
+                                            SmallStatChip(label = "F", hours = log.holidayHours, color = MaterialTheme.colorScheme.tertiary)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

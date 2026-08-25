@@ -580,25 +580,31 @@ fun BackupFileItem(
     onRestore: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(file.name, style = MaterialTheme.typography.bodyMedium)
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = file.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text(
-                    TimeUtils.dateTimeFormatter.format(Date(file.lastModified())),
-                    style = MaterialTheme.typography.labelSmall
+                    text = TimeUtils.dateTimeFormatter.format(Date(file.lastModified())),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.weight(1f)
                 )
-            }
-            IconButton(onClick = onShare) {
-                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share_desc))
-            }
-            IconButton(onClick = onRestore) {
-                Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.restore_desc))
-            }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_desc), tint = MaterialTheme.colorScheme.error)
+                IconButton(onClick = onShare) {
+                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share_desc))
+                }
+                IconButton(onClick = onRestore) {
+                    Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.restore_desc))
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_desc), tint = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }
