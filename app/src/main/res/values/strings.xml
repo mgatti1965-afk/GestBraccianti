@@ -38,8 +38,12 @@
 
     <string name="test_area_title">Area Test</string>
     <string name="btn_create_test_workers">Crea 10 Braccianti di Test</string>
-    <string name="test_area_desc">Usa questo tasto per generare rapidamente dati di prova.</string>
+    <string name="btn_clear_database">Svuota Database (PERICOLO)</string>
+    <string name="btn_view_log">Visualizza Log di Sistema</string>
+    <string name="test_area_desc">Usa questi tasti per generare dati di prova, pulire l\'archivio o diagnosticare errori.</string>
     <string name="toast_test_workers_created">Creati 10 braccianti di prova</string>
+    <string name="toast_database_cleared">Database svuotato correttamente</string>
+    <string name="toast_log_prepared">Log preparato per la condivisione</string>
 
     <string name="share_backup_title">Invia Backup</string>
     <string name="share_desc">Condividi</string>

@@ -97,11 +97,11 @@ fun MainApp(
     val screenTitle = remember(currentRoute, currentYear) {
         val yearSuffix = currentYear?.id?.let { " - $it" } ?: ""
         when {
+            currentRoute == Screen.WorkerRegistry.route -> "Registro Braccianti"
+            currentRoute == Screen.Others.route -> "Altre Funzioni"
             currentRoute == Screen.DailyLogging.route || currentRoute == Screen.Home.route || 
             currentRoute?.startsWith("work_day_detail") == true -> "Ore Lavorate$yearSuffix"
             currentRoute == Screen.FinancialSummary.route -> "Riepilogo$yearSuffix"
-            currentRoute == Screen.WorkerRegistry.route -> "Registro Braccianti"
-            currentRoute == Screen.Others.route -> "Altre Funzioni"
             else -> "GestBraccianti"
         }
     }

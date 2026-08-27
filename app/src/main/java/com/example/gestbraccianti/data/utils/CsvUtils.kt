@@ -119,145 +119,160 @@ object CsvUtils {
     suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         val db = AppDatabase.getDatabase(context)
         try {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                BufferedReader(InputStreamReader(input)).use { reader ->
-                    db.withTransaction {
-                        db.openHelper.writableDatabase.execSQL("PRAGMA foreign_keys = OFF")
-                        try {
-                            db.clearAllTables()
-                            
-                            val lines = reader.readLines()
-                            
-                            // 1. Inserimento HarvestYear (Y)
-                            lines.filter { it.startsWith("Y;") }.forEach { line ->
-                                val parts = line.split(";").map { it.trim() }
-                                if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
-                            }
-                            
-                            // 2. Inserimento Worker (W)
-                            lines.filter { it.startsWith("W;") }.forEach { line ->
-                                val parts = line.split(";").map { it.trim() }
-                                if (parts.size >= 6) {
-                                    db.workerDao().insertWorker(
-                                        Worker(
-                                            id = parts[1].toLong(),
-                                            surname = parts[2].trim().capitalizeWords(),
-                                            name = parts[3].trim().capitalizeWords(),
-                                            phoneNumber = parts[4],
-                                            isArchived = parts[5] == "1"
-                                        )
-                                    )
-                                }
-                            }
-                            
-                            // 3. Inserimento Plantation (P)
-                            lines.filter { it.startsWith("P;") }.forEach { line ->
-                                val parts = line.split(";").map { it.trim() }
-                                if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
-                            }
-                            
-                            // 4. Inserimento WorkerYearConfig (C)
-                            lines.filter { it.startsWith("C;") }.forEach { line ->
-                                val parts = line.split(";").map { it.trim() }
-                                if (parts.size >= 4) {
-                                    val rate = parts[3].toDoubleOrNull() ?: 0.0
-                                    db.workerYearConfigDao().insertConfig(
-                                        WorkerYearConfig(
-                                            workerId = parts[1].toLong(),
-                                            harvestYearId = parts[2].toInt(),
-                                            hourlyRate = rate,
-                                            extraHourlyRate = if (parts.size >= 5) parts[4].toDoubleOrNull() ?: rate else rate,
-                                            holidayHourlyRate = if (parts.size >= 6) parts[5].toDoubleOrNull() ?: rate else rate
-                                        )
-                                    )
-                                }
-                            }
-                            
-                            // 5. Inserimento WorkerGroup (G)
-                            lines.filter { it.startsWith("G;") }.forEach { line ->
-                                val parts = line.split(";").map { it.trim() }
-                                if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
-                            }
-                            
-                            // 6. Inserimento WorkLog (L)
-                            lines.filter { it.startsWith("L;") }.forEach { line ->
-                                val parts = line.split(";").map { it.trim() }
-                                if (parts.size >= 9) {
-                                    val isLegacy = parts.size < 20
-                                    val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
-                                    val extraRate: Double
-                                    val holidayRate: Double
-                                    val isManFest: Boolean
-                                    val totalAmt: Double
-                                    val ordH: Double
-                                    val extH: Double
-                                    val holH: Double
-                                    val ordA: Double
-                                    val extA: Double
-                                    val holA: Double
+            val content = context.contentResolver.openInputStream(uri)?.use { input ->
+                BufferedReader(InputStreamReader(input)).readLines()
+            } ?: return@withContext false
 
-                                    if (isLegacy) {
-                                        val totalH = parseTimeToDouble(parts[8])
-                                        extraRate = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: rate else rate
-                                        holidayRate = if (parts.size >= 12) parts[11].toDoubleOrNull() ?: rate else rate
-                                        isManFest = if (parts.size >= 13) parts[12] == "1" else false
-                                        val rawAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
-                                        totalAmt = if (rawAmt == 0.0 && totalH > 0) totalH * (if (isManFest) holidayRate else rate) else rawAmt
-                                        if (isManFest) {
-                                            ordH = 0.0; extH = 0.0; holH = totalH
-                                            ordA = 0.0; extA = 0.0; holA = totalAmt
-                                        } else {
-                                            ordH = totalH; extH = 0.0; holH = 0.0
-                                            ordA = totalAmt; extA = 0.0; holA = 0.0
-                                        }
-                                    } else {
-                                        extraRate = parts[10].toDoubleOrNull() ?: rate
-                                        holidayRate = parts[11].toDoubleOrNull() ?: rate
-                                        isManFest = parts[12] == "1"
-                                        totalAmt = parts[13].toDoubleOrNull() ?: 0.0
-                                        ordH = parts[14].toDoubleOrNull() ?: 0.0
-                                        extH = parts[15].toDoubleOrNull() ?: 0.0
-                                        holH = parts[16].toDoubleOrNull() ?: 0.0
-                                        ordA = parts[17].toDoubleOrNull() ?: 0.0
-                                        extA = parts[18].toDoubleOrNull() ?: 0.0
-                                        holA = parts[19].toDoubleOrNull() ?: 0.0
-                                    }
+            db.withTransaction {
+                val sdb = db.openHelper.writableDatabase
+                
+                sdb.execSQL("PRAGMA foreign_keys = OFF")
+                try {
+                    // Svuotamento tabelle
+                    sdb.execSQL("DELETE FROM worker_group_cross_ref")
+                    sdb.execSQL("DELETE FROM work_logs")
+                    sdb.execSQL("DELETE FROM worker_year_configs")
+                    sdb.execSQL("DELETE FROM worker_groups")
+                    sdb.execSQL("DELETE FROM workers")
+                    sdb.execSQL("DELETE FROM harvest_years")
+                    sdb.execSQL("DELETE FROM plantations")
 
-                                    db.workLogDao().insertLog(
-                                        WorkLog(
-                                            workerId = parts[1].toLong(),
-                                            harvestYearId = parts[2].toInt(),
-                                            date = parts[3].toLong(),
-                                            morningStart = parts[4].ifBlank { null },
-                                            morningEnd = parts[5].ifBlank { null },
-                                            afternoonStart = parts[6].ifBlank { null },
-                                            afternoonEnd = parts[7].ifBlank { null },
-                                            totalHours = parseTimeToDouble(parts[8]),
-                                            hourlyRate = rate,
-                                            extraHourlyRate = extraRate,
-                                            holidayHourlyRate = holidayRate,
-                                            isManualHoliday = isManFest,
-                                            totalAmount = totalAmt,
-                                            ordinaryHours = ordH,
-                                            extraHours = extH,
-                                            holidayHours = holH,
-                                            ordinaryAmount = ordA,
-                                            extraAmount = extA,
-                                            holidayAmount = holA
-                                        )
-                                    )
-                                }
-                            }
-                            
-                            // 7. Inserimento WorkerGroupCrossRef (X)
-                            lines.filter { it.startsWith("X;") }.forEach { line ->
-                                val parts = line.split(";").map { it.trim() }
-                                if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
-                            }
-                        } finally {
-                            db.openHelper.writableDatabase.execSQL("PRAGMA foreign_keys = ON")
+                    // 1. Inserimento HarvestYear (Y)
+                    content.filter { it.startsWith("Y;") }.forEach { line ->
+                        val parts = line.split(";").map { it.trim() }
+                        if (parts.size >= 3) {
+                            db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
                         }
                     }
+
+                    // 2. Inserimento Worker (W)
+                    content.filter { it.startsWith("W;") }.forEach { line ->
+                        val parts = line.split(";").map { it.trim() }
+                        if (parts.size >= 6) {
+                            db.workerDao().insertWorker(
+                                Worker(
+                                    id = parts[1].toLong(),
+                                    surname = parts[2].trim().capitalizeWords(),
+                                    name = parts[3].trim().capitalizeWords(),
+                                    phoneNumber = parts[4],
+                                    isArchived = parts[5] == "1"
+                                )
+                            )
+                        }
+                    }
+
+                    // 3. Inserimento Plantation (P)
+                    content.filter { it.startsWith("P;") }.forEach { line ->
+                        val parts = line.split(";").map { it.trim() }
+                        if (parts.size >= 4) {
+                            db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
+                        }
+                    }
+
+                    // 4. Inserimento WorkerYearConfig (C)
+                    content.filter { it.startsWith("C;") }.forEach { line ->
+                        val parts = line.split(";").map { it.trim() }
+                        if (parts.size >= 4) {
+                            val rate = parts[3].toDoubleOrNull() ?: 0.0
+                            db.workerYearConfigDao().insertConfig(
+                                WorkerYearConfig(
+                                    workerId = parts[1].toLong(),
+                                    harvestYearId = parts[2].toInt(),
+                                    hourlyRate = rate,
+                                    extraHourlyRate = if (parts.size >= 5) parts[4].toDoubleOrNull() ?: rate else rate,
+                                    holidayHourlyRate = if (parts.size >= 6) parts[5].toDoubleOrNull() ?: rate else rate
+                                )
+                            )
+                        }
+                    }
+
+                    // 5. Inserimento WorkerGroup (G)
+                    content.filter { it.startsWith("G;") }.forEach { line ->
+                        val parts = line.split(";").map { it.trim() }
+                        if (parts.size >= 4) {
+                            db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
+                        }
+                    }
+
+                    // 6. Inserimento WorkLog (L)
+                    content.filter { it.startsWith("L;") }.forEach { line ->
+                        val parts = line.split(";").map { it.trim() }
+                        if (parts.size >= 9) {
+                            val isLegacy = parts.size < 20
+                            val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
+                            val extraRate: Double
+                            val holidayRate: Double
+                            val isManFest: Boolean
+                            val totalAmt: Double
+                            val ordH: Double
+                            val extH: Double
+                            val holH: Double
+                            val ordA: Double
+                            val extA: Double
+                            val holA: Double
+
+                            if (isLegacy) {
+                                val totalH = parseTimeToDouble(parts[8])
+                                extraRate = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: rate else rate
+                                holidayRate = if (parts.size >= 12) parts[11].toDoubleOrNull() ?: rate else rate
+                                isManFest = if (parts.size >= 13) parts[12] == "1" else false
+                                val rawAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
+                                totalAmt = if (rawAmt == 0.0 && totalH > 0) totalH * (if (isManFest) holidayRate else rate) else rawAmt
+                                if (isManFest) {
+                                    ordH = 0.0; extH = 0.0; holH = totalH
+                                    ordA = 0.0; extA = 0.0; holA = totalAmt
+                                } else {
+                                    ordH = totalH; extH = 0.0; holH = 0.0
+                                    ordA = totalAmt; extA = 0.0; holA = 0.0
+                                }
+                            } else {
+                                extraRate = parts[10].toDoubleOrNull() ?: rate
+                                holidayRate = parts[11].toDoubleOrNull() ?: rate
+                                isManFest = parts[12] == "1"
+                                totalAmt = parts[13].toDoubleOrNull() ?: 0.0
+                                ordH = parts[14].toDoubleOrNull() ?: 0.0
+                                extH = parts[15].toDoubleOrNull() ?: 0.0
+                                holH = parts[16].toDoubleOrNull() ?: 0.0
+                                ordA = parts[17].toDoubleOrNull() ?: 0.0
+                                extA = parts[18].toDoubleOrNull() ?: 0.0
+                                holA = parts[19].toDoubleOrNull() ?: 0.0
+                            }
+
+                            db.workLogDao().insertLog(
+                                WorkLog(
+                                    workerId = parts[1].toLong(),
+                                    harvestYearId = parts[2].toInt(),
+                                    date = parts[3].toLong(),
+                                    morningStart = parts[4].ifBlank { null },
+                                    morningEnd = parts[5].ifBlank { null },
+                                    afternoonStart = parts[6].ifBlank { null },
+                                    afternoonEnd = parts[7].ifBlank { null },
+                                    totalHours = parseTimeToDouble(parts[8]),
+                                    hourlyRate = rate,
+                                    extraHourlyRate = extraRate,
+                                    holidayHourlyRate = holidayRate,
+                                    isManualHoliday = isManFest,
+                                    totalAmount = totalAmt,
+                                    ordinaryHours = ordH,
+                                    extraHours = extH,
+                                    holidayHours = holH,
+                                    ordinaryAmount = ordA,
+                                    extraAmount = extA,
+                                    holidayAmount = holA
+                                )
+                            )
+                        }
+                    }
+
+                    // 7. Inserimento WorkerGroupCrossRef (X)
+                    content.filter { it.startsWith("X;") }.forEach { line ->
+                        val parts = line.split(";").map { it.trim() }
+                        if (parts.size >= 3) {
+                            db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
+                        }
+                    }
+                } finally {
+                    sdb.execSQL("PRAGMA foreign_keys = ON")
                 }
             }
             true
@@ -266,6 +281,4 @@ object CsvUtils {
             false
         }
     }
-
-
 }

@@ -1,6 +1,8 @@
 package com.example.gestbraccianti.ui.screens
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -11,6 +13,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -519,6 +524,114 @@ fun TestTab(
             Icon(Icons.Default.Add, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.btn_create_test_workers))
+        }
+
+        // Nuovo tasto per svuotare il database
+        OutlinedButton(
+            onClick = {
+                scope.launch(Dispatchers.IO) {
+                    val db = com.example.gestbraccianti.data.AppDatabase.getDatabase(context)
+                    db.clearAllTables()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, context.getString(R.string.toast_database_cleared), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        ) {
+            Icon(Icons.Default.Delete, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.btn_clear_database))
+        }
+
+        // Tasto per visualizzare il log
+        var showLogError by remember { mutableStateOf<String?>(null) }
+        var logContent by remember { mutableStateOf<String?>(null) }
+        
+        if (showLogError != null) {
+            AlertDialog(
+                onDismissRequest = { showLogError = null },
+                title = { Text("Errore Recupero Log") },
+                text = { Text(showLogError!!) },
+                confirmButton = {
+                    TextButton(onClick = { showLogError = null }) { Text("OK") }
+                }
+            )
+        }
+
+        if (logContent != null) {
+            AlertDialog(
+                onDismissRequest = { logContent = null },
+                title = { Text("Log di Sistema (Ultime 100 righe)") },
+                text = {
+                    Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
+                        SelectionContainer {
+                            Text(logContent!!, style = MaterialTheme.typography.bodySmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { logContent = null }) { Text("Chiudi") }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Log GestBraccianti", logContent)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Copiato negli appunti", Toast.LENGTH_SHORT).show()
+                        }) { Text("Copia") }
+                        
+                        TextButton(onClick = {
+                            scope.launch(Dispatchers.IO) {
+                                val backupDir = File(context.getExternalFilesDir(null), "backups")
+                                val logFile = File(backupDir, "log_debug.txt")
+                                shareFile(context, logFile)
+                            }
+                        }) { Text("Condividi") }
+                    }
+                }
+            )
+        }
+
+        OutlinedButton(
+            onClick = {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val process = Runtime.getRuntime().exec("logcat -d -t 100")
+                        val reader = BufferedReader(InputStreamReader(process.inputStream))
+                        val sb = StringBuilder()
+                        var line: String?
+                        while (reader.readLine().also { line = it } != null) {
+                            sb.append(line).append("\n")
+                        }
+                        reader.close()
+                        
+                        val result = sb.toString()
+                        withContext(Dispatchers.Main) {
+                            if (result.isBlank()) {
+                                showLogError = "Nessun log trovato. Il sistema ha restituito un risultato vuoto."
+                            } else {
+                                logContent = result
+                                // Salviamo anche su file per la condivisione opzionale
+                                val backupDir = File(context.getExternalFilesDir(null), "backups")
+                                if (!backupDir.exists()) backupDir.mkdirs()
+                                FileWriter(File(backupDir, "log_debug.txt")).use { it.write(result) }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            showLogError = "Errore critico: ${e.localizedMessage}"
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.btn_view_log))
         }
 
         Text(

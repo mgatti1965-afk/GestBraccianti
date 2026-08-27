@@ -191,7 +191,9 @@ fun DailyLoggingScreen(
                         text = "Long press per festività",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.CenterStart)
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 16.dp)
                     )
                     Icon(
                         imageVector = if (isCalendarExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -440,7 +442,7 @@ fun DayCell(
         color = when {
             hasWorked -> if (isFestive) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
             isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-            isFestive -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+            isFestive -> MaterialTheme.colorScheme.tertiaryContainer
             isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             else -> MaterialTheme.colorScheme.surface
         },
@@ -467,6 +469,7 @@ fun DayCell(
                     text = day.toString(),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (hasWorked || isToday || isFestive) FontWeight.Bold else FontWeight.Normal,
+                    textAlign = TextAlign.Center,
                     color = when {
                         hasWorked -> if (isFestive) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
                         isFestive -> MaterialTheme.colorScheme.tertiary
@@ -477,6 +480,7 @@ fun DayCell(
                     Text(
                         text = formatHours(totalHours),
                         style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Center,
                         color = if (isFestive) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                     )
                 }
