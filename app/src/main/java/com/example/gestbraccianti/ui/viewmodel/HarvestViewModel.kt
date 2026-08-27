@@ -32,13 +32,23 @@ class HarvestViewModel(private val repository: HarvestRepository) : ViewModel() 
 
     fun createYear(
         year: Int,
+        notes: String = "",
         migrateFrom: Int? = null,
         migrateWorkers: Boolean = false,
-        migrateGroups: Boolean = false
+        migrateGroups: Boolean = false,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
-            repository.createNewYear(year, migrateFrom, migrateWorkers, migrateGroups)
-            refreshCurrentYear()
+            try {
+                repository.createNewYear(year, notes, migrateFrom, migrateWorkers, migrateGroups)
+                refreshCurrentYear()
+                onSuccess()
+            } catch (e: IllegalArgumentException) {
+                onError(e.message ?: "Errore nella creazione dell'annata")
+            } catch (e: Exception) {
+                onError("Errore imprevisto: ${e.localizedMessage}")
+            }
         }
     }
 

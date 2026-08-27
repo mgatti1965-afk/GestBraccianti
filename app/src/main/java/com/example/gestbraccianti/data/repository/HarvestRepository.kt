@@ -26,14 +26,22 @@ class HarvestRepository(
     
     suspend fun createNewYear(
         year: Int,
+        notes: String = "",
         migrateFromYear: Int? = null,
         migrateWorkers: Boolean = false,
         migrateGroups: Boolean = false
     ) {
         try {
             Log.d("HarvestRepository", "Creating new year: $year")
+            
+            // Check if year already exists
+            val existingYears = harvestYearDao.getAllYearsStatic()
+            if (existingYears.any { it.id == year }) {
+                throw IllegalArgumentException("L'anno $year esiste già nel database.")
+            }
+
             harvestYearDao.clearCurrentYear()
-            harvestYearDao.insertYear(HarvestYear(id = year, isCurrent = true))
+            harvestYearDao.insertYear(HarvestYear(id = year, isCurrent = true, notes = notes))
 
             if (migrateFromYear != null) {
                 if (migrateWorkers) {
@@ -44,7 +52,9 @@ class HarvestRepository(
                             WorkerYearConfig(
                                 workerId = config.workerId,
                                 harvestYearId = year,
-                                hourlyRate = config.hourlyRate
+                                hourlyRate = config.hourlyRate,
+                                extraHourlyRate = config.extraHourlyRate,
+                                holidayHourlyRate = config.holidayHourlyRate
                             )
                         )
                     }

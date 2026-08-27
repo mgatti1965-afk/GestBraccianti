@@ -61,9 +61,9 @@ object CsvUtils {
         // Years
         val years = db.harvestYearDao().getAllYearsStatic()
         if (years.isNotEmpty()) {
-            writer.write("TIPO;ID;CORRENTE\n")
+            writer.write("TIPO;ID;CORRENTE;NOTE\n")
             years.forEach {
-                writer.write("Y;${it.id};${if (it.isCurrent) 1 else 0}\n")
+                writer.write("Y;${it.id};${if (it.isCurrent) 1 else 0};${it.notes.replace("\n", "\\n")}\n")
             }
         }
         // Configs
@@ -119,10 +119,9 @@ object CsvUtils {
     suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         val db = AppDatabase.getDatabase(context)
         try {
-            val content = context.contentResolver.openInputStream(uri)?.use { input ->
-                BufferedReader(InputStreamReader(input)).readLines()
-            } ?: return@withContext false
-
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext false
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            
             db.withTransaction {
                 val sdb = db.openHelper.writableDatabase
                 
@@ -137,16 +136,24 @@ object CsvUtils {
                     sdb.execSQL("DELETE FROM harvest_years")
                     sdb.execSQL("DELETE FROM plantations")
 
+                    // Dobbiamo rileggere il file per ogni tipo di record o caricarlo in modo intelligente.
+                    // Dato che il file non dovrebbe essere giga, leggiamolo in una lista solo una volta
+                    // ma usiamo un approccio che consumi meno memoria possibile o processiamolo riga per riga.
+                    // La soluzione migliore per mantenere l'ordine FK (anche se OFF) è processare i record in ordine.
+                    
+                    val lines = reader.readLines()
+                    
                     // 1. Inserimento HarvestYear (Y)
-                    content.filter { it.startsWith("Y;") }.forEach { line ->
+                    lines.filter { it.startsWith("Y;") }.forEach { line ->
                         val parts = line.split(";").map { it.trim() }
                         if (parts.size >= 3) {
-                            db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
+                            val notes = if (parts.size >= 4) parts[3].replace("\\n", "\n") else ""
+                            db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1", notes = notes))
                         }
                     }
 
                     // 2. Inserimento Worker (W)
-                    content.filter { it.startsWith("W;") }.forEach { line ->
+                    lines.filter { it.startsWith("W;") }.forEach { line ->
                         val parts = line.split(";").map { it.trim() }
                         if (parts.size >= 6) {
                             db.workerDao().insertWorker(
@@ -162,7 +169,7 @@ object CsvUtils {
                     }
 
                     // 3. Inserimento Plantation (P)
-                    content.filter { it.startsWith("P;") }.forEach { line ->
+                    lines.filter { it.startsWith("P;") }.forEach { line ->
                         val parts = line.split(";").map { it.trim() }
                         if (parts.size >= 4) {
                             db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
@@ -170,7 +177,7 @@ object CsvUtils {
                     }
 
                     // 4. Inserimento WorkerYearConfig (C)
-                    content.filter { it.startsWith("C;") }.forEach { line ->
+                    lines.filter { it.startsWith("C;") }.forEach { line ->
                         val parts = line.split(";").map { it.trim() }
                         if (parts.size >= 4) {
                             val rate = parts[3].toDoubleOrNull() ?: 0.0
@@ -187,7 +194,7 @@ object CsvUtils {
                     }
 
                     // 5. Inserimento WorkerGroup (G)
-                    content.filter { it.startsWith("G;") }.forEach { line ->
+                    lines.filter { it.startsWith("G;") }.forEach { line ->
                         val parts = line.split(";").map { it.trim() }
                         if (parts.size >= 4) {
                             db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
@@ -195,7 +202,7 @@ object CsvUtils {
                     }
 
                     // 6. Inserimento WorkLog (L)
-                    content.filter { it.startsWith("L;") }.forEach { line ->
+                    lines.filter { it.startsWith("L;") }.forEach { line ->
                         val parts = line.split(";").map { it.trim() }
                         if (parts.size >= 9) {
                             val isLegacy = parts.size < 20
@@ -265,7 +272,7 @@ object CsvUtils {
                     }
 
                     // 7. Inserimento WorkerGroupCrossRef (X)
-                    content.filter { it.startsWith("X;") }.forEach { line ->
+                    lines.filter { it.startsWith("X;") }.forEach { line ->
                         val parts = line.split(";").map { it.trim() }
                         if (parts.size >= 3) {
                             db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
@@ -275,6 +282,7 @@ object CsvUtils {
                     sdb.execSQL("PRAGMA foreign_keys = ON")
                 }
             }
+            reader.close()
             true
         } catch (e: Exception) {
             Log.e("CsvUtils", "Errore importazione CSV", e)

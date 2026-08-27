@@ -29,16 +29,48 @@ fun YearSelectionScreen(
     val years by viewModel.allYears.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var yearToDelete by remember { mutableStateOf<HarvestYear?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     if (showAddDialog) {
+        val lastYear = years.maxByOrNull { it.id }?.id
+        val suggestedYear = if (lastYear == null) {
+            java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        } else {
+            lastYear + 1
+        }
+
         AddYearDialog(
+            suggestedYear = suggestedYear,
             onDismiss = { showAddDialog = false },
-            onConfirm = { year, migrateWorkers, migrateGroups ->
-                val lastYear = years.maxByOrNull { it.id }?.id
-                viewModel.createYear(year, lastYear, migrateWorkers, migrateGroups)
-                showAddDialog = false
+            onConfirm = { year, notes, migrateWorkers, migrateGroups ->
+                viewModel.createYear(
+                    year = year,
+                    notes = notes,
+                    migrateFrom = lastYear,
+                    migrateWorkers = migrateWorkers,
+                    migrateGroups = migrateGroups,
+                    onSuccess = {
+                        showAddDialog = false
+                    },
+                    onError = { error ->
+                        errorMessage = error
+                    }
+                )
             },
             hasPreviousYear = years.isNotEmpty()
+        )
+    }
+
+    if (errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { errorMessage = null },
+            title = { Text("Attenzione") },
+            text = { Text(errorMessage!!) },
+            confirmButton = {
+                TextButton(onClick = { errorMessage = null }) {
+                    Text("OK")
+                }
+            }
         )
     }
 
@@ -98,28 +130,33 @@ fun YearSelectionScreen(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.padding(16.dp)
                         ) {
-                            Text(
-                                text = "Vendemmia ${year.id}",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.weight(1f))
-                            if (year.isCurrent) {
-                                SuggestionChip(
-                                    onClick = {},
-                                    label = { Text("Corrente") }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (year.notes.isNotEmpty()) "${year.id} - ${year.notes}" else "${year.id}",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
                                 )
-                            }
-                            IconButton(onClick = { yearToDelete = year }) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Elimina Annata",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
+                                if (year.isCurrent) {
+                                    SuggestionChip(
+                                        onClick = {},
+                                        label = { Text("Corrente") },
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                }
+                                IconButton(onClick = { yearToDelete = year }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Elimina Annata",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                         }
                     }
@@ -131,12 +168,13 @@ fun YearSelectionScreen(
 
 @Composable
 fun AddYearDialog(
+    suggestedYear: Int,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Boolean, Boolean) -> Unit,
+    onConfirm: (Int, String, Boolean, Boolean) -> Unit,
     hasPreviousYear: Boolean
 ) {
-    val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR).toString()
-    var yearText by remember { mutableStateOf(currentYear) }
+    var yearText by remember(suggestedYear) { mutableStateOf(suggestedYear.toString()) }
+    var notesText by remember { mutableStateOf("") }
     var migrateWorkers by remember { mutableStateOf(false) }
     var migrateGroups by remember { mutableStateOf(false) }
     
@@ -153,6 +191,14 @@ fun AddYearDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = { notesText = it },
+                    label = { Text("Note (es. Vendemmia)", style = MaterialTheme.typography.labelLarge) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
                 
                 if (hasPreviousYear) {
                     Text(
@@ -167,7 +213,7 @@ fun AddYearDialog(
                             .clickable { migrateWorkers = !migrateWorkers }
                             .padding(vertical = 8.dp)
                     ) {
-                        Text("Braccianti", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        Text("Braccianti", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                         Switch(
                             checked = migrateWorkers,
                             onCheckedChange = { migrateWorkers = it }
@@ -180,7 +226,7 @@ fun AddYearDialog(
                             .clickable { migrateGroups = !migrateGroups }
                             .padding(vertical = 8.dp)
                     ) {
-                        Text("Gruppi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        Text("Gruppi", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                         Switch(
                             checked = migrateGroups,
                             onCheckedChange = { migrateGroups = it }
@@ -192,7 +238,7 @@ fun AddYearDialog(
         confirmButton = {
             Button(onClick = { 
                 yearText.toIntOrNull()?.let { 
-                    onConfirm(it, migrateWorkers && hasPreviousYear, migrateGroups && hasPreviousYear) 
+                    onConfirm(it, notesText, migrateWorkers && hasPreviousYear, migrateGroups && hasPreviousYear)
                 } 
             }) {
                 Text("Crea")
