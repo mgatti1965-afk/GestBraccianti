@@ -440,7 +440,7 @@ fun DayCell(
         color = when {
             hasWorked -> if (isFestive) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
             isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-            isFestive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+            isFestive -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
             isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             else -> MaterialTheme.colorScheme.surface
         },
