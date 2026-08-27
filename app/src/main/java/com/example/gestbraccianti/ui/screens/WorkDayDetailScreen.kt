@@ -2,6 +2,7 @@ package com.example.gestbraccianti.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.rememberScrollState
@@ -11,7 +12,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -30,6 +31,7 @@ import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
+import com.example.gestbraccianti.ui.components.SmallStatChip
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
@@ -110,8 +112,11 @@ fun WorkDayDetailScreen(
                                 "${worker?.surname} ${worker?.name}"
                             }
                     )
-                    items(sortedLogs) { log ->
+                    itemsIndexed(sortedLogs, key = { _, log: WorkLog -> log.id }) { index, log: WorkLog ->
                         val worker = workers.find { it.id == log.workerId }
+                        val cardBg = if (index % 2 == 0) MaterialTheme.colorScheme.surface 
+                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -126,12 +131,36 @@ fun WorkDayDetailScreen(
                                                      else context.getString(R.string.manual_holiday_toggle_toast_off)
                                         Toast.makeText(context, status.format("${worker?.surname} ${worker?.name}"), Toast.LENGTH_SHORT).show()
                                     }
-                                )
+                                ),
+                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border = if (index == 0) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                     else null,
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Surface(
+                                    modifier = Modifier.size(48.dp),
+                                    shape = MaterialTheme.shapes.small,
+                                    color = if (log.isManualHoliday) MaterialTheme.colorScheme.tertiaryContainer 
+                                            else if (index % 2 == 0) MaterialTheme.colorScheme.secondaryContainer 
+                                            else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = worker?.surname?.take(1)?.uppercase() ?: "?",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = if (log.isManualHoliday) MaterialTheme.colorScheme.onTertiaryContainer 
+                                                    else if (index % 2 == 0) MaterialTheme.colorScheme.onSecondaryContainer
+                                                    else MaterialTheme.colorScheme.onPrimaryContainer,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
@@ -156,21 +185,30 @@ fun WorkDayDetailScreen(
                                             }
                                         }
                                     }
-                                    Text(
-                                        text = stringResource(
-                                            R.string.time_range_summary,
-                                            log.morningStart ?: "--",
-                                            log.morningEnd ?: "--",
-                                            log.afternoonStart ?: "--",
-                                            log.afternoonEnd ?: "--"
-                                        ),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
+
                                     Text(
                                         text = stringResource(R.string.total_hours_short, formatHours(log.totalHours)),
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (log.holidayHours > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                                     )
+                                    if (log.ordinaryHours > 0 || log.extraHours > 0 || log.holidayHours > 0) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            if (log.ordinaryHours > 0) {
+                                                SmallStatChip(label = "Ord", hours = log.ordinaryHours, color = MaterialTheme.colorScheme.primary)
+                                            }
+                                            if (log.extraHours > 0) {
+                                                SmallStatChip(label = "STR", hours = log.extraHours, color = MaterialTheme.colorScheme.secondary)
+                                            }
+                                            if (log.holidayHours > 0) {
+                                                SmallStatChip(label = "fest", hours = log.holidayHours, color = MaterialTheme.colorScheme.tertiary)
+                                            }
+                                        }
+                                    }
                                 }
                                 IconButton(onClick = { workLogViewModel.deleteLog(log) }) {
                                     Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.remove_desc), tint = MaterialTheme.colorScheme.error)
@@ -295,7 +333,7 @@ fun WorkDayDetailScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddGroupToDayDialog(
+private fun AddGroupToDayDialog(
     groups: List<WorkerGroup>,
     existingLogs: List<WorkLog>,
     currentDate: Long,
@@ -401,10 +439,11 @@ fun AddGroupToDayDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-                    TextField(
+                    OutlinedTextField(
                         value = selectedGroup?.name ?: stringResource(R.string.select_group_hint),
                         onValueChange = {},
                         readOnly = true,
+                        label = { Text(stringResource(R.string.group_name_label), style = MaterialTheme.typography.labelLarge) },
                         textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
@@ -557,7 +596,7 @@ fun TactileTimePicker(
             onDismissRequest = { showManualEdit = false },
             title = { Text(stringResource(R.string.manual_entry_title)) },
             text = {
-                TextField(
+                OutlinedTextField(
                     value = tempTime, 
                     onValueChange = { tempTime = it }, 
                     placeholder = { Text(stringResource(R.string.time_hint)) }, 
@@ -680,7 +719,7 @@ fun RepeatingIconButton(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddWorkerToDayDialog(
+private fun AddWorkerToDayDialog(
     availableWorkers: List<Worker>,
     existingLogs: List<WorkLog>,
     editingLog: WorkLog?,
@@ -821,10 +860,11 @@ fun AddWorkerToDayDialog(
             ) {
                 if (editingLog == null) {
                     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-                        TextField(
+                        OutlinedTextField(
                             value = selectedWorker?.let { "${it.surname} ${it.name}".trim() } ?: stringResource(R.string.select_worker_hint), 
                             onValueChange = {}, 
                             readOnly = true, 
+                            label = { Text(stringResource(R.string.chip_workers), style = MaterialTheme.typography.labelLarge) },
                             textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), 
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }, 
                             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()

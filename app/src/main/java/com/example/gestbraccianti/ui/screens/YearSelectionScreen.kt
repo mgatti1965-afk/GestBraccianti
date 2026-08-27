@@ -1,6 +1,7 @@
 package com.example.gestbraccianti.ui.screens
 
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -92,7 +93,10 @@ fun YearSelectionScreen(
                             .clickable { 
                                 viewModel.selectYear(year.id)
                                 onYearSelected(year.id)
-                            }
+                            },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -141,10 +145,10 @@ fun AddYearDialog(
         title = { Text("Nuova Annata", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                TextField(
+                OutlinedTextField(
                     value = yearText,
                     onValueChange = { if (it.all { char -> char.isDigit() }) yearText = it },
-                    label = { Text("Anno (es. 2024)") },
+                    label = { Text("Anno (es. 2024)", style = MaterialTheme.typography.labelLarge) },
                     textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()

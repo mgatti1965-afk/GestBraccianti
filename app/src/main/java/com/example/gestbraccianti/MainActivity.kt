@@ -27,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.gestbraccianti.ui.navigation.Screen
 import com.example.gestbraccianti.ui.screens.*
 import com.example.gestbraccianti.ui.components.GlobalHelpDialog
+import com.example.gestbraccianti.ui.components.SmallStatChip
 import com.example.gestbraccianti.ui.theme.GestBracciantiTheme
 import com.example.gestbraccianti.ui.viewmodel.HarvestViewModel
 import com.example.gestbraccianti.ui.viewmodel.HarvestViewModelFactory
@@ -93,11 +94,23 @@ fun MainApp(
     val currentRoute = navBackStackEntry?.destination?.route
     var helpRoute by remember { mutableStateOf<String?>(null) }
 
+    val screenTitle = remember(currentRoute, currentYear) {
+        val yearSuffix = currentYear?.id?.let { " - $it" } ?: ""
+        when {
+            currentRoute == Screen.DailyLogging.route || currentRoute == Screen.Home.route || 
+            currentRoute?.startsWith("work_day_detail") == true -> "Ore Lavorate$yearSuffix"
+            currentRoute == Screen.FinancialSummary.route -> "Riepilogo$yearSuffix"
+            currentRoute == Screen.WorkerRegistry.route -> "Registro Braccianti"
+            currentRoute == Screen.Others.route -> "Altre Funzioni"
+            else -> "GestBraccianti"
+        }
+    }
+
     Scaffold(
         topBar = {
             if (currentYear != null) {
                 CenterAlignedTopAppBar(
-                    title = { Text("GestBraccianti ${currentYear?.id ?: ""}") },
+                    title = { Text(screenTitle) },
                     actions = {
                         IconButton(onClick = { showGlobalHelp = true }) {
                             Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Guida")
@@ -134,11 +147,13 @@ fun MainApp(
             }
             composable(Screen.Home.route) {
                 DailyLoggingScreen(workLogViewModel) { date ->
+                    workLogViewModel.updateReferenceDate(date)
                     navController.navigate(Screen.WorkDayDetail.createRoute(date))
                 }
             }
             composable(Screen.DailyLogging.route) {
                 DailyLoggingScreen(workLogViewModel) { date ->
+                    workLogViewModel.updateReferenceDate(date)
                     navController.navigate(Screen.WorkDayDetail.createRoute(date))
                 }
             }
@@ -194,10 +209,16 @@ fun AppBottomNavigation(navController: androidx.navigation.NavHostController) {
 
     NavigationBar {
         items.forEach { (route, label, icon) ->
+            val isSelected = currentDestination?.hierarchy?.any { it.route == route } == true ||
+                (route == Screen.DailyLogging.route && (
+                    currentDestination?.route == Screen.Home.route || 
+                    currentDestination?.route == Screen.WorkDayDetail.route
+                ))
+
             NavigationBarItem(
                 icon = { Icon(icon, contentDescription = label) },
                 label = { Text(label) },
-                selected = currentDestination?.hierarchy?.any { it.route == route } == true,
+                selected = isSelected,
                 onClick = {
                     navController.navigate(route) {
                         popUpTo(navController.graph.findStartDestination().id) {

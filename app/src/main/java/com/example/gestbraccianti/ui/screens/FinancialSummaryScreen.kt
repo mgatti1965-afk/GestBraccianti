@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.example.gestbraccianti.R
+import com.example.gestbraccianti.ui.components.SmallStatChip
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.utils.formatHours
@@ -65,7 +66,13 @@ data class AggregatedSummary(
     val title: String,
     val period: String,
     val totalHours: Double,
-    val totalEarnings: Double
+    val totalEarnings: Double,
+    val ordHours: Double = 0.0,
+    val extHours: Double = 0.0,
+    val holHours: Double = 0.0,
+    val ordAmount: Double = 0.0,
+    val extAmount: Double = 0.0,
+    val holAmount: Double = 0.0
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -488,7 +495,7 @@ fun GroupedFinancialView(
             } else emptyList()
 
             if (groupingType == GroupingType.BY_GROUP) {
-                items(groupTotals, key = { "g_${monthIdx}_${it.first ?: -1}" }) { (gId, hours, earnings) ->
+                itemsIndexed(groupTotals, key = { _, it -> "g_${monthIdx}_${it.first ?: -1}" }) { index, (gId, hours, earnings) ->
                     val groupName = groups.find { it.id == gId }?.name ?: stringResource(R.string.no_group_label)
                     
                     val workersInGroup = if (gId != null) groupToWorkers[gId] ?: emptyList() 
@@ -500,8 +507,6 @@ fun GroupedFinancialView(
                     var gOrdH = 0.0; var gExtH = 0.0; var gHolH = 0.0
                     var gOrdA = 0.0; var gExtA = 0.0; var gHolA = 0.0
                     
-                    val context = LocalContext.current
-                    
                     gLogs.forEach { log ->
                         gOrdH += log.ordinaryHours
                         gExtH += log.extraHours
@@ -511,6 +516,11 @@ fun GroupedFinancialView(
                         gHolA += log.holidayAmount
                     }
 
+                    val cardBg = if (index % 2 == 0) MaterialTheme.colorScheme.surface 
+                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    val border = if (index == 0) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) 
+                                 else null
+
                     SummaryCard(
                         title = groupName,
                         subtitle = stringResource(R.string.group_total_subtitle),
@@ -518,19 +528,19 @@ fun GroupedFinancialView(
                         earnings = earnings,
                         ordH = gOrdH, extH = gExtH, holH = gHolH,
                         ordA = gOrdA, extA = gExtA, holA = gHolA,
-                        onClick = { onTotalClick(AggregatedSummary(groupName, monthName, hours, earnings)) }
+                        containerColor = cardBg,
+                        border = border,
+                        onClick = { onTotalClick(AggregatedSummary(groupName, monthName, hours, earnings, gOrdH, gExtH, gHolH, gOrdA, gExtA, gHolA)) }
                     )
                 }
             } else if (viewMode == ViewMode.TOTALS) {
-                items(workerTotals, key = { "w_${monthIdx}_${it.first}" }) { (wId, hours, earnings) ->
+                itemsIndexed(workerTotals, key = { _, it -> "w_${monthIdx}_${it.first}" }) { index, (wId, hours, earnings) ->
                     val worker = workerMap[wId]
                     val workerName = "${worker?.surname ?: ""} ${worker?.name ?: "Bracc. $wId"}"
                     
                     val wLogs = mLogs.filter { it.workerId == wId }
                     var wOrdH = 0.0; var wExtH = 0.0; var wHolH = 0.0
                     var wOrdA = 0.0; var wExtA = 0.0; var wHolA = 0.0
-                    
-                    val context = LocalContext.current
                     
                     wLogs.forEach { log ->
                         wOrdH += log.ordinaryHours
@@ -541,6 +551,11 @@ fun GroupedFinancialView(
                         wHolA += log.holidayAmount
                     }
 
+                    val cardBg = if (index % 2 == 0) MaterialTheme.colorScheme.surface 
+                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    val border = if (index == 0) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) 
+                                 else null
+
                     SummaryCard(
                         title = workerName,
                         subtitle = stringResource(R.string.worker_total_subtitle),
@@ -548,7 +563,9 @@ fun GroupedFinancialView(
                         earnings = earnings,
                         ordH = wOrdH, extH = wExtH, holH = wHolH,
                         ordA = wOrdA, extA = wExtA, holA = wHolA,
-                        onClick = { onTotalClick(AggregatedSummary(workerName, monthName, hours, earnings)) }
+                        containerColor = cardBg,
+                        border = border,
+                        onClick = { onTotalClick(AggregatedSummary(workerName, monthName, hours, earnings, wOrdH, wExtH, wHolH, wOrdA, wExtA, wHolA)) }
                     )
                 }
             } else {
@@ -569,8 +586,8 @@ fun GroupedFinancialView(
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable { onLogClick(log) },
                             colors = CardDefaults.cardColors(containerColor = cardBg),
-                            border = if (isNewDay) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) 
-                                     else CardDefaults.outlinedCardBorder(),
+                            border = if (index == 0) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) 
+                                     else null,
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -600,14 +617,6 @@ fun GroupedFinancialView(
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold
                                         )
-                                        if (log.hourlyRate > 0) {
-                                            val rateStr = formatDecimal(log.hourlyRate)
-                                            Text(
-                                                text = "@ $rateStr €/h",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.outline
-                                            )
-                                        }
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text(
@@ -631,13 +640,13 @@ fun GroupedFinancialView(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         if (log.ordinaryHours > 0) {
-                                            SmallStatChip(label = "N", hours = log.ordinaryHours, color = MaterialTheme.colorScheme.primary)
+                                            SmallStatChip(label = "Ord", hours = log.ordinaryHours, color = MaterialTheme.colorScheme.primary)
                                         }
                                         if (log.extraHours > 0) {
-                                            SmallStatChip(label = "S", hours = log.extraHours, color = MaterialTheme.colorScheme.secondary)
+                                            SmallStatChip(label = "STR", hours = log.extraHours, color = MaterialTheme.colorScheme.secondary)
                                         }
                                         if (log.holidayHours > 0) {
-                                            SmallStatChip(label = "F", hours = log.holidayHours, color = MaterialTheme.colorScheme.tertiary)
+                                            SmallStatChip(label = "fest", hours = log.holidayHours, color = MaterialTheme.colorScheme.tertiary)
                                         }
                                     }
                                 }
@@ -724,7 +733,8 @@ fun GroupedFinancialView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 32.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 shape = MaterialTheme.shapes.extraLarge
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
@@ -862,12 +872,14 @@ fun SummaryCard(
     ordA: Double = 0.0,
     extA: Double = 0.0,
     holA: Double = 0.0,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    border: BorderStroke? = null,
     onClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder(),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        border = border,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -909,34 +921,17 @@ fun SummaryCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (ordH > 0) {
-                        SmallStatChip(label = "N", hours = ordH, color = MaterialTheme.colorScheme.primary)
+                        SmallStatChip(label = "Ord", hours = ordH, color = MaterialTheme.colorScheme.primary)
                     }
                     if (extH > 0) {
-                        SmallStatChip(label = "S", hours = extH, color = MaterialTheme.colorScheme.secondary)
+                        SmallStatChip(label = "STR", hours = extH, color = MaterialTheme.colorScheme.secondary)
                     }
                     if (holH > 0) {
-                        SmallStatChip(label = "F", hours = holH, color = MaterialTheme.colorScheme.tertiary)
+                        SmallStatChip(label = "fest", hours = holH, color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SmallStatChip(label: String, hours: Double, color: Color) {
-    Surface(
-        color = color.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(4.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
-    ) {
-        Text(
-            text = "$label: ${formatHours(hours)}",
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-            fontWeight = FontWeight.Bold
-        )
     }
 }
 
@@ -1011,10 +1006,24 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (summary.ordHours > 0) {
+                            DetailRow(label = stringResource(R.string.total_ordinary_label), value = "${formatHours(summary.ordHours)} (${formatCurrency(summary.ordAmount)})")
+                        }
+                        if (summary.extHours > 0) {
+                            DetailRow(label = stringResource(R.string.total_extra_label), value = "${formatHours(summary.extHours)} (${formatCurrency(summary.extAmount)})")
+                        }
+                        if (summary.holHours > 0) {
+                            DetailRow(label = stringResource(R.string.total_holiday_label), value = "${formatHours(summary.holHours)} (${formatCurrency(summary.holAmount)})")
+                        }
+                        
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
                         DetailRow(label = stringResource(R.string.total_hours_label), value = formatHours(summary.totalHours), isBold = true)
                         DetailRow(
                             label = stringResource(R.string.total_amount_label), 
@@ -1075,8 +1084,10 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         DetailRow(label = stringResource(R.string.morning_label), value = formatInterval(log.morningStart, log.morningEnd))
@@ -1084,19 +1095,20 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         
                         if (isFestive) {
-                            DetailRow(label = "Ore Festive", value = formatHours(log.holidayHours), isBold = true)
-                            DetailRow(label = "Tariffa Festiva", value = "${formatCurrency(log.holidayHourlyRate)}/h")
+                            DetailRow(label = stringResource(R.string.total_holiday_label), value = formatHours(log.holidayHours), isBold = true)
+                            DetailRow(label = "Importo fest", value = formatCurrency(log.holidayAmount))
                         } else {
-                            DetailRow(label = "Ore Ordinarie", value = formatHours(log.ordinaryHours))
+                            DetailRow(label = stringResource(R.string.total_ordinary_label), value = formatHours(log.ordinaryHours))
                             if (log.extraHours > 0) {
-                                DetailRow(label = "Ore Straordinarie", value = formatHours(log.extraHours))
+                                DetailRow(label = stringResource(R.string.total_extra_label), value = formatHours(log.extraHours))
                             }
-                            DetailRow(label = "Totale Ore", value = formatHours(log.totalHours), isBold = true)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                            DetailRow(label = stringResource(R.string.total_hours_label), value = formatHours(log.totalHours), isBold = true)
                             
                             Spacer(modifier = Modifier.height(4.dp))
-                            DetailRow(label = "Tariffa Base", value = "${formatCurrency(log.hourlyRate)}/h")
+                            DetailRow(label = "Importo Ord", value = formatCurrency(log.ordinaryAmount))
                             if (log.extraHours > 0) {
-                                DetailRow(label = "Tariffa Straord.", value = "${formatCurrency(log.extraHourlyRate)}/h")
+                                DetailRow(label = "Importo STR", value = formatCurrency(log.extraAmount))
                             }
                         }
 

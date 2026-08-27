@@ -26,6 +26,12 @@ class WorkLogViewModel(
     private val _currentReferenceDate = MutableStateFlow(Calendar.getInstance(Locale.ITALY).timeInMillis)
     val currentReferenceDate: StateFlow<Long> = _currentReferenceDate
 
+    private val _isCalendarExpanded = MutableStateFlow(false)
+    val isCalendarExpanded: StateFlow<Boolean> = _isCalendarExpanded.asStateFlow()
+
+    private val _selectedDate = MutableStateFlow<Long?>(null)
+    val selectedDate: StateFlow<Long?> = _selectedDate.asStateFlow()
+
     private val _globalFestiveDates = MutableStateFlow<Set<Long>>(emptySet())
     val globalFestiveDates: StateFlow<Set<Long>> = _globalFestiveDates.asStateFlow()
 
@@ -100,10 +106,19 @@ class WorkLogViewModel(
             3 -> cal.add(Calendar.DAY_OF_YEAR, delta)
         }
 
-        // Double check: se la modifica ci ha portato fuori dall'anno di riferimento, annulliamo
+    // Double check: se la modifica ci ha portato fuori dall'anno di riferimento, annulliamo
         if (cal.get(Calendar.YEAR) == yearBefore) {
             _currentReferenceDate.value = cal.timeInMillis
         }
+    }
+
+    fun updateReferenceDate(date: Long) {
+        _currentReferenceDate.value = date
+        _selectedDate.value = date
+    }
+
+    fun setCalendarExpanded(expanded: Boolean) {
+        _isCalendarExpanded.value = expanded
     }
 
     val yearlyStats: StateFlow<List<WorkerYearStats>> = _selectedYearId

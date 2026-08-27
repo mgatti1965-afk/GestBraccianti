@@ -9,6 +9,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -295,7 +296,12 @@ fun OthersScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(stringResource(R.string.owner_card_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -340,7 +346,12 @@ fun OthersScreen(
                     }
 
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(stringResource(R.string.settings_plant_title), style = MaterialTheme.typography.titleMedium)
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -486,11 +497,14 @@ fun TestTab(
         Button(
             onClick = {
                 scope.launch {
-                        for (i in 1..10) {
+                    val names = listOf("Mario", "Giuseppe", "Giovanni", "Antonio", "Vincenzo", "Pietro", "Salvatore", "Francesco", "Pasquale", "Domenico")
+                    val surnames = listOf("Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marini", "Greco")
+                    
+                    for (i in 0 until 10) {
                         workerViewModel?.addWorkerToYear(
-                            name = "Bracciante",
-                            surname = "$i",
-                            phoneNumber = "331000000$i",
+                            name = names[i],
+                            surname = "${surnames[i]} $i",
+                            phoneNumber = "331000000${i + 1}",
                             hourlyRate = 10.0,
                             extraRate = 12.0,
                             holidayRate = 15.0,
@@ -527,7 +541,12 @@ fun DatabaseTab(
     val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(stringResource(R.string.csv_card_title), style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -579,7 +598,12 @@ fun BackupFileItem(
     onDelete: () -> Unit,
     onRestore: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = file.name,

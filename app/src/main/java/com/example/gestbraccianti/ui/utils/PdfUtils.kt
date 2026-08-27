@@ -162,7 +162,7 @@ fun generatePdfReport(
                     val earnings = gLogs.sumOf { it.totalAmount }
                     
                     checkNewPage()
-                    canvas.drawText("• ${group.name}", margin + 10f, y, boldPaint)
+                    canvas.drawText(group.name, margin + 10f, y, boldPaint)
                     y += 18f
                     
                     val originalSize = bodyPaint.textSize
@@ -195,7 +195,7 @@ fun generatePdfReport(
                 val earnings = noGroupLogs.sumOf { it.totalAmount }
 
                 checkNewPage()
-                canvas.drawText("• Senza Gruppo", margin + 10f, y, boldPaint)
+                canvas.drawText("Senza Gruppo", margin + 10f, y, boldPaint)
                 y += 18f
                 
                 val originalSize = bodyPaint.textSize
@@ -231,7 +231,7 @@ fun generatePdfReport(
                 val earnings = wLogs.sumOf { it.totalAmount }
                 
                 checkNewPage()
-                canvas.drawText("• $workerName", margin + 10f, y, boldPaint)
+                canvas.drawText(workerName, margin + 10f, y, boldPaint)
                 y += 18f
                 
                 val originalSize = bodyPaint.textSize

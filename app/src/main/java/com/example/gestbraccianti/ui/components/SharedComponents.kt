@@ -1,7 +1,9 @@
 package com.example.gestbraccianti.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -11,9 +13,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestbraccianti.ui.navigation.Screen
+import com.example.gestbraccianti.ui.utils.formatHours
+
+@Composable
+fun SmallStatChip(label: String, hours: Double, color: Color) {
+    Surface(
+        color = color.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(4.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
+    ) {
+        Text(
+            text = "$label: ${formatHours(hours)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
 
 @Composable
 fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {

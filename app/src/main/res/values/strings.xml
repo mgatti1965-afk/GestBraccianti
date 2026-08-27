@@ -141,7 +141,7 @@
     <string name="next_month_desc">Mese successivo</string>
     <string name="registered_days_label">Giornate registrate</string>
     <string name="no_data_month">Nessun dato per questo mese.</string>
-    <string name="worker_hours_summary">%1$d bracc. • %2$s</string>
+    <string name="worker_hours_summary">%1$d bracc. | %2$s</string>
     <string name="monday_short">L</string>
     <string name="tuesday_short">M</string>
     <string name="wednesday_short">M</string>

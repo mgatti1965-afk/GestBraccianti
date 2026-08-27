@@ -8,7 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,9 +30,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.example.gestbraccianti.R
+import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.utils.formatHours
-import com.example.gestbraccianti.ui.utils.formatDecimal
 import com.example.gestbraccianti.ui.utils.TimeUtils
 import java.util.*
 
@@ -96,6 +97,7 @@ fun DailyLoggingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Row(
@@ -138,17 +140,25 @@ fun DailyLoggingScreen(
                 }
             }
 
-            var isCalendarExpanded by remember { mutableStateOf(false) }
+            val isCalendarExpanded by viewModel.isCalendarExpanded.collectAsState()
             val lazyListState = rememberLazyListState()
 
-            // Sincronizzazione: collassa il calendario quando si scende nella lista
+            // Sincronizzazione: collassa il calendario quando si scende nella lista (solo durante lo scroll attivo)
             LaunchedEffect(lazyListState) {
-                snapshotFlow { lazyListState.firstVisibleItemIndex }
-                    .collect { index ->
-                        if (index > 0) {
-                            isCalendarExpanded = false
+                snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.isScrollInProgress }
+                    .collect { (index, isScrolling) ->
+                        if (index > 0 && isScrolling) {
+                            viewModel.setCalendarExpanded(false)
                         }
                     }
+            }
+
+            // Riposizionamento automatico sulla giornata selezionata (es. al ritorno dal dettaglio)
+            LaunchedEffect(referenceDate, filteredDays) {
+                val index = filteredDays.indexOfFirst { it == referenceDate }
+                if (index >= 0) {
+                    lazyListState.scrollToItem(index)
+                }
             }
 
             // Calendario Espandibile/Collassabile (FISSO rispetto alla lista sotto)
@@ -156,7 +166,7 @@ fun DailyLoggingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize()
-                    .clickable { isCalendarExpanded = !isCalendarExpanded }
+                    .clickable { viewModel.setCalendarExpanded(!isCalendarExpanded) }
             ) {
                 MonthGrid(
                     calendar = selectedCalendar,
@@ -172,13 +182,21 @@ fun DailyLoggingScreen(
                 )
                 
                 Box(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    Text(
+                        text = "Long press per festività",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    )
                     Icon(
                         imageVector = if (isCalendarExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = null,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                     )
                 }
@@ -215,18 +233,25 @@ fun DailyLoggingScreen(
                         }
                     }
                 } else {
-                    items(filteredDays) { date ->
+                    itemsIndexed(filteredDays, key = { _, date -> date }) { index, date ->
                         val logsForDay = allLogs.filter { it.date == date }
                         val totalWorkers = logsForDay.size
                         val totalHours = logsForDay.sumOf { it.totalHours }
+                        val isSelected = date == referenceDate
+                        val cardBg = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                     else if (index % 2 == 0) MaterialTheme.colorScheme.surface 
+                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
 
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
                                 .clickable { onDateClick(date) },
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                                     else if (index == 0) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                     else null,
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Row(
@@ -265,9 +290,9 @@ fun DailyLoggingScreen(
 fun MonthGrid(
     calendar: Calendar,
     workedDaysMap: Map<Int, Double>,
-    allLogs: List<com.example.gestbraccianti.data.entity.WorkLog>,
+    allLogs: List<WorkLog>,
     isExpanded: Boolean,
-    viewModel: com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel,
+    viewModel: WorkLogViewModel,
     onDateClick: (Long) -> Unit,
     onDateLongClick: (Long) -> Unit
 ) {
@@ -275,6 +300,7 @@ fun MonthGrid(
     val prefs = remember { context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE) }
     val festiveType = remember(prefs) { prefs.getInt("festive_days_type", 3) }
     val globalFestiveDates by viewModel.globalFestiveDates.collectAsState()
+    val selectedDate by viewModel.selectedDate.collectAsState()
 
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
     val firstDayOfMonth = (calendar.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
@@ -294,15 +320,21 @@ fun MonthGrid(
         1
     }
 
-    // Calcoliamo quale riga mostrare quando è compresso
+    // Calcoliamo quale riga mostrare quando è compresso: diamo priorità alla data selezionata (se nel mese), poi a oggi
     val rowToShow = if (!isExpanded) {
-        val todayInMonth = if (today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
+        val focusCal = Calendar.getInstance()
+        selectedDate?.let { focusCal.timeInMillis = it } ?: run { focusCal.timeInMillis = today.timeInMillis }
+        
+        val dayToFocus = if (focusCal.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
+            focusCal.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
+            focusCal.get(Calendar.DAY_OF_MONTH)
+        } else if (today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
             today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
             today.get(Calendar.DAY_OF_MONTH)
         } else {
             1
         }
-        (todayInMonth + offset - 1) / 7
+        (dayToFocus + offset - 1) / 7
     } else {
         0
     }
@@ -338,12 +370,6 @@ fun MonthGrid(
                     val dayNum = cellIndex - offset + 1
                     
                     if (dayNum in 1..daysInMonth) {
-                        val isToday = today.get(Calendar.DAY_OF_MONTH) == dayNum &&
-                                      today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
-                                      today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
-
-                        val totalHours = workedDaysMap[dayNum]
-                        
                         val cellCal = (calendar.clone() as Calendar).apply {
                             set(Calendar.DAY_OF_MONTH, dayNum)
                             set(Calendar.HOUR_OF_DAY, 0)
@@ -352,6 +378,14 @@ fun MonthGrid(
                             set(Calendar.MILLISECOND, 0)
                         }
                         val cellDate = cellCal.timeInMillis
+
+                        val isToday = today.get(Calendar.DAY_OF_MONTH) == dayNum &&
+                                      today.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
+                                      today.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+
+                        val isSelected = selectedDate == cellDate
+
+                        val totalHours = workedDaysMap[dayNum]
 
                         val logsForDay = allLogs.filter { it.date == cellDate }
                         val isManualFromLogs = logsForDay.any { it.isManualHoliday }
@@ -362,6 +396,7 @@ fun MonthGrid(
                         DayCell(
                             day = dayNum,
                             isToday = isToday,
+                            isSelected = isSelected,
                             isFestive = isFestive,
                             isManualOverride = isGlobalOverride || isManualFromLogs,
                             totalHours = totalHours,
@@ -384,6 +419,7 @@ fun MonthGrid(
 fun DayCell(
     day: Int,
     isToday: Boolean,
+    isSelected: Boolean,
     isFestive: Boolean,
     isManualOverride: Boolean,
     totalHours: Double?,
@@ -403,19 +439,17 @@ fun DayCell(
         shape = MaterialTheme.shapes.small,
         color = when {
             hasWorked -> if (isFestive) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
+            isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
             isFestive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
             isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             else -> MaterialTheme.colorScheme.surface
         },
-        border = if (isToday) {
-            BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
-        } else if (isFestive) {
-            BorderStroke(
-                if (hasWorked) 2.dp else 1.dp,
-                MaterialTheme.colorScheme.tertiary.copy(alpha = if (hasWorked) 0.8f else 0.5f)
-            )
-        } else null,
-        tonalElevation = if (hasWorked) 4.dp else if (isToday) 2.dp else 0.dp
+        border = when {
+            isToday -> BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
+            isSelected -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+            else -> null
+        },
+        tonalElevation = 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (isManualOverride) {
@@ -441,7 +475,7 @@ fun DayCell(
                 )
                 if (hasWorked) {
                     Text(
-                        text = formatHours(totalHours!!),
+                        text = formatHours(totalHours),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isFestive) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                     )
