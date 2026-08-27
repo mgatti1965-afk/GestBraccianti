@@ -122,13 +122,22 @@ object CsvUtils {
             context.contentResolver.openInputStream(uri)?.use { input ->
                 BufferedReader(InputStreamReader(input)).use { reader ->
                     db.withTransaction {
-                        db.clearAllTables()
-                        var line: String?
-                        while (reader.readLine().also { line = it } != null) {
-                            val parts = line!!.split(";").map { it.trim() }
-                            if (parts.isEmpty() || parts[0].startsWith("TIPO")) continue
-                            when (parts[0]) {
-                                "W" -> if (parts.size >= 6) {
+                        db.openHelper.writableDatabase.execSQL("PRAGMA foreign_keys = OFF")
+                        try {
+                            db.clearAllTables()
+                            
+                            val lines = reader.readLines()
+                            
+                            // 1. Inserimento HarvestYear (Y)
+                            lines.filter { it.startsWith("Y;") }.forEach { line ->
+                                val parts = line.split(";").map { it.trim() }
+                                if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
+                            }
+                            
+                            // 2. Inserimento Worker (W)
+                            lines.filter { it.startsWith("W;") }.forEach { line ->
+                                val parts = line.split(";").map { it.trim() }
+                                if (parts.size >= 6) {
                                     db.workerDao().insertWorker(
                                         Worker(
                                             id = parts[1].toLong(),
@@ -139,8 +148,18 @@ object CsvUtils {
                                         )
                                     )
                                 }
-                                "Y" -> if (parts.size >= 3) db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1"))
-                                "C" -> if (parts.size >= 4) {
+                            }
+                            
+                            // 3. Inserimento Plantation (P)
+                            lines.filter { it.startsWith("P;") }.forEach { line ->
+                                val parts = line.split(";").map { it.trim() }
+                                if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
+                            }
+                            
+                            // 4. Inserimento WorkerYearConfig (C)
+                            lines.filter { it.startsWith("C;") }.forEach { line ->
+                                val parts = line.split(";").map { it.trim() }
+                                if (parts.size >= 4) {
                                     val rate = parts[3].toDoubleOrNull() ?: 0.0
                                     db.workerYearConfigDao().insertConfig(
                                         WorkerYearConfig(
@@ -152,16 +171,24 @@ object CsvUtils {
                                         )
                                     )
                                 }
-                                "L" -> if (parts.size >= 9) {
+                            }
+                            
+                            // 5. Inserimento WorkerGroup (G)
+                            lines.filter { it.startsWith("G;") }.forEach { line ->
+                                val parts = line.split(";").map { it.trim() }
+                                if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
+                            }
+                            
+                            // 6. Inserimento WorkLog (L)
+                            lines.filter { it.startsWith("L;") }.forEach { line ->
+                                val parts = line.split(";").map { it.trim() }
+                                if (parts.size >= 9) {
                                     val isLegacy = parts.size < 20
-                                    
                                     val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
-                                    
                                     val extraRate: Double
                                     val holidayRate: Double
                                     val isManFest: Boolean
                                     val totalAmt: Double
-                                    
                                     val ordH: Double
                                     val extH: Double
                                     val holH: Double
@@ -170,20 +197,12 @@ object CsvUtils {
                                     val holA: Double
 
                                     if (isLegacy) {
-                                        // Legacy handling (pre-v8 breakdown or even older)
                                         val totalH = parseTimeToDouble(parts[8])
                                         extraRate = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: rate else rate
                                         holidayRate = if (parts.size >= 12) parts[11].toDoubleOrNull() ?: rate else rate
                                         isManFest = if (parts.size >= 13) parts[12] == "1" else false
-                                        
                                         val rawAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
-                                        totalAmt = if (rawAmt == 0.0 && totalH > 0) {
-                                            totalH * (if (isManFest) holidayRate else rate)
-                                        } else {
-                                            rawAmt
-                                        }
-                                        
-                                        // Simple defaults for breakdown on import legacy (consistent with MIGRATION_7_8)
+                                        totalAmt = if (rawAmt == 0.0 && totalH > 0) totalH * (if (isManFest) holidayRate else rate) else rawAmt
                                         if (isManFest) {
                                             ordH = 0.0; extH = 0.0; holH = totalH
                                             ordA = 0.0; extA = 0.0; holA = totalAmt
@@ -196,7 +215,6 @@ object CsvUtils {
                                         holidayRate = parts[11].toDoubleOrNull() ?: rate
                                         isManFest = parts[12] == "1"
                                         totalAmt = parts[13].toDoubleOrNull() ?: 0.0
-                                        
                                         ordH = parts[14].toDoubleOrNull() ?: 0.0
                                         extH = parts[15].toDoubleOrNull() ?: 0.0
                                         holH = parts[16].toDoubleOrNull() ?: 0.0
@@ -229,10 +247,15 @@ object CsvUtils {
                                         )
                                     )
                                 }
-                                "P" -> if (parts.size >= 4) db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
-                                "G" -> if (parts.size >= 4) db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
-                                "X" -> if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
                             }
+                            
+                            // 7. Inserimento WorkerGroupCrossRef (X)
+                            lines.filter { it.startsWith("X;") }.forEach { line ->
+                                val parts = line.split(";").map { it.trim() }
+                                if (parts.size >= 3) db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
+                            }
+                        } finally {
+                            db.openHelper.writableDatabase.execSQL("PRAGMA foreign_keys = ON")
                         }
                     }
                 }
@@ -243,4 +266,6 @@ object CsvUtils {
             false
         }
     }
+
+
 }
