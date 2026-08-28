@@ -116,8 +116,10 @@
     <string name="btn_generate_pdf">Genera PDF</string>
     <string name="nav_prev_desc">Precedente</string>
     <string name="nav_next_desc">Successivo</string>
-    <string name="chip_workers">👤 Bracc.</string>
-    <string name="chip_groups">👥 Gruppi</string>
+    <string name="chip_workers">Bracc</string>
+    <string name="chip_groups">Grp</string>
+    <string name="chip_detail">Dett</string>
+    <string name="chip_totals">Tot</string>
     <string name="no_data_year">Nessun movimento registrato nell\'anno.</string>
     <string name="no_data_selection">Nessun dato disponibile per questa selezione.</string>
     <string name="group_total_subtitle">Totale Gruppo</string>

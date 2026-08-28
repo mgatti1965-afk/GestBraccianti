@@ -2,62 +2,40 @@ package com.example.gestbraccianti.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import androidx.core.net.toUri
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
+import androidx.core.content.FileProvider
 import com.example.gestbraccianti.R
-import com.example.gestbraccianti.ui.components.SmallStatChip
-import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
-import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
-import com.example.gestbraccianti.ui.utils.formatHours
-import com.example.gestbraccianti.ui.utils.generatePdfReport
-import com.example.gestbraccianti.ui.utils.formatCurrency
-import com.example.gestbraccianti.ui.utils.formatDecimal
-import com.example.gestbraccianti.ui.utils.TimeUtils
 import com.example.gestbraccianti.data.entity.WorkLog
 import com.example.gestbraccianti.data.model.WorkerYearStats
+import com.example.gestbraccianti.ui.components.SmallStatChip
+import com.example.gestbraccianti.ui.utils.*
+import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
+import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import java.util.*
-import java.text.SimpleDateFormat
-import androidx.core.content.FileProvider
 import java.io.File
-
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.automirrored.filled.ListAlt
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import java.util.*
 
 enum class GroupingType { BY_WORKER, BY_GROUP }
 enum class ViewMode { DETAIL, TOTALS }
@@ -335,43 +313,90 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilterChip(
-                    selected = groupingType == GroupingType.BY_WORKER,
+                // Selezione Raggruppamento (Bracc / Grp)
+                // Colore Blu Elettrico più saturo e vivo
+                val groupColor = Color(0xFF1E88E5)
+                
+                Button(
                     onClick = { groupingType = GroupingType.BY_WORKER },
-                    label = { Text(stringResource(R.string.chip_workers)) },
-                    leadingIcon = if (groupingType == GroupingType.BY_WORKER) {
-                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
-                    } else null
-                )
-                FilterChip(
-                    selected = groupingType == GroupingType.BY_GROUP,
+                    enabled = groupingType != GroupingType.BY_WORKER,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = groupColor,
+                        contentColor = Color.White,
+                        disabledContainerColor = groupColor.copy(alpha = 0.15f),
+                        disabledContentColor = groupColor.copy(alpha = 0.9f)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text(stringResource(R.string.chip_workers), style = MaterialTheme.typography.labelLarge)
+                }
+
+                Button(
                     onClick = { 
                         groupingType = GroupingType.BY_GROUP
                         viewMode = ViewMode.TOTALS
                     },
-                    label = { Text(stringResource(R.string.chip_groups)) },
-                    leadingIcon = if (groupingType == GroupingType.BY_GROUP) {
-                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
-                    } else null
-                )
+                    enabled = groupingType != GroupingType.BY_GROUP,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = groupColor,
+                        contentColor = Color.White,
+                        disabledContainerColor = groupColor.copy(alpha = 0.15f),
+                        disabledContentColor = groupColor.copy(alpha = 0.9f)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text(stringResource(R.string.chip_groups), style = MaterialTheme.typography.labelLarge)
+                }
                 
                 Spacer(modifier = Modifier.weight(1f))
 
-                FilterChip(
-                    selected = viewMode == ViewMode.DETAIL,
+                // Selezione Visualizzazione (Dett / Tot)
+                // Colore Arancio Zucca vibrante
+                val modeColor = Color(0xFFF4511E)
+                val detailAvailable = groupingType == GroupingType.BY_WORKER
+                
+                Button(
                     onClick = { viewMode = ViewMode.DETAIL },
-                    enabled = groupingType == GroupingType.BY_WORKER,
-                    label = { Text("📝") },
-                )
-                FilterChip(
-                    selected = viewMode == ViewMode.TOTALS,
+                    enabled = detailAvailable && viewMode != ViewMode.DETAIL,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = modeColor,
+                        contentColor = Color.White,
+                        disabledContainerColor = if (detailAvailable) modeColor.copy(alpha = 0.15f) 
+                                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        disabledContentColor = if (detailAvailable) modeColor.copy(alpha = 0.9f)
+                                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text(stringResource(R.string.chip_detail), style = MaterialTheme.typography.labelLarge)
+                }
+
+                Button(
                     onClick = { viewMode = ViewMode.TOTALS },
-                    label = { Text("📊") },
-                )
+                    enabled = viewMode != ViewMode.TOTALS,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = modeColor,
+                        contentColor = Color.White,
+                        disabledContainerColor = modeColor.copy(alpha = 0.15f),
+                        disabledContentColor = modeColor.copy(alpha = 0.9f)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text(stringResource(R.string.chip_totals), style = MaterialTheme.typography.labelLarge)
+                }
+
             }
 
             Box(modifier = Modifier.weight(1f)) {
