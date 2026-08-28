@@ -29,6 +29,7 @@ import com.example.gestbraccianti.ui.screens.*
 import com.example.gestbraccianti.ui.components.GlobalHelpDialog
 import com.example.gestbraccianti.ui.components.SmallStatChip
 import com.example.gestbraccianti.ui.theme.GestBracciantiTheme
+import com.example.gestbraccianti.ui.utils.MessageBarManager
 import com.example.gestbraccianti.ui.viewmodel.HarvestViewModel
 import com.example.gestbraccianti.ui.viewmodel.HarvestViewModelFactory
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
@@ -37,6 +38,7 @@ import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModelFactory
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModelFactory
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val harvestViewModel: HarvestViewModel by viewModels {
@@ -78,8 +80,20 @@ fun MainApp(
     workerGroupViewModel: WorkerGroupViewModel
 ) {
     val navController = rememberNavController()
+    val snackbarHostState = remember { SnackbarHostState() }
     val currentYear by harvestViewModel.currentYear.collectAsState()
     var showGlobalHelp by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        MessageBarManager.messages.collect { appMessage ->
+            snackbarHostState.showSnackbar(
+                message = appMessage.message,
+                duration = appMessage.duration,
+                withDismissAction = true,
+                actionLabel = if (appMessage.isError) "ERRORE" else null
+            )
+        }
+    }
 
     LaunchedEffect(currentYear) {
         currentYear?.let {
@@ -107,6 +121,18 @@ fun MainApp(
     }
 
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                val isError = data.visuals.actionLabel == "ERRORE"
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.inverseOnSurface,
+                    dismissActionContentColor = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.inverseOnSurface,
+                    actionColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+        },
         topBar = {
             if (currentYear != null) {
                 CenterAlignedTopAppBar(

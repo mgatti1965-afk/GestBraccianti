@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.ContactsContract
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -33,6 +32,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.utils.CsvUtils
+import com.example.gestbraccianti.ui.utils.MessageBarManager
 import com.example.gestbraccianti.ui.utils.TimeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -176,7 +176,7 @@ fun OthersScreen(
                                 Log.e("OthersScreen", "Errore salvataggio backup interno", e)
                             }
                         }
-                        Toast.makeText(context, context.getString(R.string.toast_exported), Toast.LENGTH_SHORT).show()
+                        MessageBarManager.showMessage(context.getString(R.string.toast_exported))
                         refreshBackupList()
                     }
                 }
@@ -211,7 +211,9 @@ fun OthersScreen(
             importUri = uri
             showImportConfirmation = true
         } else {
-            Toast.makeText(context, context.getString(R.string.toast_invalid_file), Toast.LENGTH_LONG).show()
+            scope.launch {
+                MessageBarManager.showMessage(context.getString(R.string.toast_invalid_file), isError = true, duration = SnackbarDuration.Long)
+            }
         }
     }
 
@@ -239,9 +241,9 @@ fun OthersScreen(
 
                             val success = CsvUtils.importFromCsv(context, importUri!!)
                             if (success) {
-                                Toast.makeText(context, context.getString(R.string.toast_imported), Toast.LENGTH_LONG).show()
+                                MessageBarManager.showMessage(context.getString(R.string.toast_imported), duration = SnackbarDuration.Long)
                             } else {
-                                Toast.makeText(context, context.getString(R.string.toast_import_error), Toast.LENGTH_SHORT).show()
+                                MessageBarManager.showMessage(context.getString(R.string.toast_import_error), isError = true)
                             }
                             showImportConfirmation = false
                             importUri = null
@@ -516,7 +518,7 @@ fun TestTab(
                             yearId = yearId
                         )
                     }
-                    Toast.makeText(context, context.getString(R.string.toast_test_workers_created), Toast.LENGTH_SHORT).show()
+                    MessageBarManager.showMessage(context.getString(R.string.toast_test_workers_created))
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -532,9 +534,7 @@ fun TestTab(
                 scope.launch(Dispatchers.IO) {
                     val db = com.example.gestbraccianti.data.AppDatabase.getDatabase(context)
                     db.clearAllTables()
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, context.getString(R.string.toast_database_cleared), Toast.LENGTH_SHORT).show()
-                    }
+                    MessageBarManager.showMessage(context.getString(R.string.toast_database_cleared))
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -580,7 +580,9 @@ fun TestTab(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             val clip = ClipData.newPlainText("Log GestBraccianti", logContent)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "Copiato negli appunti", Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                MessageBarManager.showMessage("Copiato negli appunti")
+                            }
                         }) { Text("Copia") }
                         
                         TextButton(onClick = {

@@ -1,5 +1,3 @@
-package com.example.gestbraccianti.ui.screens
-
 import android.Manifest
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
@@ -7,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import android.widget.Toast
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.FlowRow
@@ -35,11 +32,13 @@ import androidx.compose.ui.res.stringResource
 import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.entity.Worker
 import com.example.gestbraccianti.data.entity.WorkerGroup
+import com.example.gestbraccianti.ui.utils.MessageBarManager
 import com.example.gestbraccianti.ui.utils.formatCurrency
 import com.example.gestbraccianti.ui.utils.formatDecimal
 import com.example.gestbraccianti.ui.utils.formatInputDecimal
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
@@ -73,12 +72,13 @@ fun WorkerRegistryScreen(
 @Composable
 fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val workersWithRate by viewModel.workersWithRateForCurrentYear.collectAsState()
     val duplicates by viewModel.duplicatesFound.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            MessageBarManager.showMessage(message)
         }
     }
 
@@ -115,7 +115,9 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                 }
 
                 if (isDuplicate) {
-                    Toast.makeText(context, context.getString(R.string.error_duplicate_worker), Toast.LENGTH_SHORT).show()
+                    scope.launch {
+                        MessageBarManager.showMessage(context.getString(R.string.error_duplicate_worker), isError = true)
+                    }
                 } else {
                     if (selectedWorker == null) {
                         viewModel.addWorkerToYear(name, surname, phone, rate, extraRate, holidayRate, yearId)
@@ -198,7 +200,9 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
                         Button(
                             onClick = {
                                 viewModel.copyWorkersFromPreviousYear(yearId) { count ->
-                                    Toast.makeText(context, context.getString(R.string.toast_workers_copied, count), Toast.LENGTH_SHORT).show()
+                                    scope.launch {
+                                        MessageBarManager.showMessage(context.getString(R.string.toast_workers_copied, count))
+                                    }
                                 }
                             }
                         ) {
@@ -291,6 +295,7 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
 @Composable
 fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerViewModel, yearId: Int) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val groups by groupViewModel.groupsForYear.collectAsState()
     val allWorkers by workerViewModel.workersForCurrentYear.collectAsState()
     var showAddGroupDialog by remember { mutableStateOf(false) }
@@ -309,7 +314,9 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                     Button(
                         onClick = {
                             groupViewModel.copyGroupsFromPreviousYear(yearId) { count ->
-                                Toast.makeText(context, context.getString(R.string.toast_groups_copied, count), Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    MessageBarManager.showMessage(context.getString(R.string.toast_groups_copied, count))
+                                }
                             }
                         }
                     ) {
@@ -397,10 +404,12 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
             SmallFloatingActionButton(
                 onClick = {
                     groupViewModel.copyGroupsFromPreviousYear(yearId) { count ->
-                        if (count > 0) {
-                            Toast.makeText(context, context.getString(R.string.toast_new_groups_copied, count), Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, context.getString(R.string.toast_no_new_groups), Toast.LENGTH_SHORT).show()
+                        scope.launch {
+                            if (count > 0) {
+                                MessageBarManager.showMessage(context.getString(R.string.toast_new_groups_copied, count))
+                            } else {
+                                MessageBarManager.showMessage(context.getString(R.string.toast_no_new_groups))
+                            }
                         }
                     }
                 },

@@ -144,138 +144,173 @@ object CsvUtils {
                     val lines = reader.readLines()
                     
                     // 1. Inserimento HarvestYear (Y)
-                    lines.filter { it.startsWith("Y;") }.forEach { line ->
-                        val parts = line.split(";").map { it.trim() }
-                        if (parts.size >= 3) {
-                            val notes = if (parts.size >= 4) parts[3].replace("\\n", "\n") else ""
-                            db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1", notes = notes))
+                    lines.filter { it.startsWith("Y;") }.forEachIndexed { index, line ->
+                        try {
+                            val parts = line.split(";").map { it.trim() }
+                            if (parts.size >= 3) {
+                                val notes = if (parts.size >= 4) parts[3].replace("\\n", "\n") else ""
+                                db.harvestYearDao().insertYear(HarvestYear(id = parts[1].toInt(), isCurrent = parts[2] == "1", notes = notes))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CsvUtils", "Error importing HarvestYear at line ${index + 1}", e)
+                            throw e
                         }
                     }
 
                     // 2. Inserimento Worker (W)
-                    lines.filter { it.startsWith("W;") }.forEach { line ->
-                        val parts = line.split(";").map { it.trim() }
-                        if (parts.size >= 6) {
-                            db.workerDao().insertWorker(
-                                Worker(
-                                    id = parts[1].toLong(),
-                                    surname = parts[2].trim().capitalizeWords(),
-                                    name = parts[3].trim().capitalizeWords(),
-                                    phoneNumber = parts[4],
-                                    isArchived = parts[5] == "1"
+                    lines.filter { it.startsWith("W;") }.forEachIndexed { index, line ->
+                        try {
+                            val parts = line.split(";").map { it.trim() }
+                            if (parts.size >= 6) {
+                                db.workerDao().insertWorker(
+                                    Worker(
+                                        id = parts[1].toLong(),
+                                        surname = parts[2].trim().capitalizeWords(),
+                                        name = parts[3].trim().capitalizeWords(),
+                                        phoneNumber = parts[4],
+                                        isArchived = parts[5] == "1"
+                                    )
                                 )
-                            )
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CsvUtils", "Error importing Worker at line ${index + 1}", e)
+                            throw e
                         }
                     }
 
                     // 3. Inserimento Plantation (P)
-                    lines.filter { it.startsWith("P;") }.forEach { line ->
-                        val parts = line.split(";").map { it.trim() }
-                        if (parts.size >= 4) {
-                            db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
+                    lines.filter { it.startsWith("P;") }.forEachIndexed { index, line ->
+                        try {
+                            val parts = line.split(";").map { it.trim() }
+                            if (parts.size >= 4) {
+                                db.plantationDao().insertPlantation(Plantation(id = parts[1].toLong(), name = parts[2], isArchived = parts[3] == "1"))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CsvUtils", "Error importing Plantation at line ${index + 1}", e)
+                            throw e
                         }
                     }
 
                     // 4. Inserimento WorkerYearConfig (C)
-                    lines.filter { it.startsWith("C;") }.forEach { line ->
-                        val parts = line.split(";").map { it.trim() }
-                        if (parts.size >= 4) {
-                            val rate = parts[3].toDoubleOrNull() ?: 0.0
-                            db.workerYearConfigDao().insertConfig(
-                                WorkerYearConfig(
-                                    workerId = parts[1].toLong(),
-                                    harvestYearId = parts[2].toInt(),
-                                    hourlyRate = rate,
-                                    extraHourlyRate = if (parts.size >= 5) parts[4].toDoubleOrNull() ?: rate else rate,
-                                    holidayHourlyRate = if (parts.size >= 6) parts[5].toDoubleOrNull() ?: rate else rate
+                    lines.filter { it.startsWith("C;") }.forEachIndexed { index, line ->
+                        try {
+                            val parts = line.split(";").map { it.trim() }
+                            if (parts.size >= 4) {
+                                val rate = parts[3].toDoubleOrNull() ?: 0.0
+                                db.workerYearConfigDao().insertConfig(
+                                    WorkerYearConfig(
+                                        workerId = parts[1].toLong(),
+                                        harvestYearId = parts[2].toInt(),
+                                        hourlyRate = rate,
+                                        extraHourlyRate = if (parts.size >= 5) parts[4].toDoubleOrNull() ?: rate else rate,
+                                        holidayHourlyRate = if (parts.size >= 6) parts[5].toDoubleOrNull() ?: rate else rate
+                                    )
                                 )
-                            )
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CsvUtils", "Error importing Config at line ${index + 1}", e)
+                            throw e
                         }
                     }
 
                     // 5. Inserimento WorkerGroup (G)
-                    lines.filter { it.startsWith("G;") }.forEach { line ->
-                        val parts = line.split(";").map { it.trim() }
-                        if (parts.size >= 4) {
-                            db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
+                    lines.filter { it.startsWith("G;") }.forEachIndexed { index, line ->
+                        try {
+                            val parts = line.split(";").map { it.trim() }
+                            if (parts.size >= 4) {
+                                db.workerGroupDao().insertGroup(WorkerGroup(id = parts[1].toLong(), name = parts[2], yearId = parts[3].toInt()))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CsvUtils", "Error importing Group at line ${index + 1}", e)
+                            throw e
                         }
                     }
 
                     // 6. Inserimento WorkLog (L)
-                    lines.filter { it.startsWith("L;") }.forEach { line ->
-                        val parts = line.split(";").map { it.trim() }
-                        if (parts.size >= 9) {
-                            val isLegacy = parts.size < 20
-                            val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
-                            val extraRate: Double
-                            val holidayRate: Double
-                            val isManFest: Boolean
-                            val totalAmt: Double
-                            val ordH: Double
-                            val extH: Double
-                            val holH: Double
-                            val ordA: Double
-                            val extA: Double
-                            val holA: Double
+                    lines.filter { it.startsWith("L;") }.forEachIndexed { index, line ->
+                        try {
+                            val parts = line.split(";").map { it.trim() }
+                            if (parts.size >= 9) {
+                                val isLegacy = parts.size < 20
+                                val rate = if (parts.size >= 10) parts[9].toDoubleOrNull() ?: 0.0 else 0.0
+                                val extraRate: Double
+                                val holidayRate: Double
+                                val isManFest: Boolean
+                                val totalAmt: Double
+                                val ordH: Double
+                                val extH: Double
+                                val holH: Double
+                                val ordA: Double
+                                val extA: Double
+                                val holA: Double
 
-                            if (isLegacy) {
-                                val totalH = parseTimeToDouble(parts[8])
-                                extraRate = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: rate else rate
-                                holidayRate = if (parts.size >= 12) parts[11].toDoubleOrNull() ?: rate else rate
-                                isManFest = if (parts.size >= 13) parts[12] == "1" else false
-                                val rawAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
-                                totalAmt = if (rawAmt == 0.0 && totalH > 0) totalH * (if (isManFest) holidayRate else rate) else rawAmt
-                                if (isManFest) {
-                                    ordH = 0.0; extH = 0.0; holH = totalH
-                                    ordA = 0.0; extA = 0.0; holA = totalAmt
+                                if (isLegacy) {
+                                    val totalH = parseTimeToDouble(parts[8])
+                                    extraRate = if (parts.size >= 11) parts[10].toDoubleOrNull() ?: rate else rate
+                                    holidayRate = if (parts.size >= 12) parts[11].toDoubleOrNull() ?: rate else rate
+                                    isManFest = if (parts.size >= 13) parts[12] == "1" else false
+                                    val rawAmt = if (parts.size >= 14) parts[13].toDoubleOrNull() ?: 0.0 else 0.0
+                                    totalAmt = if (rawAmt == 0.0 && totalH > 0) totalH * (if (isManFest) holidayRate else rate) else rawAmt
+                                    if (isManFest) {
+                                        ordH = 0.0; extH = 0.0; holH = totalH
+                                        ordA = 0.0; extA = 0.0; holA = totalAmt
+                                    } else {
+                                        ordH = totalH; extH = 0.0; holH = 0.0
+                                        ordA = totalAmt; extA = 0.0; holA = 0.0
+                                    }
                                 } else {
-                                    ordH = totalH; extH = 0.0; holH = 0.0
-                                    ordA = totalAmt; extA = 0.0; holA = 0.0
+                                    extraRate = parts[10].toDoubleOrNull() ?: rate
+                                    holidayRate = parts[11].toDoubleOrNull() ?: rate
+                                    isManFest = parts[12] == "1"
+                                    totalAmt = parts[13].toDoubleOrNull() ?: 0.0
+                                    ordH = parts[14].toDoubleOrNull() ?: 0.0
+                                    extH = parts[15].toDoubleOrNull() ?: 0.0
+                                    holH = parts[16].toDoubleOrNull() ?: 0.0
+                                    ordA = parts[17].toDoubleOrNull() ?: 0.0
+                                    extA = parts[18].toDoubleOrNull() ?: 0.0
+                                    holA = parts[19].toDoubleOrNull() ?: 0.0
                                 }
-                            } else {
-                                extraRate = parts[10].toDoubleOrNull() ?: rate
-                                holidayRate = parts[11].toDoubleOrNull() ?: rate
-                                isManFest = parts[12] == "1"
-                                totalAmt = parts[13].toDoubleOrNull() ?: 0.0
-                                ordH = parts[14].toDoubleOrNull() ?: 0.0
-                                extH = parts[15].toDoubleOrNull() ?: 0.0
-                                holH = parts[16].toDoubleOrNull() ?: 0.0
-                                ordA = parts[17].toDoubleOrNull() ?: 0.0
-                                extA = parts[18].toDoubleOrNull() ?: 0.0
-                                holA = parts[19].toDoubleOrNull() ?: 0.0
-                            }
 
-                            db.workLogDao().insertLog(
-                                WorkLog(
-                                    workerId = parts[1].toLong(),
-                                    harvestYearId = parts[2].toInt(),
-                                    date = parts[3].toLong(),
-                                    morningStart = parts[4].ifBlank { null },
-                                    morningEnd = parts[5].ifBlank { null },
-                                    afternoonStart = parts[6].ifBlank { null },
-                                    afternoonEnd = parts[7].ifBlank { null },
-                                    totalHours = parseTimeToDouble(parts[8]),
-                                    hourlyRate = rate,
-                                    extraHourlyRate = extraRate,
-                                    holidayHourlyRate = holidayRate,
-                                    isManualHoliday = isManFest,
-                                    totalAmount = totalAmt,
-                                    ordinaryHours = ordH,
-                                    extraHours = extH,
-                                    holidayHours = holH,
-                                    ordinaryAmount = ordA,
-                                    extraAmount = extA,
-                                    holidayAmount = holA
+                                db.workLogDao().insertLog(
+                                    WorkLog(
+                                        workerId = parts[1].toLong(),
+                                        harvestYearId = parts[2].toInt(),
+                                        date = parts[3].toLong(),
+                                        morningStart = parts[4].ifBlank { null },
+                                        morningEnd = parts[5].ifBlank { null },
+                                        afternoonStart = parts[6].ifBlank { null },
+                                        afternoonEnd = parts[7].ifBlank { null },
+                                        totalHours = parseTimeToDouble(parts[8]),
+                                        hourlyRate = rate,
+                                        extraHourlyRate = extraRate,
+                                        holidayHourlyRate = holidayRate,
+                                        isManualHoliday = isManFest,
+                                        totalAmount = totalAmt,
+                                        ordinaryHours = ordH,
+                                        extraHours = extH,
+                                        holidayHours = holH,
+                                        ordinaryAmount = ordA,
+                                        extraAmount = extA,
+                                        holidayAmount = holA
+                                    )
                                 )
-                            )
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CsvUtils", "Error importing WorkLog at line ${index + 1}", e)
+                            throw e
                         }
                     }
 
                     // 7. Inserimento WorkerGroupCrossRef (X)
-                    lines.filter { it.startsWith("X;") }.forEach { line ->
-                        val parts = line.split(";").map { it.trim() }
-                        if (parts.size >= 3) {
-                            db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
+                    lines.filter { it.startsWith("X;") }.forEachIndexed { index, line ->
+                        try {
+                            val parts = line.split(";").map { it.trim() }
+                            if (parts.size >= 3) {
+                                db.workerGroupDao().insertWorkerToGroup(WorkerGroupCrossRef(workerId = parts[1].toLong(), groupId = parts[2].toLong()))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CsvUtils", "Error importing CrossRef at line ${index + 1}", e)
+                            throw e
                         }
                     }
                 } finally {

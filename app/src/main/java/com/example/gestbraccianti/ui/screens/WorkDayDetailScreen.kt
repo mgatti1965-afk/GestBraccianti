@@ -7,7 +7,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -35,8 +34,10 @@ import com.example.gestbraccianti.ui.components.SmallStatChip
 import com.example.gestbraccianti.ui.viewmodel.WorkLogViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
+import com.example.gestbraccianti.ui.utils.MessageBarManager
 import com.example.gestbraccianti.ui.utils.TimeUtils
 import com.example.gestbraccianti.ui.utils.formatHours
+import androidx.compose.material3.SnackbarDuration
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -69,7 +70,7 @@ fun WorkDayDetailScreen(
 
     LaunchedEffect(Unit) {
         workLogViewModel.uiEvent.collect { message ->
-            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+            MessageBarManager.showMessage(message)
         }
     }
 
@@ -129,7 +130,9 @@ fun WorkDayDetailScreen(
                                         workLogViewModel.toggleManualHoliday(log)
                                         val status = if (!log.isManualHoliday) context.getString(R.string.manual_holiday_toggle_toast_on) 
                                                      else context.getString(R.string.manual_holiday_toggle_toast_off)
-                                        Toast.makeText(context, status.format("${worker?.surname} ${worker?.name}"), Toast.LENGTH_SHORT).show()
+                                        scope.launch {
+                                            MessageBarManager.showMessage(status.format("${worker?.surname} ${worker?.name}"))
+                                        }
                                     }
                                 ),
                             colors = CardDefaults.cardColors(containerColor = cardBg),
