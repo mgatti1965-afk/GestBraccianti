@@ -69,7 +69,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
     )
     
     var groupingType by remember { mutableStateOf(GroupingType.BY_WORKER) }
-    var viewMode by remember { mutableStateOf(ViewMode.DETAIL) }
+    var viewModeForWorker by remember { mutableStateOf(ViewMode.DETAIL) }
+    val effectiveViewMode = if (groupingType == GroupingType.BY_GROUP) ViewMode.TOTALS else viewModeForWorker
     var groupToWorkers by remember { mutableStateOf<Map<Long, List<Long>>>(emptyMap()) }
 
     LaunchedEffect(groups) {
@@ -269,7 +270,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                                 filterTitle = filters[selectedFilter],
                                 referenceDate = referenceDate,
                                 groupingType = if (selectedWorkerIdForReport != null) GroupingType.BY_WORKER else groupingType,
-                                viewMode = viewMode,
+                                viewMode = effectiveViewMode,
                                 groups = groups,
                                 groupToWorkers = groupToWorkers
                             )
@@ -314,7 +315,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Selezione Raggruppamento (Bracc / Grp)
@@ -330,8 +331,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         disabledContainerColor = groupColor.copy(alpha = 0.15f),
                         disabledContentColor = groupColor.copy(alpha = 0.9f)
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
                     Text(stringResource(R.string.chip_workers), style = MaterialTheme.typography.labelLarge)
@@ -340,7 +341,6 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 Button(
                     onClick = { 
                         groupingType = GroupingType.BY_GROUP
-                        viewMode = ViewMode.TOTALS
                     },
                     enabled = groupingType != GroupingType.BY_GROUP,
                     colors = ButtonDefaults.buttonColors(
@@ -349,8 +349,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         disabledContainerColor = groupColor.copy(alpha = 0.15f),
                         disabledContentColor = groupColor.copy(alpha = 0.9f)
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
                     Text(stringResource(R.string.chip_groups), style = MaterialTheme.typography.labelLarge)
@@ -364,8 +364,8 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                 val detailAvailable = groupingType == GroupingType.BY_WORKER
                 
                 Button(
-                    onClick = { viewMode = ViewMode.DETAIL },
-                    enabled = detailAvailable && viewMode != ViewMode.DETAIL,
+                    onClick = { viewModeForWorker = ViewMode.DETAIL },
+                    enabled = detailAvailable && viewModeForWorker != ViewMode.DETAIL,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = modeColor,
                         contentColor = Color.White,
@@ -374,24 +374,24 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         disabledContentColor = if (detailAvailable) modeColor.copy(alpha = 0.9f)
                                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
                     Text(stringResource(R.string.chip_detail), style = MaterialTheme.typography.labelLarge)
                 }
 
                 Button(
-                    onClick = { viewMode = ViewMode.TOTALS },
-                    enabled = viewMode != ViewMode.TOTALS,
+                    onClick = { viewModeForWorker = ViewMode.TOTALS },
+                    enabled = (groupingType == GroupingType.BY_WORKER && viewModeForWorker != ViewMode.TOTALS),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = modeColor,
                         contentColor = Color.White,
                         disabledContainerColor = modeColor.copy(alpha = 0.15f),
                         disabledContentColor = modeColor.copy(alpha = 0.9f)
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
                     Text(stringResource(R.string.chip_totals), style = MaterialTheme.typography.labelLarge)
@@ -414,7 +414,7 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                         logs = filteredLogs,
                         yearStats = stats,
                         groupingType = groupingType,
-                        viewMode = viewMode,
+                        viewMode = effectiveViewMode,
                         groups = groups,
                         groupToWorkers = groupToWorkers,
                         selectedFilter = selectedFilter,
