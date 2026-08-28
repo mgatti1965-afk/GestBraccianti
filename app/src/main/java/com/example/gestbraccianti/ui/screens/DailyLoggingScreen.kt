@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -177,7 +178,8 @@ fun DailyLoggingScreen(
                     onDateClick = onDateClick,
                     onDateLongClick = { date -> 
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.toggleHolidayForDate(date) 
+                        viewModel.toggleHolidayForDate(date)
+                        onDateClick(date)
                     }
                 )
                 
@@ -441,14 +443,13 @@ fun DayCell(
         shape = MaterialTheme.shapes.small,
         color = when {
             hasWorked -> if (isFestive) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
-            isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
             isFestive -> MaterialTheme.colorScheme.tertiaryContainer
             isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             else -> MaterialTheme.colorScheme.surface
         },
         border = when {
-            isToday -> BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
-            isSelected -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+            isToday -> BorderStroke(2.5.dp, Color.Black)
+            isSelected -> BorderStroke(1.dp, Color.Black)
             else -> null
         },
         tonalElevation = 0.dp
