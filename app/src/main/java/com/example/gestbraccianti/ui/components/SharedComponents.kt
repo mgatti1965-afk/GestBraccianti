@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.gestbraccianti.ui.navigation.Screen
 import com.example.gestbraccianti.ui.utils.formatHours
 
@@ -34,6 +35,72 @@ fun SmallStatChip(label: String, hours: Double, color: Color) {
             fontWeight = FontWeight.Bold
         )
     }
+}
+
+/**
+ * Funzione per aprire la pagina di donazione PayPal.
+ * @param context Contesto per avviare l'Activity
+ * @param appName Nome dell'app da mostrare come causale del pagamento
+ */
+fun launchDonationIntent(context: android.content.Context, appName: String) {
+    val url = "https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=marco.gatti65@alice.it&amount=5.00&currency_code=EUR&item_name=Offerta%20Caffe%20$appName&solution_type=Sole&landing_page=Billing"
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+    context.startActivity(intent)
+}
+
+/**
+ * Finestra di dialogo per la donazione.
+ */
+@Composable
+fun DonationDialog(
+    donationCount: Int,
+    appName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val isBlocked = donationCount >= 2
+    val hasWarning = donationCount == 1
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isBlocked) "Grazie di cuore! ☕" else "Offri un caffè ☕",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                if (hasWarning) {
+                    Text(
+                        "ATTENZIONE: Hai già sostenuto il progetto in precedenza.\n",
+                        color = Color.Red,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text = if (isBlocked)
+                        "Hai già sostenuto il progetto il numero massimo di volte. Ti ringraziamo immensamente per il tuo supporto!"
+                    else "Sostieni lo sviluppo di $appName con un contributo di 5€ per un buon caffè.\n\nVerrai reindirizzato su una pagina sicura gestita da PayPal."
+                )
+            }
+        },
+        confirmButton = {
+            if (!isBlocked) {
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("SOSTIENI CON 5€")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (isBlocked) "CHIUDI" else "ANNULLA")
+            }
+        }
+    )
 }
 
 @Composable

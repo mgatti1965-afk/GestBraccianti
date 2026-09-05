@@ -49,7 +49,45 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE harvest_years ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+                // Add 'notes' column to 'harvest_years' if it doesn't exist
+                try {
+                    db.execSQL("ALTER TABLE harvest_years ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+                } catch (e: Exception) {
+                    // Column may already exist, ignore exception
+                }
+
+                // Drop legacy indices that Room no longer expects
+                db.execSQL("DROP INDEX IF EXISTS `index_work_logs_date`")
+                db.execSQL("DROP INDEX IF EXISTS `index_work_logs_workerId_harvestYearId`")
+                db.execSQL("DROP INDEX IF EXISTS `index_worker_year_configs_workerId`")
+                db.execSQL("DROP INDEX IF EXISTS `index_worker_group_cross_ref_workerId`")
+
+                // Ensure indices match current Entity definitions
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_work_logs_workerId` ON `work_logs` (`workerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_work_logs_harvestYearId` ON `work_logs` (`harvestYearId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_worker_year_configs_harvestYearId` ON `worker_year_configs` (`harvestYearId`)")
+
+                // Create new tables for Worker Groups if they don't exist
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `worker_groups` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `name` TEXT NOT NULL, 
+                        `yearId` INTEGER NOT NULL, 
+                        FOREIGN KEY(`yearId`) REFERENCES `harvest_years`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE 
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_worker_groups_yearId` ON `worker_groups` (`yearId`)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `worker_group_cross_ref` (
+                        `workerId` INTEGER NOT NULL, 
+                        `groupId` INTEGER NOT NULL, 
+                        PRIMARY KEY(`workerId`, `groupId`), 
+                        FOREIGN KEY(`workerId`) REFERENCES `workers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , 
+                        FOREIGN KEY(`groupId`) REFERENCES `worker_groups`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE 
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_worker_group_cross_ref_groupId` ON `worker_group_cross_ref` (`groupId`)")
             }
         }
 

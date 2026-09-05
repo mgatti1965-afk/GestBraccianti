@@ -5,8 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -16,8 +18,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -28,6 +33,8 @@ import com.example.gestbraccianti.ui.navigation.Screen
 import com.example.gestbraccianti.ui.screens.*
 import com.example.gestbraccianti.ui.components.GlobalHelpDialog
 import com.example.gestbraccianti.ui.components.SmallStatChip
+import com.example.gestbraccianti.ui.components.DonationDialog
+import com.example.gestbraccianti.ui.components.launchDonationIntent
 import com.example.gestbraccianti.ui.theme.GestBracciantiTheme
 import com.example.gestbraccianti.ui.utils.MessageBarManager
 import com.example.gestbraccianti.ui.viewmodel.HarvestViewModel
@@ -83,6 +90,11 @@ fun MainApp(
     val snackbarHostState = remember { SnackbarHostState() }
     val currentYear by harvestViewModel.currentYear.collectAsState()
     var showGlobalHelp by remember { mutableStateOf(false) }
+    
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("donation_prefs", android.content.Context.MODE_PRIVATE) }
+    var donationCount by remember { mutableIntStateOf(prefs.getInt("donation_count", 0)) }
+    var showDonationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         MessageBarManager.messages.collect { appMessage ->
@@ -138,6 +150,12 @@ fun MainApp(
                 CenterAlignedTopAppBar(
                     title = { Text(screenTitle) },
                     actions = {
+                        IconButton(
+                            onClick = { showDonationDialog = true },
+                            modifier = Modifier.background(Color.Gray.copy(alpha = 0.1f), CircleShape)
+                        ) {
+                            Text(text = "☕", fontSize = 20.sp)
+                        }
                         IconButton(onClick = { showGlobalHelp = true }) {
                             Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Guida")
                         }
@@ -218,6 +236,21 @@ fun MainApp(
             showGlobalHelp = false 
             helpRoute = null
         })
+    }
+
+    if (showDonationDialog) {
+        DonationDialog(
+            donationCount = donationCount,
+            appName = "GestBraccianti",
+            onDismiss = { showDonationDialog = false },
+            onConfirm = {
+                showDonationDialog = false
+                launchDonationIntent(context, "GestBraccianti")
+                val newCount = donationCount + 1
+                prefs.edit().putInt("donation_count", newCount).apply()
+                donationCount = newCount
+            }
+        )
     }
 }
 
