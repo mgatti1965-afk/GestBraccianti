@@ -1,7 +1,10 @@
 package com.example.gestbraccianti
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -21,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -45,6 +49,7 @@ import com.example.gestbraccianti.ui.viewmodel.WorkerViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerViewModelFactory
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModel
 import com.example.gestbraccianti.ui.viewmodel.WorkerGroupViewModelFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -86,12 +91,28 @@ fun MainApp(
     workLogViewModel: WorkLogViewModel,
     workerGroupViewModel: WorkerGroupViewModel
 ) {
+    var isExiting by remember { mutableStateOf(false) }
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    if (isExiting) {
+        LaunchedEffect(Unit) {
+            delay(3000)
+            context.findActivity()?.finish()
+        }
+        ExitGreetingScreen(
+            title = "Grazie per aver usato l'app!",
+            message = "Se ti è stata utile, consigliala a parenti ed amici."
+        )
+        return
+    }
+
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     val currentYear by harvestViewModel.currentYear.collectAsState()
     var showGlobalHelp by remember { mutableStateOf(false) }
     
-    val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("donation_prefs", android.content.Context.MODE_PRIVATE) }
     var donationCount by remember { mutableIntStateOf(prefs.getInt("donation_count", 0)) }
     var showDonationDialog by remember { mutableStateOf(false) }
@@ -119,6 +140,30 @@ fun MainApp(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var helpRoute by remember { mutableStateOf<String?>(null) }
+
+    BackHandler(enabled = !isExiting) {
+        val isEditingScreen = currentRoute == Screen.WorkerRegistry.route || 
+                             currentRoute?.startsWith("work_day_detail") == true ||
+                             currentRoute == Screen.Others.route
+
+        if (isEditingScreen) {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressTime < 2000) {
+                isExiting = true
+            } else {
+                lastBackPressTime = currentTime
+                scope.launch {
+                    MessageBarManager.showMessage("Modifiche non salvate. Premi ancora per uscire.")
+                }
+            }
+        } else {
+            if (navController.previousBackStackEntry == null) {
+                isExiting = true
+            } else {
+                navController.popBackStack()
+            }
+        }
+    }
 
     val screenTitle = remember(currentRoute, currentYear) {
         val yearSuffix = currentYear?.id?.let { " - $it" } ?: ""
@@ -290,4 +335,56 @@ fun AppBottomNavigation(navController: androidx.navigation.NavHostController) {
             )
         }
     }
+}
+
+@Composable
+fun ExitGreetingScreen(
+    title: String,
+    message: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 28.sp
+                ),
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+            Icon(
+                imageVector = Icons.Default.Agriculture,
+                contentDescription = null,
+                modifier = Modifier.size(120.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+private fun Context.findActivity(): ComponentActivity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is ComponentActivity) return context
+        context = context.baseContext
+    }
+    return null
 }

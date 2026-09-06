@@ -11,12 +11,19 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.gestbraccianti.R
 import com.example.gestbraccianti.ui.navigation.Screen
 import com.example.gestbraccianti.ui.utils.formatHours
 
@@ -105,6 +112,31 @@ fun DonationDialog(
 
 @Composable
 fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var showFullManual by remember { mutableStateOf(false) }
+
+    if (showFullManual) {
+        val manualText = remember {
+            try {
+                context.resources.openRawResource(R.raw.manuale_utente).bufferedReader().use { it.readText() }
+            } catch (e: Exception) {
+                "Errore caricamento manuale."
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { showFullManual = false },
+            title = { Text(stringResource(R.string.manual_dialog_title)) },
+            text = {
+                Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
+                    Text(manualText, style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFullManual = false }) { Text(stringResource(R.string.btn_close)) }
+            }
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -176,7 +208,18 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ho capito") }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = { showFullManual = true }) {
+                    Text(stringResource(R.string.btn_view_manual))
+                }
+                Button(onClick = onDismiss) {
+                    Text("Ho capito")
+                }
+            }
         }
     )
 }
