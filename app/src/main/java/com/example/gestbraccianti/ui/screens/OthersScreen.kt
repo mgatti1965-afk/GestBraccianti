@@ -636,6 +636,39 @@ fun TestTab(
             Text(stringResource(R.string.btn_view_log))
         }
 
+        var showManual by remember { mutableStateOf(false) }
+
+        if (showManual) {
+            val manualText = remember {
+                try {
+                    context.assets.open("manuale_utente.md").bufferedReader().use { it.readText() }
+                } catch (e: Exception) {
+                    "Errore caricamento manuale."
+                }
+            }
+            AlertDialog(
+                onDismissRequest = { showManual = false },
+                title = { Text(stringResource(R.string.manual_dialog_title)) },
+                text = {
+                    Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
+                        Text(manualText, style = MaterialTheme.typography.bodyMedium)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showManual = false }) { Text(stringResource(R.string.btn_close)) }
+                }
+            )
+        }
+
+        OutlinedButton(
+            onClick = { showManual = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.MenuBook, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.btn_view_manual))
+        }
+
         Text(
             stringResource(R.string.test_area_desc),
             style = MaterialTheme.typography.bodySmall,

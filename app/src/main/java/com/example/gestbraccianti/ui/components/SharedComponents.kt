@@ -10,11 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -112,13 +108,13 @@ fun DonationDialog(
 
 @Composable
 fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
-    val context = LocalContext.current
     var showFullManual by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if (showFullManual) {
         val manualText = remember {
             try {
-                context.resources.openRawResource(R.raw.manuale_utente).bufferedReader().use { it.readText() }
+                context.assets.open("manuale_utente.md").bufferedReader().use { it.readText() }
             } catch (e: Exception) {
                 "Errore caricamento manuale."
             }
@@ -208,18 +204,10 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(onClick = { showFullManual = true }) {
-                    Text(stringResource(R.string.btn_view_manual))
-                }
-                Button(onClick = onDismiss) {
-                    Text("Ho capito")
-                }
-            }
+            Button(onClick = onDismiss) { Text("Ho capito") }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = { showFullManual = true }) { Text("Manuale") }
         }
     )
 }
