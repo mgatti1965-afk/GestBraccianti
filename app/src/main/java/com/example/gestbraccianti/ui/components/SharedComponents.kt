@@ -42,11 +42,14 @@ fun SmallStatChip(label: String, hours: Double, color: Color) {
 
 /**
  * Funzione per aprire la pagina di donazione PayPal.
- * @param context Contesto per avviare l'Activity
- * @param appName Nome dell'app da mostrare come causale del pagamento
  */
-fun launchDonationIntent(context: android.content.Context, appName: String) {
-    val url = "https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=marco.gatti65@alice.it&amount=5.00&currency_code=EUR&item_name=Offerta%20Caffe%20$appName&solution_type=Sole&landing_page=Billing"
+fun launchDonationIntent(context: android.content.Context, appName: String, isTestMode: Boolean = false) {
+    val baseUrl = if (isTestMode) 
+        "https://www.sandbox.paypal.com/cgi-bin/webscr" 
+    else 
+        "https://www.paypal.com/cgi-bin/webscr"
+        
+    val url = "$baseUrl?cmd=_xclick&business=marco.gatti65@alice.it&amount=5.00&currency_code=EUR&item_name=Offerta%20Caffe%20$appName&solution_type=Sole&landing_page=Billing"
     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
     context.startActivity(intent)
 }
@@ -69,7 +72,8 @@ fun DonationDialog(
         title = {
             Text(
                 text = if (isBlocked) "Grazie di cuore! ☕" else "Offri un caffè ☕",
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
             )
         },
         text = {
@@ -84,25 +88,39 @@ fun DonationDialog(
                 Text(
                     text = if (isBlocked)
                         "Hai già sostenuto il progetto il numero massimo di volte. Ti ringraziamo immensamente per il tuo supporto!"
-                    else "Sostieni lo sviluppo di $appName con un contributo di 5€ per un buon caffè.\n\nVerrai reindirizzato su una pagina sicura gestita da PayPal."
+                    else "Sostieni lo sviluppo di $appName con un contributo di 5€ per un buon caffè.\n\nVerrai reindirizzato su una pagina sicura gestita da PayPal dove potrai usare il tuo account o una normale carta di credito/prepagata.",
+                    fontSize = 16.sp
                 )
             }
         },
         confirmButton = {
-            if (!isBlocked) {
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("SOSTIENI CON 5€")
+                    Text(if (isBlocked) "CHIUDI" else "ANNULLA")
+                }
+                if (!isBlocked) {
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50) // GreenPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("SOSTIENI", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (isBlocked) "CHIUDI" else "ANNULLA")
-            }
-        }
+        dismissButton = null,
+        shape = RoundedCornerShape(20.dp)
     )
 }
 
@@ -121,15 +139,22 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
         }
         AlertDialog(
             onDismissRequest = { showFullManual = false },
-            title = { Text(stringResource(R.string.manual_dialog_title)) },
+            title = { Text(stringResource(R.string.manual_dialog_title), fontWeight = FontWeight.Bold) },
             text = {
                 Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
                     Text(manualText, style = MaterialTheme.typography.bodyMedium)
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showFullManual = false }) { Text(stringResource(R.string.btn_close)) }
-            }
+                Button(
+                    onClick = { showFullManual = false },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Ho capito", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -204,11 +229,28 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) { Text("Ho capito") }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = { showFullManual = true },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Manuale", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Ho capito", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         },
-        dismissButton = {
-            OutlinedButton(onClick = { showFullManual = true }) { Text("Manuale") }
-        }
+        dismissButton = null,
+        shape = RoundedCornerShape(20.dp)
     )
 }
 

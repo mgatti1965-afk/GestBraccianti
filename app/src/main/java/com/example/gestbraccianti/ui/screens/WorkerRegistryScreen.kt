@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.FlowRow
@@ -26,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -142,22 +144,32 @@ fun WorkerListTab(viewModel: WorkerViewModel, yearId: Int) {
             title = { Text(stringResource(R.string.delete_worker_confirm_title), fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.delete_worker_confirm_msg, "${selectedWorker!!.surname} ${selectedWorker!!.name}")) },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteWorker(selectedWorker!!)
-                        showDeleteConfirm = false
-                        selectedWorker = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(stringResource(R.string.confirm_btn))
+                    TextButton(
+                        onClick = { showDeleteConfirm = false },
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel_btn))
+                    }
+                    Button(
+                        onClick = {
+                            viewModel.deleteWorker(selectedWorker!!)
+                            showDeleteConfirm = false
+                            selectedWorker = null
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.confirm_btn), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.cancel_btn))
-                }
-            }
+            dismissButton = null,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -441,14 +453,32 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                 ) 
             },
             confirmButton = {
-                Button(onClick = {
-                    if (groupName.isNotBlank()) {
-                        groupViewModel.createGroup(groupName)
-                        showAddGroupDialog = false
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = { showAddGroupDialog = false },
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel_btn))
                     }
-                }) { Text(stringResource(R.string.btn_create)) }
+                    Button(
+                        onClick = {
+                            if (groupName.isNotBlank()) {
+                                groupViewModel.createGroup(groupName)
+                                showAddGroupDialog = false
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.btn_create), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             },
-            dismissButton = { TextButton(onClick = { showAddGroupDialog = false }) { Text(stringResource(R.string.cancel_btn)) } }
+            dismissButton = null,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -485,7 +515,16 @@ fun GroupListTab(groupViewModel: WorkerGroupViewModel, workerViewModel: WorkerVi
                     }
                 }
             },
-            confirmButton = { Button(onClick = { groupToEditMembers = null }) { Text(stringResource(R.string.btn_close)) } }
+            confirmButton = {
+                Button(
+                    onClick = { groupToEditMembers = null },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(stringResource(R.string.btn_close), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
         )
     }
 }
@@ -742,21 +781,41 @@ fun AddEditWorkerDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    // Refactor parsing logic to safely handle both dot and comma as decimal separators.
-                    // We avoid .replace(".", "") because it incorrectly removes decimal dots.
-                    // The regex already ensures there's only one separator.
-                    val r = rate.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    val er = extraRate.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    val hr = holidayRate.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    if (surname.isNotBlank()) {
-                        onConfirm(name, surname, phoneNumber, r, er, hr)
-                    }
-                },
-                enabled = surname.isNotBlank()
-            ) { Text(if (worker == null) stringResource(R.string.btn_add) else stringResource(R.string.btn_save)) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    Text(stringResource(R.string.cancel_btn))
+                }
+                Button(
+                    onClick = {
+                        // Refactor parsing logic to safely handle both dot and comma as decimal separators.
+                        // We avoid .replace(".", "") because it incorrectly removes decimal dots.
+                        // The regex already ensures there's only one separator.
+                        val r = rate.replace(',', '.').toDoubleOrNull() ?: 0.0
+                        val er = extraRate.replace(',', '.').toDoubleOrNull() ?: 0.0
+                        val hr = holidayRate.replace(',', '.').toDoubleOrNull() ?: 0.0
+                        if (surname.isNotBlank()) {
+                            onConfirm(name, surname, phoneNumber, r, er, hr)
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = surname.isNotBlank()
+                ) {
+                    Text(
+                        if (worker == null) stringResource(R.string.btn_add) else stringResource(R.string.btn_save),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_btn)) } }
+        dismissButton = null,
+        shape = RoundedCornerShape(20.dp)
     )
 }

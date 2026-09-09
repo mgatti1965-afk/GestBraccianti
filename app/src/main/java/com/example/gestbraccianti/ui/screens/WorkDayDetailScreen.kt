@@ -368,14 +368,30 @@ private fun AddGroupToDayDialog(
             title = { Text(stringResource(R.string.range_confirm_title, daysCount), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.range_confirm_text)) },
             confirmButton = {
-                Button(onClick = {
-                    showRangeConfirmDialog = false
-                    selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
-                }) { Text(stringResource(R.string.confirm_btn)) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = { showRangeConfirmDialog = false },
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel_btn))
+                    }
+                    Button(
+                        onClick = {
+                            showRangeConfirmDialog = false
+                            selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.confirm_btn), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { showRangeConfirmDialog = false }) { Text(stringResource(R.string.cancel_btn)) }
-            }
+            dismissButton = null,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -506,17 +522,36 @@ private fun AddGroupToDayDialog(
             }
         },
         confirmButton = {
-            Button(onClick = {
-                if (validateTimes()) {
-                    if (expandPeriod) {
-                        showRangeConfirmDialog = true
-                    } else {
-                        selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    Text(stringResource(R.string.cancel_btn))
                 }
-            }, enabled = isFormValid) { Text(stringResource(R.string.btn_save)) }
+                Button(
+                    onClick = {
+                        if (validateTimes()) {
+                            if (expandPeriod) {
+                                showRangeConfirmDialog = true
+                            } else {
+                                selectedGroup?.let { onConfirm(it, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = isFormValid
+                ) {
+                    Text(stringResource(R.string.btn_save), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_btn)) } }
+        dismissButton = null,
+        shape = RoundedCornerShape(20.dp)
     )
 }
 
@@ -597,7 +632,7 @@ fun TactileTimePicker(
         var tempTime by remember { mutableStateOf(value.ifBlank { defaultValue }) }
         AlertDialog(
             onDismissRequest = { showManualEdit = false },
-            title = { Text(stringResource(R.string.manual_entry_title)) },
+            title = { Text(stringResource(R.string.manual_entry_title), fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = tempTime, 
@@ -610,14 +645,32 @@ fun TactileTimePicker(
                 )
             },
             confirmButton = {
-                Button(onClick = {
-                    if (tempTime.matches(Regex("^([01]\\d|2[0-3]):([0-5]\\d)$"))) { 
-                        onValueChange(tempTime)
-                        showManualEdit = false 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = { showManualEdit = false },
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel_btn))
                     }
-                }) { Text(stringResource(R.string.ok_btn)) }
+                    Button(
+                        onClick = {
+                            if (tempTime.matches(Regex("^([01]\\d|2[0-3]):([0-5]\\d)$"))) { 
+                                onValueChange(tempTime)
+                                showManualEdit = false 
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.ok_btn), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             },
-            dismissButton = { TextButton(onClick = { showManualEdit = false }) { Text(stringResource(R.string.cancel_btn)) } }
+            dismissButton = null,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -758,14 +811,30 @@ private fun AddWorkerToDayDialog(
             title = { Text(stringResource(R.string.range_confirm_title, daysCount), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.range_confirm_text)) },
             confirmButton = {
-                Button(onClick = {
-                    showRangeConfirmDialog = false
-                    selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
-                }) { Text(stringResource(R.string.confirm_btn)) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = { showRangeConfirmDialog = false },
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel_btn))
+                    }
+                    Button(
+                        onClick = {
+                            showRangeConfirmDialog = false
+                            selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, endDate) }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.confirm_btn), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { showRangeConfirmDialog = false }) { Text(stringResource(R.string.cancel_btn)) }
-            }
+            dismissButton = null,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -930,17 +999,36 @@ private fun AddWorkerToDayDialog(
             }
         },
         confirmButton = {
-            Button(onClick = {
-                if (validateTimes()) {
-                    if (expandPeriod) {
-                        showRangeConfirmDialog = true
-                    } else {
-                        selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    Text(stringResource(R.string.cancel_btn))
                 }
-            }, enabled = isFormValid) { Text(stringResource(R.string.btn_save)) }
+                Button(
+                    onClick = {
+                        if (validateTimes()) {
+                            if (expandPeriod) {
+                                showRangeConfirmDialog = true
+                            } else {
+                                selectedWorker?.let { onConfirm(it.id, morningStart, morningEnd, afternoonStart, afternoonEnd, null) }
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = isFormValid
+                ) {
+                    Text(stringResource(R.string.btn_save), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_btn)) } }
+        dismissButton = null,
+        shape = RoundedCornerShape(20.dp)
     )
 }
 

@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -22,7 +23,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -116,6 +122,11 @@ fun MainApp(
     val prefs = remember { context.getSharedPreferences("donation_prefs", android.content.Context.MODE_PRIVATE) }
     var donationCount by remember { mutableIntStateOf(prefs.getInt("donation_count", 0)) }
     var showDonationDialog by remember { mutableStateOf(false) }
+    var isTestMode by remember { mutableStateOf(false) }
+    var showTestPasswordDialog by remember { mutableStateOf(false) }
+    var testPassword by remember { mutableStateOf("") }
+    var isPasswordWrong by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         MessageBarManager.messages.collect { appMessage ->
@@ -195,11 +206,23 @@ fun MainApp(
                 CenterAlignedTopAppBar(
                     title = { Text(screenTitle) },
                     actions = {
-                        IconButton(
-                            onClick = { showDonationDialog = true },
-                            modifier = Modifier.background(Color.Gray.copy(alpha = 0.1f), CircleShape)
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color.Gray.copy(alpha = 0.1f))
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { showDonationDialog = true },
+                                        onLongPress = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            showTestPasswordDialog = true
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "☕", fontSize = 20.sp)
+                            Text(text = "☕", fontSize = 22.sp)
                         }
                         IconButton(onClick = { showGlobalHelp = true }) {
                             Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Guida")
@@ -287,14 +310,109 @@ fun MainApp(
         DonationDialog(
             donationCount = donationCount,
             appName = "GestBraccianti",
-            onDismiss = { showDonationDialog = false },
+            onDismiss = { 
+                showDonationDialog = false
+                isTestMode = false 
+            },
             onConfirm = {
                 showDonationDialog = false
-                launchDonationIntent(context, "GestBraccianti")
-                val newCount = donationCount + 1
-                prefs.edit().putInt("donation_count", newCount).apply()
-                donationCount = newCount
+                launchDonationIntent(context, "GestBraccianti", isTestMode)
+                if (!isTestMode) {
+                    val newCount = donationCount + 1
+                    prefs.edit().putInt("donation_count", newCount).apply()
+                    donationCount = newCount
+                }
+                isTestMode = false
             }
+        )
+    }
+
+    // Gestione Dialogo Password Sandbox (attivato da LongPress)
+    if (showTestPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showTestPasswordDialog = false
+                testPassword = ""
+                isPasswordWrong = false
+            },
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Modalità Test") },
+            text = {
+                Column {
+                    TextField(
+                        value = testPassword,
+                        onValueChange = { 
+                            testPassword = it
+                            isPasswordWrong = false 
+                        },
+                        label = { Text("Password Sandbox") },
+                        singleLine = true,
+                        isError = isPasswordWrong,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onDone = {
+                                if (testPassword.trim() == "Nidama01") {
+                                    isTestMode = true
+                                    showTestPasswordDialog = false
+                                    showDonationDialog = true
+                                    testPassword = ""
+                                    isPasswordWrong = false
+                                } else {
+                                    isPasswordWrong = true
+                                }
+                            }
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (isPasswordWrong) {
+                        Text(
+                            text = "Password errata. Riprova.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = { 
+                            showTestPasswordDialog = false
+                            testPassword = ""
+                            isPasswordWrong = false
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("ANNULLA")
+                    }
+                    Button(
+                        onClick = {
+                            if (testPassword.trim() == "Nidama01") {
+                                isTestMode = true
+                                showTestPasswordDialog = false
+                                showDonationDialog = true
+                                testPassword = ""
+                                isPasswordWrong = false
+                            } else {
+                                isPasswordWrong = true
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("ENTRA")
+                    }
+                }
+            },
+            dismissButton = null
         )
     }
 }

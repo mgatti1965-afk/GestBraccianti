@@ -45,6 +45,8 @@
     <string name="test_area_desc">Usa questi tasti per generare dati di prova, pulire l\'archivio o diagnosticare errori.</string>
     <string name="toast_test_workers_created">Creati 10 braccianti di prova</string>
     <string name="toast_database_cleared">Database svuotato correttamente</string>
+    <string name="delete_database_confirm_title">Svuota Database</string>
+    <string name="delete_database_confirm_msg">Sei sicuro di voler eliminare TUTTI i dati presenti nel database? Questa operazione è irreversibile e comporterà la perdita totale di braccianti, gruppi e ore lavorate per ogni annata. Si consiglia vivamente di effettuare un backup CSV prima di procedere.</string>
     <string name="toast_log_prepared">Log preparato per la condivisione</string>
 
     <string name="share_backup_title">Invia Backup</string>

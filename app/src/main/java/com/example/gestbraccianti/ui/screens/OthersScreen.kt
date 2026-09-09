@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
@@ -24,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -230,34 +232,45 @@ fun OthersScreen(
     if (showImportConfirmation && importUri != null) {
         AlertDialog(
             onDismissRequest = { showImportConfirmation = false },
-            title = { Text(stringResource(R.string.confirm_import_title)) },
+            title = { Text(stringResource(R.string.confirm_import_title), fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.confirm_import_text, importDateStr)) },
             confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            // Auto-backup before import
-                            CsvUtils.createInternalBackup(context)
-
-                            val success = CsvUtils.importFromCsv(context, importUri!!)
-                            if (success) {
-                                MessageBarManager.showMessage(context.getString(R.string.toast_imported), duration = SnackbarDuration.Long)
-                            } else {
-                                MessageBarManager.showMessage(context.getString(R.string.toast_import_error), isError = true)
-                            }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = {
                             showImportConfirmation = false
                             importUri = null
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.confirm_btn)) }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) { Text(stringResource(R.string.cancel_btn)) }
+
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                // Auto-backup before import
+                                CsvUtils.createInternalBackup(context)
+
+                                val success = CsvUtils.importFromCsv(context, importUri!!)
+                                if (success) {
+                                    MessageBarManager.showMessage(context.getString(R.string.toast_imported), duration = SnackbarDuration.Long)
+                                } else {
+                                    MessageBarManager.showMessage(context.getString(R.string.toast_import_error), isError = true)
+                                }
+                                showImportConfirmation = false
+                                importUri = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text(stringResource(R.string.confirm_btn), color = Color.White, fontWeight = FontWeight.Bold) }
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { 
-                    showImportConfirmation = false 
-                    importUri = null
-                }) { Text(stringResource(R.string.cancel_btn)) }
-            }
+            dismissButton = null,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -529,14 +542,48 @@ fun TestTab(
         }
 
         // Nuovo tasto per svuotare il database
+        var showDeleteConfirm by remember { mutableStateOf(false) }
+
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                title = { Text(stringResource(R.string.delete_database_confirm_title), fontWeight = FontWeight.Bold) },
+                text = { Text(stringResource(R.string.delete_database_confirm_msg)) },
+                confirmButton = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TextButton(
+                            onClick = { showDeleteConfirm = false },
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Text(stringResource(R.string.cancel_btn))
+                        }
+                        Button(
+                            onClick = {
+                                scope.launch(Dispatchers.IO) {
+                                    val db = com.example.gestbraccianti.data.AppDatabase.getDatabase(context)
+                                    db.clearAllTables()
+                                    MessageBarManager.showMessage(context.getString(R.string.toast_database_cleared))
+                                }
+                                showDeleteConfirm = false
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(stringResource(R.string.confirm_btn), color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                },
+                dismissButton = null,
+                shape = RoundedCornerShape(20.dp)
+            )
+        }
+
         OutlinedButton(
-            onClick = {
-                scope.launch(Dispatchers.IO) {
-                    val db = com.example.gestbraccianti.data.AppDatabase.getDatabase(context)
-                    db.clearAllTables()
-                    MessageBarManager.showMessage(context.getString(R.string.toast_database_cleared))
-                }
-            },
+            onClick = { showDeleteConfirm = true },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
         ) {
@@ -552,48 +599,76 @@ fun TestTab(
         if (showLogError != null) {
             AlertDialog(
                 onDismissRequest = { showLogError = null },
-                title = { Text("Errore Recupero Log") },
+                title = { Text("Errore Recupero Log", fontWeight = FontWeight.Bold) },
                 text = { Text(showLogError!!) },
                 confirmButton = {
-                    TextButton(onClick = { showLogError = null }) { Text("OK") }
-                }
+                    Button(
+                        onClick = { showLogError = null },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Ho capito", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                shape = RoundedCornerShape(20.dp)
             )
         }
 
         if (logContent != null) {
             AlertDialog(
                 onDismissRequest = { logContent = null },
-                title = { Text("Log di Sistema (Ultime 100 righe)") },
+                title = { Text("Log di Sistema", fontWeight = FontWeight.Bold) },
                 text = {
-                    Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
-                        SelectionContainer {
-                            Text(logContent!!, style = MaterialTheme.typography.bodySmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("(Ultime 100 righe)", style = MaterialTheme.typography.labelSmall)
+                        Box(modifier = Modifier.height(300.dp).verticalScroll(rememberScrollState())) {
+                            SelectionContainer {
+                                Text(logContent!!, style = MaterialTheme.typography.bodySmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            }
                         }
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { logContent = null }) { Text("Chiudi") }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clip = ClipData.newPlainText("Log GestBraccianti", logContent)
-                            clipboard.setPrimaryClip(clip)
-                            scope.launch {
-                                MessageBarManager.showMessage("Copiato negli appunti")
-                            }
-                        }) { Text("Copia") }
-                        
-                        TextButton(onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                val backupDir = File(context.getExternalFilesDir(null), "backups")
-                                val logFile = File(backupDir, "log_debug.txt")
-                                shareFile(context, logFile)
-                            }
-                        }) { Text("Condividi") }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Log GestBraccianti", logContent)
+                                    clipboard.setPrimaryClip(clip)
+                                    scope.launch {
+                                        MessageBarManager.showMessage("Copiato negli appunti")
+                                    }
+                                },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) { Text("Copia") }
+
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch(Dispatchers.IO) {
+                                        val backupDir = File(context.getExternalFilesDir(null), "backups")
+                                        val logFile = File(backupDir, "log_debug.txt")
+                                        shareFile(context, logFile)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) { Text("Condividi") }
+                        }
+                        Button(
+                            onClick = { logContent = null },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Chiudi", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
-                }
+                },
+                shape = RoundedCornerShape(20.dp)
             )
         }
 
@@ -648,15 +723,22 @@ fun TestTab(
             }
             AlertDialog(
                 onDismissRequest = { showManual = false },
-                title = { Text(stringResource(R.string.manual_dialog_title)) },
+                title = { Text(stringResource(R.string.manual_dialog_title), fontWeight = FontWeight.Bold) },
                 text = {
                     Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
                         Text(manualText, style = MaterialTheme.typography.bodyMedium)
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showManual = false }) { Text(stringResource(R.string.btn_close)) }
-                }
+                    Button(
+                        onClick = { showManual = false },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Ho capito", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                shape = RoundedCornerShape(20.dp)
             )
         }
 

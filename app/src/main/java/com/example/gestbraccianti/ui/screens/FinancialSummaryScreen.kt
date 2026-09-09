@@ -254,35 +254,46 @@ fun FinancialSummaryScreen(viewModel: WorkLogViewModel, groupViewModel: WorkerGr
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            showReportDialog = false
-                            val logsToExport = if (selectedWorkerIdForReport == null) {
-                                filteredLogs
-                            } else {
-                                filteredLogs.filter { it.workerId == selectedWorkerIdForReport }
-                            }
-                            
-                            val pdfFile = generatePdfReport(
-                                context = context,
-                                logs = logsToExport,
-                                yearStats = stats,
-                                filterTitle = filters[selectedFilter],
-                                referenceDate = referenceDate,
-                                groupingType = if (selectedWorkerIdForReport != null) GroupingType.BY_WORKER else groupingType,
-                                viewMode = effectiveViewMode,
-                                groups = groups,
-                                groupToWorkers = groupToWorkers
-                            )
-                            if (pdfFile != null) sharePdf(context, pdfFile)
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(stringResource(R.string.btn_generate_pdf))
+                        TextButton(
+                            onClick = { showReportDialog = false },
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) { Text(stringResource(R.string.cancel_btn)) }
+
+                        Button(
+                            onClick = {
+                                showReportDialog = false
+                                val logsToExport = if (selectedWorkerIdForReport == null) {
+                                    filteredLogs
+                                } else {
+                                    filteredLogs.filter { it.workerId == selectedWorkerIdForReport }
+                                }
+                                
+                                val pdfFile = generatePdfReport(
+                                    context = context,
+                                    logs = logsToExport,
+                                    yearStats = stats,
+                                    filterTitle = filters[selectedFilter],
+                                    referenceDate = referenceDate,
+                                    groupingType = if (selectedWorkerIdForReport != null) GroupingType.BY_WORKER else groupingType,
+                                    viewMode = effectiveViewMode,
+                                    groups = groups,
+                                    groupToWorkers = groupToWorkers
+                                )
+                                if (pdfFile != null) sharePdf(context, pdfFile)
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(stringResource(R.string.btn_generate_pdf), color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
-                dismissButton = {
-                    TextButton(onClick = { showReportDialog = false }) { Text(stringResource(R.string.cancel_btn)) }
-                }
+                dismissButton = null,
+                shape = RoundedCornerShape(20.dp)
             )
         }
         Column(modifier = Modifier.padding(innerPadding)) {
@@ -1066,8 +1077,15 @@ fun AggregatedSummaryDialog(summary: AggregatedSummary, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_close)) }
-        }
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(stringResource(R.string.btn_close), color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
     )
 }
 
@@ -1153,8 +1171,15 @@ fun WorkLogDetailDialog(log: WorkLog, workerName: String, onDismiss: () -> Unit)
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_close)) }
-        }
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(stringResource(R.string.btn_close), color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
     )
 }
 

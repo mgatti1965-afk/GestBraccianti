@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -64,37 +66,52 @@ fun YearSelectionScreen(
     if (errorMessage != null) {
         AlertDialog(
             onDismissRequest = { errorMessage = null },
-            title = { Text("Attenzione") },
+            title = { Text("Attenzione", fontWeight = FontWeight.Bold) },
             text = { Text(errorMessage!!) },
             confirmButton = {
-                TextButton(onClick = { errorMessage = null }) {
-                    Text("OK")
+                Button(
+                    onClick = { errorMessage = null },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
                 }
-            }
+            },
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
     if (yearToDelete != null) {
         AlertDialog(
             onDismissRequest = { yearToDelete = null },
-            title = { Text("Elimina Annata") },
+            title = { Text("Elimina Annata", fontWeight = FontWeight.Bold) },
             text = { Text("Sei sicuro di voler eliminare l'annata ${yearToDelete!!.id}? Tutti i dati relativi (braccianti e ore di lavoro) verranno persi permanentemente.") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteYear(yearToDelete!!.id)
-                        yearToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Elimina")
+                    TextButton(
+                        onClick = { yearToDelete = null },
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Text("Annulla")
+                    }
+                    Button(
+                        onClick = {
+                            viewModel.deleteYear(yearToDelete!!.id)
+                            yearToDelete = null
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Elimina", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { yearToDelete = null }) {
-                    Text("Annulla")
-                }
-            }
+            dismissButton = null,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -236,18 +253,30 @@ fun AddYearDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { 
-                yearText.toIntOrNull()?.let { 
-                    onConfirm(it, notesText, migrateWorkers && hasPreviousYear, migrateGroups && hasPreviousYear)
-                } 
-            }) {
-                Text("Crea")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    Text("Annulla")
+                }
+                Button(
+                    onClick = { 
+                        yearText.toIntOrNull()?.let { 
+                            onConfirm(it, notesText, migrateWorkers && hasPreviousYear, migrateGroups && hasPreviousYear)
+                        } 
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Crea", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annulla")
-            }
-        }
+        dismissButton = null,
+        shape = RoundedCornerShape(20.dp)
     )
 }
