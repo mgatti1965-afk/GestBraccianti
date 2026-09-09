@@ -16,7 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gestbraccianti.R
@@ -141,14 +145,18 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
             onDismissRequest = { showFullManual = false },
             title = { Text(stringResource(R.string.manual_dialog_title), fontWeight = FontWeight.Bold) },
             text = {
-                Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
-                    Text(manualText, style = MaterialTheme.typography.bodyMedium)
+                Box(modifier = Modifier
+                    .height(500.dp)
+                    .verticalScroll(rememberScrollState())) {
+                    MarkdownText(manualText)
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showFullManual = false },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Ho capito", color = Color.White, fontWeight = FontWeight.Bold)
@@ -262,6 +270,85 @@ fun HelpRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String
         Column {
             Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Text(desc, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+fun MarkdownText(text: String) {
+    val lines = text.split("\n")
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        lines.forEach { line ->
+            when {
+                line.startsWith("# ") -> {
+                    val content = line.substring(2)
+                    Text(
+                        text = content,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                line.startsWith("## ") -> {
+                    val content = line.substring(3)
+                    Text(
+                        text = content,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                    )
+                }
+                line.startsWith("### ") -> {
+                    val content = line.substring(4)
+                    Text(
+                        text = content,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                    )
+                }
+                line.startsWith("---") -> {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 2.dp)
+                }
+                else -> {
+                    if (line.isNotBlank()) {
+                        Text(
+                            text = parseInlineMarkdown(line),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun parseInlineMarkdown(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        var currentIndex = 0
+        val boldRegex = Regex("\\*\\*(.*?)\\*\\*")
+        
+        boldRegex.findAll(text).forEach { match ->
+            // Testo prima del grassetto
+            append(text.substring(currentIndex, match.range.first))
+            
+            // Testo in grassetto
+            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                append(match.groupValues[1])
+            }
+            
+            currentIndex = match.range.last + 1
+        }
+        
+        // Testo rimanente
+        if (currentIndex < text.length) {
+            append(text.substring(currentIndex))
         }
     }
 }
