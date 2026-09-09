@@ -3,6 +3,7 @@ package com.example.gestbraccianti.data.utils
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.core.content.edit
 import androidx.room.withTransaction
 import com.example.gestbraccianti.data.AppDatabase
 import com.example.gestbraccianti.data.entity.*
@@ -17,10 +18,11 @@ object CsvUtils {
 
     suspend fun exportToCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         val db = AppDatabase.getDatabase(context)
+        val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
         try {
             context.contentResolver.openOutputStream(uri)?.use { output ->
                 OutputStreamWriter(output).use { writer ->
-                    writeCsvData(db, writer)
+                    writeCsvData(db, writer, prefs)
                 }
             }
             true
@@ -32,6 +34,7 @@ object CsvUtils {
 
     suspend fun createInternalBackup(context: Context): Boolean = withContext(Dispatchers.IO) {
         val db = AppDatabase.getDatabase(context)
+        val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
         try {
             val backupDir = File(context.getExternalFilesDir(null), "backups")
             if (!backupDir.exists()) backupDir.mkdirs()
@@ -40,7 +43,7 @@ object CsvUtils {
             val file = File(backupDir, "GestBraccianti_AutoBkp_$timestamp.csv")
             
             FileWriter(file).use { writer ->
-                writeCsvData(db, writer)
+                writeCsvData(db, writer, prefs)
             }
             true
         } catch (e: Exception) {
@@ -49,7 +52,21 @@ object CsvUtils {
         }
     }
 
-    private suspend fun writeCsvData(db: AppDatabase, writer: Writer) {
+    private suspend fun writeCsvData(db: AppDatabase, writer: Writer, prefs: android.content.SharedPreferences) {
+        // Settings (SharedPreferences)
+        writer.write("TIPO;CHIAVE;VALORE\n")
+        val ownerName = prefs.getString("owner_name", "") ?: ""
+        val ownerSurname = prefs.getString("owner_surname", "") ?: ""
+        val ownerPhone = prefs.getString("owner_phone", "") ?: ""
+        val extraThreshold = prefs.getFloat("extra_hours_threshold", 8.0f)
+        val festiveType = prefs.getInt("festive_days_type", 3)
+
+        writer.write("S;owner_name;$ownerName\n")
+        writer.write("S;owner_surname;$ownerSurname\n")
+        writer.write("S;owner_phone;$ownerPhone\n")
+        writer.write("S;extra_hours_threshold;$extraThreshold\n")
+        writer.write("S;festive_days_type;$festiveType\n")
+
         // Workers
         val workers = db.workerDao().getAllWorkersStatic()
         if (workers.isNotEmpty()) {
@@ -118,6 +135,7 @@ object CsvUtils {
 
     suspend fun importFromCsv(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         val db = AppDatabase.getDatabase(context)
+        val prefs = context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE)
         try {
             val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext false
             val reader = BufferedReader(InputStreamReader(inputStream))
@@ -136,13 +154,33 @@ object CsvUtils {
                     sdb.execSQL("DELETE FROM harvest_years")
                     sdb.execSQL("DELETE FROM plantations")
 
-                    // Dobbiamo rileggere il file per ogni tipo di record o caricarlo in modo intelligente.
-                    // Dato che il file non dovrebbe essere giga, leggiamolo in una lista solo una volta
-                    // ma usiamo un approccio che consumi meno memoria possibile o processiamolo riga per riga.
-                    // La soluzione migliore per mantenere l'ordine FK (anche se OFF) è processare i record in ordine.
-                    
                     val lines = reader.readLines()
                     
+                    // 0. Importazione Impostazioni (S)
+                    val settingsLines = lines.filter { it.startsWith("S;") }
+                    if (settingsLines.isNotEmpty()) {
+                        prefs.edit {
+                            settingsLines.forEach { line ->
+                                try {
+                                    val parts = line.split(";")
+                                    if (parts.size >= 3) {
+                                        val key = parts[1]
+                                        val value = parts[2]
+                                        when (key) {
+                                            "owner_name" -> putString("owner_name", value)
+                                            "owner_surname" -> putString("owner_surname", value)
+                                            "owner_phone" -> putString("owner_phone", value)
+                                            "extra_hours_threshold" -> putFloat("extra_hours_threshold", value.toFloatOrNull() ?: 8.0f)
+                                            "festive_days_type" -> putInt("festive_days_type", value.toIntOrNull() ?: 3)
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("CsvUtils", "Error importing setting: $line", e)
+                                }
+                            }
+                        }
+                    }
+
                     // 1. Inserimento HarvestYear (Y)
                     lines.filter { it.startsWith("Y;") }.forEachIndexed { index, line ->
                         try {
