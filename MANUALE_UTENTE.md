@@ -1,5 +1,26 @@
 # Documentazione Applicazione GestBraccianti
 
+## Indice dei contenuti
+- [Introduzione](#introduzione)
+- [Guida all'Installazione (APK)](#-guida-allinstallazione-apk)
+    - [Caso A: Ricezione tramite WhatsApp](#caso-a-ricezione-tramite-whatsapp-consigliato)
+    - [Caso B: Ricezione tramite Email](#caso-b-ricezione-tramite-email)
+    - [Caso C: Download Diretto](#caso-c-download-diretto-sempre-ultima-versione)
+- [Avvisi di Sicurezza Comuni](#-avvisi-di-sicurezza-comuni)
+- [Struttura dell'Applicazione](#struttura-dellapplicazione-nellordine-di-accesso-per-un-corretto-utilizzo-dellapp)
+- [1. Selezione Annata](#1-selezione-annata)
+- [2. Impostazioni e Backup (Varie)](#2-impostazioni-e-backup-varie)
+- [3. Registro Braccianti (Anagrafica)](#3-registro-braccianti-anagrafica)
+- [4. Gestione Ore](#4-gestione-ore)
+- [5. Riepilogo](#5-riepilogo)
+- [6. Manuale in linea](#6---manuale-in-linea)
+- [7. Sostieni il Progetto](#7---sostieni-il-progetto)
+- [8. Limitazione di Responsabilità](#8---limitazione-di-responsabilità-disclaimer)
+- [9. Segnalazioni e Feedback](#9---segnalazioni-e-feedback)
+- [10. Se l'app ti è piaciuta](#10---se-lapp-ti-è-piaciuta)
+
+---
+
 ## Introduzione
 **GestBraccianti** è un'applicazione Android progettata per semplificare il conteggio delle ore lavorate dai propri dipendenti. Permette di tracciare le ore di lavoro dei braccianti, gestire le tariffe orarie, organizzare i lavoratori in gruppi e generare riepiloghi dettagliati.
 
@@ -141,10 +162,9 @@ L’applicazione ha scopo puramente gestionale. Lo sviluppatore non risponde di 
 ---
 
 ## 9 - 🔴 Segnalazioni e Feedback
-L'applicazione è fornita così com'è. Se riscontri problemi o hai suggerimenti, puoi contattarmi in due modi semplici:
+L'applicazione è fornita così com'è. Se riscontri problemi o hai suggerimenti, puoi contattarmi tramite:
 
-- **Opzione A (WhatsApp):** [Clicca qui per inviare un messaggio](https://wa.me/IL_TUO_NUMERO?text=Ciao,%20ho%20una%20segnalazione%20per%20l'app%20GestBraccianti) - *Ideale per comunicazioni rapide.*
-- **Opzione B (Modulo Online):** [Compila il modulo segnalazioni](LINK_DEL_TUO_MODULO_GOOGLE) - *Ideale per spiegare il problema nel dettaglio senza usare WhatsApp.*
+- **WhatsApp:** https://wa.me/393286449326 (Clicca sul link per aprire la chat di supporto)
 
 *Nota: Non viene fornito supporto tramite GitHub o email private.*
 
@@ -152,5 +172,3 @@ L'applicazione è fornita così com'è. Se riscontri problemi o hai suggerimenti
 
 ## 10 - Se l'app ti è piaciuta
 Grazie per aver usato l'app! Se ti è stata utile, consigliala a parenti ed amici.
-
-

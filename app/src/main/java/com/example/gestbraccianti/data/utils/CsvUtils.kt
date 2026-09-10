@@ -143,16 +143,18 @@ object CsvUtils {
                 
                 sdb.execSQL("PRAGMA foreign_keys = OFF")
                 try {
-                    // Svuotamento tabelle
-                    sdb.execSQL("DELETE FROM worker_group_cross_ref")
-                    sdb.execSQL("DELETE FROM work_logs")
-                    sdb.execSQL("DELETE FROM worker_year_configs")
-                    sdb.execSQL("DELETE FROM worker_groups")
-                    sdb.execSQL("DELETE FROM workers")
-                    sdb.execSQL("DELETE FROM harvest_years")
-                    sdb.execSQL("DELETE FROM plantations")
-
                     val lines = reader.readLines()
+                    if (lines.isEmpty()) return@withTransaction
+
+                    // Svuotamento selettivo: eliminiamo i dati solo se presenti nel backup.
+                    // Questo evita di perdere i dati delle nuove sezioni (es. "Varie") se si carica un vecchio backup.
+                    if (lines.any { it.startsWith("X;") }) sdb.execSQL("DELETE FROM worker_group_cross_ref")
+                    if (lines.any { it.startsWith("L;") }) sdb.execSQL("DELETE FROM work_logs")
+                    if (lines.any { it.startsWith("C;") }) sdb.execSQL("DELETE FROM worker_year_configs")
+                    if (lines.any { it.startsWith("G;") }) sdb.execSQL("DELETE FROM worker_groups")
+                    if (lines.any { it.startsWith("W;") }) sdb.execSQL("DELETE FROM workers")
+                    if (lines.any { it.startsWith("Y;") }) sdb.execSQL("DELETE FROM harvest_years")
+                    if (lines.any { it.startsWith("P;") }) sdb.execSQL("DELETE FROM plantations")
                     
                     // 0. Importazione Impostazioni (S)
                     val settingsLines = lines.filter { it.startsWith("S;") }

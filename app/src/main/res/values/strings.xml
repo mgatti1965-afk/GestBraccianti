@@ -8,7 +8,6 @@
     <string name="owner_card_title">Azienda / Titolare</string>
     <string name="owner_surname_label">Cognome</string>
     <string name="owner_name_label">Nome</string>
-    <string name="import_contacts_desc">Importa da Contatti</string>
 
     <string name="settings_plant_title">Impostazioni Calcolo (Impianto)</string>
     <string name="settings_extra_threshold_label">Straordinari dopo (ore)</string>
@@ -52,6 +51,7 @@
     <string name="share_desc">Condividi</string>
     <string name="restore_desc">Ripristina</string>
     <string name="delete_desc">Elimina</string>
+    <string name="import_contacts_desc">Importa da rubrica</string>
 
     <!-- WorkerRegistryScreen -->
     <string name="tab_workers">Anagrafica</string>

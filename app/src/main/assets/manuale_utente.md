@@ -1,5 +1,26 @@
 # Documentazione Applicazione GestBraccianti
 
+## Indice dei contenuti
+- [Introduzione](#introduzione)
+- [Guida all'Installazione (APK)](#-guida-allinstallazione-apk)
+    - [Caso A: Ricezione tramite WhatsApp](#caso-a-ricezione-tramite-whatsapp-consigliato)
+    - [Caso B: Ricezione tramite Email](#caso-b-ricezione-tramite-email)
+    - [Caso C: Download Diretto](#caso-c-download-diretto-sempre-ultima-versione)
+- [Avvisi di Sicurezza Comuni](#-avvisi-di-sicurezza-comuni)
+- [Struttura dell'Applicazione](#struttura-dellapplicazione-nellordine-di-accesso-per-un-corretto-utilizzo-dellapp)
+- [1. Selezione Annata](#1-selezione-annata)
+- [2. Impostazioni e Backup (Varie)](#2-impostazioni-e-backup-varie)
+- [3. Registro Braccianti (Anagrafica)](#3-registro-braccianti-anagrafica)
+- [4. Gestione Ore](#4-gestione-ore)
+- [5. Riepilogo](#5-riepilogo)
+- [6. Manuale in linea](#6---manuale-in-linea)
+- [7. Sostieni il Progetto](#7---sostieni-il-progetto)
+- [8. Limitazione di Responsabilità](#8---limitazione-di-responsabilità-disclaimer)
+- [9. Segnalazioni e Feedback](#9---segnalazioni-e-feedback)
+- [10. Se l'app ti è piaciuta](#10---se-lapp-ti-è-piaciuta)
+
+---
+
 ## Introduzione
 **GestBraccianti** è un'applicazione Android progettata per semplificare il conteggio delle ore lavorate dai propri dipendenti. Permette di tracciare le ore di lavoro dei braccianti, gestire le tariffe orarie, organizzare i lavoratori in gruppi e generare riepiloghi dettagliati.
 
@@ -20,6 +41,10 @@ Poiché l'applicazione viene distribuita direttamente (non tramite il Play Store
 2. Una volta scaricato, clicca sulla notifica di **"Download completato"** che appare in alto sullo schermo.
 3. Se non trovi la notifica, apri l'app **"Download"** o **"File"** (o "Archivio") che trovi tra le tue applicazioni e cerca il file nella cartella "Download".
 4. Procedi con l'installazione autorizzando le "origini sconosciute" se richiesto (come al punto 3 del Caso A).
+
+### Caso C: Download Diretto (Sempre ultima versione)
+1. Clicca su questo link dal tuo smartphone: [Scarica APK](https://github.com/mgatti1965-afk/GestBraccianti/releases/latest/download/GestBraccianti-debug.apk)
+2. Il download partirà automaticamente. Al termine, clicca sul file e procedi come nel Caso A.
 
 ---
 
@@ -43,7 +68,8 @@ Durante l'installazione potresti vedere questi messaggi:
 6. **Manuale in linea**
 7. **Sostieni il Progetto**
 8. **Limitazione di Responsabilità**
-9. **Se l'app ti è piaciuta**
+9. **Segnalazioni e Feedback**
+10. **Se l'app ti è piaciuta**
 
 ---
 
@@ -131,10 +157,16 @@ Icona della tazzina di caffè (PayPal). Transazione singola da 5€ per sostener
 ---
 
 ## 8 - 🔴 Limitazione di Responsabilità (Disclaimer)
-
 L’applicazione ha scopo puramente gestionale. Lo sviluppatore non risponde di errate totalizzazioni. L'utente è tenuto a verificare sempre gli effettivi importi.
 
 ---
 
-## 9 - Se l'app ti è piaciuta
+## 9 - 🔴 Segnalazioni e Feedback
+L'applicazione è fornita così com'è. Se riscontri problemi o hai suggerimenti, puoi contattarmi tramite:
+
+- **WhatsApp:** https://wa.me/393286449326 (Clicca sul link per aprire la chat di supporto)
+
+---
+
+## 10 - Se l'app ti è piaciuta
 Grazie per aver usato l'app! Se ti è stata utile, consigliala a parenti ed amici.

@@ -1,12 +1,9 @@
 package com.example.gestbraccianti.ui.screens
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.ContactsContract
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,7 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import com.example.gestbraccianti.R
 import com.example.gestbraccianti.data.utils.CsvUtils
@@ -63,74 +59,7 @@ fun OthersScreen(
         mutableIntStateOf(prefs.getInt("festive_days_type", 3))
     }
 
-    val contactPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickContact(),
-        onResult = { uri ->
-            uri?.let { contactUri ->
-                val projection = arrayOf(
-                    ContactsContract.Contacts._ID,
-                    ContactsContract.Contacts.DISPLAY_NAME,
-                    ContactsContract.Contacts.HAS_PHONE_NUMBER
-                )
-                context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
-                        val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME)
-                        val hasPhoneIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)
 
-                        val contactId = cursor.getString(idIndex)
-                        val displayName = cursor.getString(nameIndex)
-                        val hasPhone = cursor.getInt(hasPhoneIndex) > 0
-
-                        if (hasPhone) {
-                            // Ignoriamo il numero di telefono per il proprietario
-                        }
-                        
-                        val nameProjection = arrayOf(
-                            ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
-                            ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME
-                        )
-                        val where = "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
-                        val args = arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-
-                        try {
-                            context.contentResolver.query(ContactsContract.Data.CONTENT_URI, nameProjection, where, args, null)?.use { nameCursor ->
-                                if (nameCursor.moveToFirst()) {
-                                    val givenNameIndex = nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)
-                                    val familyNameIndex = nameCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)
-                                    ownerName = nameCursor.getString(givenNameIndex) ?: ""
-                                    ownerSurname = nameCursor.getString(familyNameIndex) ?: ""
-                                } else {
-                                    val parts = displayName.split(" ", limit = 2)
-                                    ownerName = parts.getOrNull(0) ?: ""
-                                    ownerSurname = parts.getOrNull(1) ?: ""
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e("OthersScreen", "Errore nel recupero nome strutturato", e)
-                            val parts = displayName.split(" ", limit = 2)
-                            ownerName = parts.getOrNull(0) ?: ""
-                            ownerSurname = parts.getOrNull(1) ?: ""
-                        }
-                        
-                        prefs.edit {
-                            putString("owner_name", ownerName)
-                            putString("owner_surname", ownerSurname)
-                        }
-                    }
-                }
-            }
-        }
-    )
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                contactPickerLauncher.launch(null)
-            }
-        }
-    )
 
     fun refreshBackupList() {
         val backupDir = File(context.getExternalFilesDir(null), "backups")
@@ -310,18 +239,6 @@ fun OthersScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(stringResource(R.string.owner_card_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                    IconButton(onClick = {
-                                        when (PackageManager.PERMISSION_GRANTED) {
-                                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) -> {
-                                                contactPickerLauncher.launch(null)
-                                            }
-                                            else -> {
-                                                permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                                            }
-                                        }
-                                    }) {
-                                        Icon(Icons.Default.ContactPage, contentDescription = stringResource(R.string.import_contacts_desc))
-                                    }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -710,8 +627,8 @@ fun TestTab(
                 onDismissRequest = { showManual = false },
                 title = { Text(stringResource(R.string.manual_dialog_title), fontWeight = FontWeight.Bold) },
                 text = {
-                    Box(modifier = Modifier.height(400.dp).verticalScroll(rememberScrollState())) {
-                        Text(manualText, style = MaterialTheme.typography.bodyMedium)
+                    Box(modifier = Modifier.height(500.dp)) {
+                        com.example.gestbraccianti.ui.components.MarkdownText(manualText)
                     }
                 },
                 confirmButton = {

@@ -1,9 +1,14 @@
 package com.example.gestbraccianti.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -14,18 +19,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gestbraccianti.R
 import com.example.gestbraccianti.ui.navigation.Screen
 import com.example.gestbraccianti.ui.utils.formatHours
+import kotlinx.coroutines.launch
 
 @Composable
 fun SmallStatChip(label: String, hours: Double, color: Color) {
@@ -145,9 +155,7 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
             onDismissRequest = { showFullManual = false },
             title = { Text(stringResource(R.string.manual_dialog_title), fontWeight = FontWeight.Bold) },
             text = {
-                Box(modifier = Modifier
-                    .height(500.dp)
-                    .verticalScroll(rememberScrollState())) {
+                Box(modifier = Modifier.height(500.dp)) {
                     MarkdownText(manualText)
                 }
             },
@@ -275,80 +283,232 @@ fun HelpRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String
 }
 
 @Composable
-fun MarkdownText(text: String) {
-    val lines = text.split("\n")
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        lines.forEach { line ->
-            when {
-                line.startsWith("# ") -> {
-                    val content = line.substring(2)
-                    Text(
-                        text = content,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                    )
+fun MarkdownText(text: String, modifier: Modifier = Modifier) {
+    val lines = remember(text) { text.split("\n") }
+    val lazyListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val linkColor = Color.Blue // Blu standard per massima visibilità
+    val uriHandler = LocalUriHandler.current
+
+    val anchors = remember(lines) {
+        val map = mutableMapOf<String, Int>()
+        lines.forEachIndexed { index, line ->
+            if (line.startsWith("#")) {
+                val headerText = line.trimStart('#').trim()
+                // More permissive slugging to match the manual's anchors
+                val slug = headerText.lowercase()
+                    .replace(Regex("[^a-z0-9\\s\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF-]"), "")
+                    .trim()
+                    .replace(Regex("\\s+"), "-")
+                
+                map[slug] = index
+                // Handle the manual's specific dash prefix for emoji headers
+                if (line.contains("🔴")) {
+                    map["-$slug"] = index
                 }
-                line.startsWith("## ") -> {
-                    val content = line.substring(3)
-                    Text(
-                        text = content,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
-                    )
-                }
-                line.startsWith("### ") -> {
-                    val content = line.substring(4)
-                    Text(
-                        text = content,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                    )
-                }
-                line.startsWith("---") -> {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 2.dp)
-                }
-                else -> {
-                    if (line.isNotBlank()) {
-                        Text(
-                            text = parseInlineMarkdown(line),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(vertical = 2.dp)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+        map
+    }
+
+    val showScrollToTop by remember {
+        derivedStateOf { lazyListState.firstVisibleItemIndex > 2 }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
+        ) {
+            itemsIndexed(lines) { index, line ->
+                MarkdownLine(
+                    line = line,
+                    linkColor = linkColor,
+                    onAnchorClick = { anchor ->
+                        anchors[anchor]?.let { targetIndex ->
+                            coroutineScope.launch {
+                                lazyListState.animateScrollToItem(targetIndex)
+                            }
+                        }
+                    },
+                    onUrlClick = { url ->
+                        try {
+                            uriHandler.openUri(url)
+                        } catch (e: Exception) {
+                            // Ignora errori di apertura
+                        }
                     }
-                }
+                )
+            }
+        }
+
+        if (showScrollToTop) {
+            SmallFloatingActionButton(
+                onClick = {
+                    coroutineScope.launch {
+                        lazyListState.animateScrollToItem(0)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .pointerHoverIcon(PointerIcon.Hand),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowUpward,
+                    contentDescription = "Torna su"
+                )
             }
         }
     }
 }
 
-fun parseInlineMarkdown(text: String): AnnotatedString {
+@Composable
+fun MarkdownLine(
+    line: String, 
+    linkColor: Color, 
+    onAnchorClick: (String) -> Unit,
+    onUrlClick: (String) -> Unit
+) {
+    val annotatedString = remember(line) { parseInlineMarkdown(line, linkColor) }
+    
+    val firstAnchor = remember(annotatedString) {
+        annotatedString.getStringAnnotations(tag = "ANCHOR", start = 0, end = annotatedString.length)
+            .firstOrNull()?.item
+    }
+    
+    val firstUrl = remember(annotatedString) {
+        annotatedString.getStringAnnotations(tag = "URL", start = 0, end = annotatedString.length)
+            .firstOrNull()?.item
+    }
+
+    when {
+        line.startsWith("# ") -> {
+            val content = line.substring(2)
+            Text(
+                text = content,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+            )
+        }
+        line.startsWith("## ") -> {
+            val content = line.substring(3)
+            Text(
+                text = content,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+            )
+        }
+        line.startsWith("### ") -> {
+            val content = line.substring(4)
+            Text(
+                text = content,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (content.contains("🔴")) Color.Red else MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+            )
+        }
+        line.startsWith("---") -> {
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 2.dp)
+        }
+        else -> {
+            if (line.isNotBlank()) {
+                val modifier = when {
+                    firstAnchor != null -> {
+                        Modifier
+                            .fillMaxWidth()
+                            .pointerHoverIcon(PointerIcon.Hand)
+                            .clickable { onAnchorClick(firstAnchor) }
+                            .padding(vertical = 2.dp, horizontal = 4.dp)
+                    }
+                    firstUrl != null -> {
+                        Modifier
+                            .fillMaxWidth()
+                            .pointerHoverIcon(PointerIcon.Hand)
+                            .clickable { onUrlClick(firstUrl) }
+                            .padding(vertical = 2.dp, horizontal = 4.dp)
+                    }
+                    else -> Modifier.padding(vertical = 2.dp)
+                }
+
+                Text(
+                    text = annotatedString,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = modifier
+                )
+            } else {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+fun parseInlineMarkdown(text: String, linkColor: Color): AnnotatedString {
+    // Sostituisce il trattino del markdown con un pallino più visibile
+    val displayLine = if (text.trimStart().startsWith("- ")) {
+        text.replaceFirst("-", "•")
+    } else text
+
     return buildAnnotatedString {
         var currentIndex = 0
-        val boldRegex = Regex("\\*\\*(.*?)\\*\\*")
+        // Supporta **grassetto**, [testo](#ancora), [testo](url) e link diretti http/https
+        val combinedRegex = Regex("(\\*\\*(.*?)\\*\\*)|\\[(.*?)\\]\\((.*?)\\)|(https?://[^\\s\\)]+)")
         
-        boldRegex.findAll(text).forEach { match ->
-            // Testo prima del grassetto
-            append(text.substring(currentIndex, match.range.first))
+        combinedRegex.findAll(displayLine).forEach { match ->
+            append(displayLine.substring(currentIndex, match.range.first))
             
-            // Testo in grassetto
-            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                append(match.groupValues[1])
+            val boldText = match.groupValues[2]
+            val linkText = match.groupValues[3]
+            val linkTarget = match.groupValues[4]
+            val rawUrl = match.groupValues[5]
+            
+            when {
+                boldText.isNotEmpty() -> {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(boldText)
+                    }
+                }
+                linkText.isNotEmpty() -> {
+                    val isAnchor = linkTarget.startsWith("#")
+                    val tag = if (isAnchor) "ANCHOR" else "URL"
+                    val annotation = if (isAnchor) linkTarget.removePrefix("#") else linkTarget
+                    
+                    pushStringAnnotation(tag = tag, annotation = annotation)
+                    withStyle(style = SpanStyle(
+                        color = linkColor, 
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline
+                    )) {
+                        append(linkText)
+                    }
+                    pop()
+                }
+                rawUrl.isNotEmpty() -> {
+                    pushStringAnnotation(tag = "URL", annotation = rawUrl)
+                    withStyle(style = SpanStyle(
+                        color = linkColor,
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline
+                    )) {
+                        append(rawUrl)
+                    }
+                    pop()
+                }
             }
             
             currentIndex = match.range.last + 1
         }
         
-        // Testo rimanente
-        if (currentIndex < text.length) {
-            append(text.substring(currentIndex))
+        if (currentIndex < displayLine.length) {
+            append(displayLine.substring(currentIndex))
         }
     }
 }
