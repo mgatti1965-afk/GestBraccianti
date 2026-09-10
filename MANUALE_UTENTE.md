@@ -21,6 +21,10 @@ Poiché l'applicazione viene distribuita direttamente (non tramite il Play Store
 3. Se non trovi la notifica, apri l'app **"Download"** o **"File"** (o "Archivio") che trovi tra le tue applicazioni e cerca il file nella cartella "Download".
 4. Procedi con l'installazione autorizzando le "origini sconosciute" se richiesto (come al punto 3 del Caso A).
 
+### Caso C: Download Diretto (Sempre ultima versione)
+1. Clicca su questo link dal tuo smartphone: [Scarica APK](https://github.com/mgatti1965-afk/GestBraccianti/releases/latest/download/GestBraccianti-debug.apk)
+2. Il download partirà automaticamente. Al termine, clicca sul file e procedi come nel Caso A.
+
 ---
 
 ## 🔴 Avvisi di Sicurezza Comuni
@@ -43,7 +47,8 @@ Durante l'installazione potresti vedere questi messaggi:
 6. **Manuale in linea**
 7. **Sostieni il Progetto**
 8. **Limitazione di Responsabilità**
-9. **Se l'app ti è piaciuta**
+9. **Segnalazioni e Feedback**
+10. **Se l'app ti è piaciuta**
 
 ---
 
@@ -59,7 +64,7 @@ Una volta impostati tali parametri la sezione diventa "inutile" al processo.
 
 Sezione dedicata alla configurazione e alla sicurezza dei dati.
 
-*   **Dati Titolare:** Inserimento di Nome, Cognome e Telefono del proprietario (utilizzati nell'intestazione dei report PDF).
+*   **Dati Titolare:** Inserimento di Nome e Cognome del proprietario (utilizzati nell'intestazione dei report PDF).
 *   **Soglia Straordinari:** Impostazione del numero di ore giornaliere oltre le quali scatta la tariffa straordinaria.
 *   **Giorni Festivi Settimanali:** Configurazione dei giorni che l'app deve considerare automaticamente come festivi (Nessuno, Sabato, Domenica o entrambi).
 *   **Backup CSV:**
@@ -73,7 +78,7 @@ Sezione dedicata alla configurazione e alla sicurezza dei dati.
 Gestione centralizzata dei collaboratori.
 
 ### Anagrafica
-*   **Scheda Lavoratore:** Nome, Cognome, Numero di telefono e gestione tariffe per l'anno selezionato:
+*   **Scheda Lavoratore:** Nome, Cognome e gestione tariffe per l'anno selezionato:
     *   **Tariffa Base:** Applicata alle ore ordinarie.
     *   **Tariffa Straordinari:** Applicata alle ore che eccedono la soglia giornaliera (se impostata).
     *   **Tariffa Festivi:** Applicata nei giorni festivi.
@@ -131,12 +136,21 @@ Icona della tazzina di caffè (PayPal). Transazione singola da 5€ per sostener
 ---
 
 ## 8 - 🔴 Limitazione di Responsabilità (Disclaimer)
-
 L’applicazione ha scopo puramente gestionale. Lo sviluppatore non risponde di errate totalizzazioni. L'utente è tenuto a verificare sempre gli effettivi importi.
 
 ---
 
-## 9 - Se l'app ti è piaciuta
+## 9 - 🔴 Segnalazioni e Feedback
+L'applicazione è fornita così com'è. Se riscontri problemi o hai suggerimenti, puoi contattarmi in due modi semplici:
+
+- **Opzione A (WhatsApp):** [Clicca qui per inviare un messaggio](https://wa.me/IL_TUO_NUMERO?text=Ciao,%20ho%20una%20segnalazione%20per%20l'app%20GestBraccianti) - *Ideale per comunicazioni rapide.*
+- **Opzione B (Modulo Online):** [Compila il modulo segnalazioni](LINK_DEL_TUO_MODULO_GOOGLE) - *Ideale per spiegare il problema nel dettaglio senza usare WhatsApp.*
+
+*Nota: Non viene fornito supporto tramite GitHub o email private.*
+
+---
+
+## 10 - Se l'app ti è piaciuta
 Grazie per aver usato l'app! Se ti è stata utile, consigliala a parenti ed amici.
 
 

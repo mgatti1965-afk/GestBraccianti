@@ -57,13 +57,11 @@ object CsvUtils {
         writer.write("TIPO;CHIAVE;VALORE\n")
         val ownerName = prefs.getString("owner_name", "") ?: ""
         val ownerSurname = prefs.getString("owner_surname", "") ?: ""
-        val ownerPhone = prefs.getString("owner_phone", "") ?: ""
         val extraThreshold = prefs.getFloat("extra_hours_threshold", 8.0f)
         val festiveType = prefs.getInt("festive_days_type", 3)
 
         writer.write("S;owner_name;$ownerName\n")
         writer.write("S;owner_surname;$ownerSurname\n")
-        writer.write("S;owner_phone;$ownerPhone\n")
         writer.write("S;extra_hours_threshold;$extraThreshold\n")
         writer.write("S;festive_days_type;$festiveType\n")
 
@@ -169,7 +167,6 @@ object CsvUtils {
                                         when (key) {
                                             "owner_name" -> putString("owner_name", value)
                                             "owner_surname" -> putString("owner_surname", value)
-                                            "owner_phone" -> putString("owner_phone", value)
                                             "extra_hours_threshold" -> putFloat("extra_hours_threshold", value.toFloatOrNull() ?: 8.0f)
                                             "festive_days_type" -> putInt("festive_days_type", value.toIntOrNull() ?: 3)
                                         }

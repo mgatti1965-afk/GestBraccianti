@@ -188,7 +188,7 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
                     HelpRow(Icons.Default.History, "ORE", "Registra presenze e orari nel calendario.")
                     HelpRow(Icons.Default.Calculate, "RIEPILOGO", "Controlla i totali e genera PDF/WhatsApp.")
                     HelpRow(Icons.Default.Group, "BRACCIANTI", "Gestisci l'anagrafica, le tariffe e i gruppi.")
-                    HelpRow(Icons.Default.MoreHoriz, "VARIE", "Imposta i tuoi dati e gestisci i Backup CSV.")
+                    HelpRow(Icons.Default.MoreHoriz, "VARIE", "Imposta i tuoi dati (Nome/Cognome) e gestisci i Backup CSV.")
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 }
 
@@ -220,7 +220,7 @@ fun GlobalHelpDialog(route: String?, onDismiss: () -> Unit) {
                     }
                     route == Screen.Others.route -> {
                         Text("5. VARIE", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                        HelpRow(Icons.Default.Business, "Dati Azienda", "Configura l'intestazione (Nome, P.IVA, etc.) che apparirà nei tuoi documenti PDF.")
+                        HelpRow(Icons.Default.Business, "Dati Azienda", "Configura l'intestazione (Nome e Cognome) che apparirà nei tuoi documenti PDF.")
                         HelpRow(Icons.Default.Backup, "Backup", "Esporta i dati in formato CSV per sicurezza o per aprirli in Excel/Google Sheets.")
                     }
                     isModificaOrari -> {

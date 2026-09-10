@@ -54,7 +54,6 @@ fun OthersScreen(
     val prefs = remember { context.getSharedPreferences("owner_prefs", Context.MODE_PRIVATE) }
     var ownerName by remember { mutableStateOf(prefs.getString("owner_name", "") ?: "") }
     var ownerSurname by remember { mutableStateOf(prefs.getString("owner_surname", "") ?: "") }
-    var ownerPhone by remember { mutableStateOf(prefs.getString("owner_phone", "") ?: "") }
 
     var extraHoursThreshold by remember { 
         val savedValue = prefs.getFloat("extra_hours_threshold", 8.0f)
@@ -84,18 +83,7 @@ fun OthersScreen(
                         val hasPhone = cursor.getInt(hasPhoneIndex) > 0
 
                         if (hasPhone) {
-                            val phoneCursor = context.contentResolver.query(
-                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
-                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                                arrayOf(contactId),
-                                null
-                            )
-                            phoneCursor?.use { pc ->
-                                if (pc.moveToFirst()) {
-                                    ownerPhone = pc.getString(0).replace(" ", "").replace("-", "")
-                                }
-                            }
+                            // Ignoriamo il numero di telefono per il proprietario
                         }
                         
                         val nameProjection = arrayOf(
@@ -128,7 +116,6 @@ fun OthersScreen(
                         prefs.edit {
                             putString("owner_name", ownerName)
                             putString("owner_surname", ownerSurname)
-                            putString("owner_phone", ownerPhone)
                         }
                     }
                 }
@@ -284,14 +271,12 @@ fun OthersScreen(
     ) {
         Text(stringResource(R.string.screen_others_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
-        val isOwner = remember(ownerPhone, ownerName, ownerSurname) {
-            val phone = ownerPhone.replace("+39", "").replace(" ", "")
+                        val isOwner = remember(ownerName, ownerSurname) {
             val s = ownerSurname.trim().lowercase()
             val n = ownerName.trim().lowercase()
             val full = "$s $n".trim()
             
             s == "x" || 
-            phone == "3286449326" || 
             full == "gatti marco" || 
             full == "marco gatti" || 
             full == "marco cell" || 

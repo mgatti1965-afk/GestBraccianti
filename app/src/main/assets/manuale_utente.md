@@ -59,7 +59,7 @@ Una volta impostati tali parametri la sezione diventa "inutile" al processo.
 
 Sezione dedicata alla configurazione e alla sicurezza dei dati.
 
-*   **Dati Titolare:** Inserimento di Nome, Cognome e Telefono del proprietario (utilizzati nell'intestazione dei report PDF).
+*   **Dati Titolare:** Inserimento di Nome e Cognome del proprietario (utilizzati nell'intestazione dei report PDF).
 *   **Soglia Straordinari:** Impostazione del numero di ore giornaliere oltre le quali scatta la tariffa straordinaria.
 *   **Giorni Festivi Settimanali:** Configurazione dei giorni che l'app deve considerare automaticamente come festivi (Nessuno, Sabato, Domenica o entrambi).
 *   **Backup CSV:**
@@ -73,7 +73,7 @@ Sezione dedicata alla configurazione e alla sicurezza dei dati.
 Gestione centralizzata dei collaboratori.
 
 ### Anagrafica
-*   **Scheda Lavoratore:** Nome, Cognome, Numero di telefono e gestione tariffe per l'anno selezionato:
+*   **Scheda Lavoratore:** Nome, Cognome e gestione tariffe per l'anno selezionato:
     *   **Tariffa Base:** Applicata alle ore ordinarie.
     *   **Tariffa Straordinari:** Applicata alle ore che eccedono la soglia giornaliera (se impostata).
     *   **Tariffa Festivi:** Applicata nei giorni festivi.
