@@ -197,4 +197,9 @@
     <string name="manual_holiday_toggle_toast_off">Calcolo festivo automatico ripristinato per %1$s</string>
     <string name="holiday_indicator">FESTIVO</string>
 
+    <!-- Backup Reminder -->
+    <string name="backup_reminder_title">Consiglio di Sicurezza</string>
+    <string name="backup_reminder_msg">Hai effettuato diverse operazioni dall\'ultimo backup. Ti consiglio di effettuare un backup da \'Varie\' e condividerlo per avere un salvataggio diverso dal telefono.</string>
+    <string name="btn_understand">Ho capito</string>
+
 </resources>

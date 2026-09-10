@@ -95,6 +95,7 @@ fun OthersScreen(
                             }
                         }
                         MessageBarManager.showMessage(context.getString(R.string.toast_exported))
+                        prefs.edit().putInt("save_count_since_backup", 0).apply()
                         refreshBackupList()
                     }
                 }

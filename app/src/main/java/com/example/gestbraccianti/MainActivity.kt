@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -127,6 +128,30 @@ fun MainApp(
     var testPassword by remember { mutableStateOf("") }
     var isPasswordWrong by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
+
+    // Dialog per consiglio backup se superate le 30 modifiche
+    val backupPrefs = remember { context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE) }
+    var showBackupDialog by remember { 
+        mutableStateOf(backupPrefs.getInt("save_count_since_backup", 0) > 30) 
+    }
+
+    if (showBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackupDialog = false },
+            title = { Text(stringResource(R.string.backup_reminder_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.backup_reminder_msg)) },
+            confirmButton = {
+                Button(
+                    onClick = { showBackupDialog = false },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                ) {
+                    Text(stringResource(R.string.btn_understand), color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+        )
+    }
 
     LaunchedEffect(Unit) {
         MessageBarManager.messages.collect { appMessage ->

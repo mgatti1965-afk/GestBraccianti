@@ -259,6 +259,11 @@ fun WorkDayDetailScreen(
             currentDate = date,
             onDismiss = { showAddWorkerDialog = false },
             onConfirm = { workerId, mStart, mEnd, pStart, pEnd, rangeEnd ->
+                // Increment backup save counter
+                val prefs = context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE)
+                val currentCount = prefs.getInt("save_count_since_backup", 0)
+                prefs.edit().putInt("save_count_since_backup", currentCount + 1).apply()
+
                 if (rangeEnd != null) {
                     workLogViewModel.saveLogRange(
                         workerId = workerId,
@@ -296,6 +301,11 @@ fun WorkDayDetailScreen(
             currentDate = date,
             onDismiss = { showAddGroupDialog = false },
             onConfirm = { group, mStart, mEnd, pStart, pEnd, rangeEnd ->
+                // Increment backup save counter
+                val prefs = context.getSharedPreferences("owner_prefs", android.content.Context.MODE_PRIVATE)
+                val currentCount = prefs.getInt("save_count_since_backup", 0)
+                prefs.edit().putInt("save_count_since_backup", currentCount + 1).apply()
+
                 scope.launch {
                     val members = groupViewModel.getWorkersInGroup(group.id).first()
                     members.forEach { worker ->
